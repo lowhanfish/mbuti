@@ -1,2 +1,23 @@
-# mbuti
-MBUTI (Multi-agent Business & Unified Task Intelligence) is an AI-powered virtual organization platform that enables businesses and institutions to build, manage, and orchestrate autonomous AI employees to collaborate, execute tasks, and automate complex workflows.
+# MBUTI
+
+MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform organisasi virtual berbasis AI. Organisasi menyusun **role AI** yang bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu mengatur hubungan antar-role: siapa menyerahkan ke siapa, siapa memeriksa, dan kapan manusia harus memutuskan.
+
+Rencana lengkap: [PLANNING.md](PLANNING.md).
+
+## Struktur
+
+| Folder | Isi | Status |
+|---|---|---|
+| [`admin/`](admin/) | Frontend Next.js | Tahap A0 selesai: kerangka, login, dan data contoh |
+| `server/` | Backend FastAPI (venv + uvicorn) | Belum dibuat; dikerjakan setelah fase frontend |
+
+## Menjalankan frontend
+
+```bash
+cd admin
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Buka http://localhost:3000 dan masuk dengan tombol **Masuk dengan akun demo**. Selama fase frontend, semua data adalah data contoh di peramban.

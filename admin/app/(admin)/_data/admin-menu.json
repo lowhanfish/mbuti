@@ -1,0 +1,28 @@
+[
+  { "title": "Dashboard", "path": "/admin", "icon": "dashboard", "children": null },
+  { "title": "Kantor", "path": "/admin/kantor", "icon": "office", "children": null },
+  { "title": "Tugas", "path": "/admin/tugas", "icon": "task", "children": null },
+  { "title": "Persetujuan", "path": "/admin/persetujuan", "icon": "approval", "children": null },
+  { "title": "Role", "path": "/admin/role", "icon": "agent", "children": null },
+  { "title": "Peta Relasi", "path": "/admin/relasi", "icon": "flow", "children": null },
+  { "title": "Pengetahuan", "path": "/admin/pengetahuan", "icon": "book", "children": null },
+  {
+    "title": "Organisasi",
+    "path": null,
+    "icon": "building",
+    "children": [
+      { "title": "Profil", "path": "/admin/organisasi/profil", "icon": "dot", "children": null },
+      { "title": "Unit / Divisi", "path": "/admin/organisasi/unit", "icon": "dot", "children": null },
+      { "title": "Pengguna", "path": "/admin/organisasi/pengguna", "icon": "dot", "children": null }
+    ]
+  },
+  {
+    "title": "Pengaturan",
+    "path": null,
+    "icon": "settings",
+    "children": [
+      { "title": "Model AI", "path": "/admin/pengaturan/model-ai", "icon": "dot", "children": null },
+      { "title": "Batas Biaya", "path": "/admin/pengaturan/batas-biaya", "icon": "dot", "children": null }
+    ]
+  }
+]

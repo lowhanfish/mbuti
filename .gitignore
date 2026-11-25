@@ -1,0 +1,26 @@
+# Rahasia dan konfigurasi lokal
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Berkas unggahan dan data lokal
+server/uploads/
+
+# Sistem
+.DS_Store
+
+# Konfigurasi lokal Claude Code
+.claude/
