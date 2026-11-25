@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import React, { Suspense, useState } from "react";
 import { confirmAlert } from "@/lib/show_swall";
 import { useAuthStore } from "@/store/useAuthStore";
-import { formatDate } from "@/utilities/labels";
 import { Button, Card, EmptyState, Skeleton } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
@@ -17,6 +16,7 @@ import TabProfil from "./components/TabProfil";
 import TabUjiCoba from "./components/TabUjiCoba";
 import TabDokumen from "./components/TabDokumen";
 import TabRelasi from "./components/TabRelasi";
+import TabRiwayat from "./components/TabRiwayat";
 
 const TABS = [
   { key: "profil", label: "Profil", icon: "agent" },
@@ -162,15 +162,7 @@ function RoleDetail() {
         {tab === "dokumen" && <TabDokumen role={Role} canEdit={canEdit} />}
         {tab === "relasi" && <TabRelasi role={Role} />}
         {tab === "uji" && <TabUjiCoba role={Role} />}
-        {tab === "riwayat" && (
-          <Card>
-            <EmptyState
-              icon={<Icon name="list" size={26} />}
-              title="Belum ada riwayat kerja"
-              description={`Dibuat ${formatDate(Role.created_at)}, terakhir diubah ${formatDate(Role.updated_at)}. Langkah kerja dari tugas akan tercatat di sini (tahap A5).`}
-            />
-          </Card>
-        )}
+        {tab === "riwayat" && <TabRiwayat role={Role} />}
       </div>
     </div>
   );

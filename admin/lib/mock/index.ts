@@ -1,4 +1,5 @@
 import { getDb, saveDb } from "./db";
+import { advanceTasks } from "./engine";
 import { fail, matchRoute, type MockRoute } from "./router";
 import { authRoutes } from "./routes/auth";
 import { organisasiRoutes } from "./routes/organisasi";
@@ -6,10 +7,11 @@ import { penggunaRoutes } from "./routes/pengguna";
 import { pengetahuanRoutes } from "./routes/pengetahuan";
 import { relasiRoutes } from "./routes/relasi";
 import { roleRoutes } from "./routes/role";
+import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -37,16 +39,20 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const method = (init.method ?? "GET").toUpperCase();
   const found = matchRoute(routes, method, parsed.pathname);
 
+  // Majukan simulasi eksekusi tugas sampai waktu sekarang sebelum menjawab
+  const db = getDb();
+  const advanced = advanceTasks(db, Date.now());
+
   const response = found
     ? await found.route.handler({
-        db: getDb(),
+        db,
         params: found.params,
         query: parsed.searchParams,
         body: parseBody(init.body),
       })
     : fail(404, `Endpoint contoh belum tersedia: ${method} ${parsed.pathname}`);
 
-  if (method !== "GET") saveDb();
+  if (method !== "GET" || advanced) saveDb();
 
   return {
     status: response.status,

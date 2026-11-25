@@ -7,21 +7,19 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, StatCard }
 import { buttonClasses } from "../_components/ui/button-classes";
 import { Icon } from "../_components/admin-icons";
 import { BrandMascot } from "../_components/brand-mark";
-
-const STATS = [
-  { label: "Tugas berjalan", value: 0, icon: "task", hint: "Belum ada tugas", tone: "brand" },
-  { label: "Menunggu persetujuan", value: 0, icon: "approval", hint: "Tidak ada antrean", tone: "accent" },
-  { label: "Role aktif", value: 0, icon: "agent", hint: "Belum ada role", tone: "pink" },
-  { label: "Biaya bulan ini", value: "Rp 0", icon: "wallet", hint: "Belum ada pemakaian", tone: "teal" },
-] as const;
+import { useResponseListRole } from "./role/hooks/crud";
+import { AgentStack, TaskStatusBadge } from "./tugas/components/TaskParts";
+import { useResponseListTask } from "./tugas/hooks/crud";
+import { formatRupiah } from "./tugas/types";
 
 const FIRST_STEPS = [
   { title: "Susun unit / divisi", href: "/admin/organisasi/unit", stage: "A1", ready: true },
   { title: "Undang anggota tim", href: "/admin/organisasi/pengguna", stage: "A1", ready: true },
-  { title: "Buat role pertama", href: "/admin/role", stage: "A2", ready: false },
-  { title: "Unggah SOP untuk role", href: "/admin/pengetahuan", stage: "A3", ready: false },
-  { title: "Hubungkan role di peta relasi", href: "/admin/relasi", stage: "A4", ready: false },
-  { title: "Beri tugas pertama", href: "/admin/tugas", stage: "A5", ready: false },
+  { title: "Buat role pertama", href: "/admin/role", stage: "A2", ready: true },
+  { title: "Unggah SOP untuk role", href: "/admin/pengetahuan", stage: "A3", ready: true },
+  { title: "Hubungkan role di peta relasi", href: "/admin/relasi", stage: "A4", ready: true },
+  { title: "Beri tugas pertama", href: "/admin/tugas", stage: "A5", ready: true },
+  { title: "Lihat kantor 3D", href: "/admin/kantor", stage: "A6", ready: false },
 ];
 
 const noop = () => () => {};
@@ -38,6 +36,19 @@ export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   // Sapaan dihitung di peramban (jam lokal), "Halo" saat prerender agar tidak terjadi hydration mismatch
   const hello = useSyncExternalStore(noop, greeting, () => "Halo");
+  const { List: Tasks } = useResponseListTask({});
+  const { List: Roles } = useResponseListRole({ search: "", unit_id: "", status: "" });
+  const s = Tasks?.summary;
+  const running = s ? s.queued + s.running : 0;
+  const waiting = s?.waiting_approval ?? 0;
+  const cost = (Tasks?.data ?? []).reduce((sum, t) => sum + t.cost_used, 0);
+  const recent = (Tasks?.data ?? []).slice(0, 5);
+  const STATS = [
+    { label: "Tugas berjalan", value: running, icon: "task", hint: `${s?.completed ?? 0} selesai`, tone: "brand" },
+    { label: "Menunggu persetujuan", value: waiting, icon: "approval", hint: waiting ? "Perlu keputusan Anda" : "Tidak ada antrean", tone: "accent" },
+    { label: "Role aktif", value: Roles?.summary.active ?? 0, icon: "agent", hint: `${Roles?.summary.draft ?? 0} draf · ${Roles?.summary.paused ?? 0} dijeda`, tone: "pink" },
+    { label: "Biaya tugas", value: formatRupiah(cost), icon: "wallet", hint: "Simulasi data contoh", tone: "teal" },
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -52,18 +63,23 @@ export default function DashboardPage() {
               {hello}, <span className="text-gradient">{user?.full_name?.split(" ")[0] ?? "Tim"}</span>!
             </h2>
             <p className="text-sm text-muted max-w-lg leading-relaxed">
-              Kantor AI Anda masih kosong. Mulai dengan menyusun unit dan mengundang tim, lalu buat role pertama yang
-              bekerja dari SOP.
+              {running > 0
+                ? `${running} tugas sedang dikerjakan role AI${waiting ? ` dan ${waiting} menunggu keputusan Anda` : ""}.`
+                : waiting > 0
+                  ? `${waiting} tugas menunggu keputusan Anda.`
+                  : "Semua tenang. Beri tugas baru ke role, atau atur unit dan tim Anda."}
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Link href="/admin/organisasi/unit" className={buttonClasses("primary", "md")}>
-                <Icon name="building" size={16} />
-                Susun unit
+              <Link href="/admin/tugas" className={buttonClasses("primary", "md")}>
+                <Icon name="task" size={16} />
+                Lihat tugas
               </Link>
-              <Link href="/admin/organisasi/pengguna" className={buttonClasses("outline", "md")}>
-                <Icon name="users" size={16} />
-                Undang tim
-              </Link>
+              {waiting > 0 && (
+                <Link href="/admin/persetujuan" className={buttonClasses("accent", "md")}>
+                  <Icon name="approval" size={16} />
+                  Putuskan ({waiting})
+                </Link>
+              )}
             </div>
           </div>
           <div className="hidden md:block -my-6 -mr-2">
@@ -90,18 +106,37 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Aktivitas terbaru</CardTitle>
           </CardHeader>
-          <EmptyState
-            icon={<Icon name="sparkles" size={26} />}
-            title="Belum ada aktivitas"
-            description="Setelah role diberi tugas, langkah kerja, hasil, dan pemeriksaan akan muncul di sini."
-          />
+          {recent.length === 0 ? (
+            <EmptyState
+              icon={<Icon name="sparkles" size={26} />}
+              title="Belum ada aktivitas"
+              description="Setelah role diberi tugas, langkah kerja, hasil, dan pemeriksaan akan muncul di sini."
+            />
+          ) : (
+            <ul className="divide-y divide-line/70">
+              {recent.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/admin/tugas/${t.id}`} className="flex items-center gap-4 px-6 py-3.5 hover:bg-white/70 transition-colors">
+                    <AgentStack agents={t.participants} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-ink truncate">{t.title}</p>
+                      <p className="text-[11px] text-faint">
+                        {t.steps_done} langkah · {formatRupiah(t.cost_used)}
+                      </p>
+                    </div>
+                    <TaskStatusBadge status={t.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Langkah awal</CardTitle>
             <Badge variant="info" size="sm">
-              2 / 6 siap
+              {FIRST_STEPS.filter((x) => x.ready).length} / {FIRST_STEPS.length} siap
             </Badge>
           </CardHeader>
           <CardContent className="space-y-1.5">

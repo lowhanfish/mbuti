@@ -32,7 +32,7 @@ const toItem = (db: MockDatabase, a: MockAgent): ResponseInterface => {
     owner_name: owner ? db.users.find((u) => u.id === owner.user_id)?.full_name ?? null : null,
     document_count: documentsForAgent(db, a).length,
     relation_count: db.relations.filter((r) => r.source_id === a.id || r.target_id === a.id).length,
-    task_count: 0,
+    task_count: new Set(db.task_steps.filter((s) => s.agent_id === a.id).map((s) => s.task_id)).size,
   };
 };
 
@@ -259,6 +259,10 @@ export const roleRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const index = ctx.db.agents.findIndex((a) => a.id === ctx.params.id && a.organization_id === self.organization_id);
       if (index < 0) return fail(404, "Role tidak ditemukan.");
+      const busy = ctx.db.tasks.some(
+        (t) => ["queued", "running", "waiting_approval"].includes(t.status) && ctx.db.task_steps.some((s) => s.task_id === t.id && s.agent_id === ctx.params.id)
+      );
+      if (busy) return fail(409, "Role masih terlibat dalam tugas yang berjalan. Selesaikan atau hentikan tugasnya terlebih dahulu.");
       const [removed] = ctx.db.agents.splice(index, 1);
       ctx.db.relations = ctx.db.relations.filter((r) => r.source_id !== removed.id && r.target_id !== removed.id);
       delete ctx.db.flow_positions[removed.id];

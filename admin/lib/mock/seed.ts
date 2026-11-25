@@ -6,6 +6,8 @@ import type { AccessRole } from "@/types/global";
 import type { UpdateInterface as AgentFields } from "@/app/(admin)/admin/role/types";
 import { SEED_DOC_VERSIONS, SEED_DOCUMENTS, type MockDocVersion, type MockDocument } from "./seed-documents";
 import type { RelationFields } from "@/app/(admin)/admin/relasi/types";
+import type { MockApproval, MockEvent, MockStep, MockTask } from "./engine";
+import { seedTasks } from "./seed-tasks";
 
 export type { MockDocVersion, MockDocument };
 
@@ -94,11 +96,15 @@ export interface MockDatabase {
   flow_humans: string[];
   /** Posisi node di peta relasi; kosong = disusun otomatis */
   flow_positions: Record<string, { x: number; y: number }>;
+  tasks: MockTask[];
+  task_steps: MockStep[];
+  approvals: MockApproval[];
+  task_events: MockEvent[];
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 5;
+export const MOCK_DB_VERSION = 6;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -119,7 +125,7 @@ const people: Array<[string, string, AccessRole, string | null, MemberStatus, st
   ["yusuf", "Yusuf Hidayat", "member", "unit-umum", "disabled", "2026-10-30T13:00:00Z"],
 ];
 
-export const createSeed = (): MockDatabase => ({
+const createBase = (): MockDatabase => ({
   version: MOCK_DB_VERSION,
   organizations: [
     {
@@ -193,8 +199,19 @@ export const createSeed = (): MockDatabase => ({
   relations: SEED_RELATIONS.map((r) => ({ ...r })),
   flow_humans: ["member-bayu", "member-maya", "member-sari"],
   flow_positions: {},
+  tasks: [],
+  task_steps: [],
+  approvals: [],
+  task_events: [],
   session: null,
 });
+
+/** Data contoh lengkap, termasuk tugas yang riwayatnya dijalankan mesin simulasi. */
+export const createSeed = (): MockDatabase => {
+  const db = createBase();
+  seedTasks(db);
+  return db;
+};
 
 function unit(
   id: string,
