@@ -15,6 +15,7 @@ import { MODEL_PROFILE_LABEL, OUTPUT_FORMAT_LABEL } from "../types";
 import TabInstruksi from "./components/TabInstruksi";
 import TabProfil from "./components/TabProfil";
 import TabUjiCoba from "./components/TabUjiCoba";
+import TabDokumen from "./components/TabDokumen";
 
 const TABS = [
   { key: "profil", label: "Profil", icon: "agent" },
@@ -157,16 +158,7 @@ function RoleDetail() {
         {tab === "instruksi" && (
           <TabInstruksi key={Role.updated_at} role={Role} canEdit={canEdit} saving={updateMutation.isPending} onSave={save} />
         )}
-        {tab === "dokumen" && (
-          <Card>
-            <EmptyState
-              icon={<Icon name="book" size={26} />}
-              title="Belum ada dokumen"
-              description="Unggah SOP, manual book, dan panduan kerja untuk role ini pada tahap A3. Role menjawab hanya dari dokumen dalam lingkupnya."
-              action={<Badge variant="info">Tahap A3</Badge>}
-            />
-          </Card>
-        )}
+        {tab === "dokumen" && <TabDokumen role={Role} canEdit={canEdit} />}
         {tab === "relasi" && (
           <Card>
             <EmptyState

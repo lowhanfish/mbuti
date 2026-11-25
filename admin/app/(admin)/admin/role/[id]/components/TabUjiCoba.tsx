@@ -5,6 +5,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, In
 import { Icon } from "../../../../_components/admin-icons";
 import { Avatar2D } from "../../../../_components/agent/avatar-2d";
 import { useTrialRole } from "../../hooks/crud";
+import Link from "next/link";
+import { citationText } from "../../../pengetahuan/types";
 import type { InputField, ResponseInterface, TrialResult } from "../../types";
 
 const RESULT_STYLE: Record<TrialResult["status"], { label: string; variant: "success" | "warning" | "info" }> = {
@@ -114,6 +116,21 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                   {result.output}
                 </div>
                 {result.notes && <p className="text-xs text-muted">{result.notes}</p>}
+                {result.citations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">Rujukan</p>
+                    {result.citations.map((c, i) => (
+                      <Link
+                        key={`${c.document_id}-${c.page_no}`}
+                        href={`/admin/pengetahuan/${c.document_id}?hlm=${c.page_no}`}
+                        className="flex items-center gap-2 rounded-xl bg-brand-soft/60 px-3 py-1.5 text-xs text-brand-strong hover:bg-brand-soft transition-colors"
+                      >
+                        <span className="w-5 h-5 rounded-md bg-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <span className="truncate">{citationText(c.document_title, c.version_no, c.page_no)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="rounded-2xl bg-ink text-white/90 overflow-hidden">

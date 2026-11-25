@@ -12,7 +12,8 @@ export interface MockResponse {
   body: unknown;
 }
 
-export type MockHandler = (ctx: MockContext) => MockResponse;
+/** Handler boleh asinkron (mis. membaca isi berkas unggahan). */
+export type MockHandler = (ctx: MockContext) => MockResponse | Promise<MockResponse>;
 
 export interface MockRoute {
   method: string;

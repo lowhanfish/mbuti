@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 25 November 2026. Status: **A0–A2 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D); berikutnya A3.
+Diperbarui: 25 November 2026. Status: **A0–A3 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan); berikutnya A4.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -368,7 +368,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - [x] Daftar role per unit, form tambah/ubah, detail role dengan enam tab, editor avatar dengan pratinjau.
 
 **A3. Pengetahuan**
-- [ ] Unggah dokumen (simulasi status olah), daftar per lingkup, versi, pratinjau rujukan halaman.
+- [x] Unggah dokumen (simulasi status olah), daftar per lingkup, versi, pratinjau rujukan halaman.
 
 **A4. Peta relasi**
 - [ ] Editor React Flow, panel aturan relasi, validasi lingkaran, simpan posisi.

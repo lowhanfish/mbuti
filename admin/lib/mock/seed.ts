@@ -4,6 +4,9 @@
  */
 import type { AccessRole } from "@/types/global";
 import type { UpdateInterface as AgentFields } from "@/app/(admin)/admin/role/types";
+import { SEED_DOC_VERSIONS, SEED_DOCUMENTS, type MockDocVersion, type MockDocument } from "./seed-documents";
+
+export type { MockDocVersion, MockDocument };
 
 export type OrganizationSector = "pemerintahan" | "pendidikan" | "kesehatan" | "usaha" | "nirlaba" | "lainnya";
 export type UnitColor = "violet" | "honey" | "pink" | "teal" | "sky" | "lime" | "orange" | "slate";
@@ -74,11 +77,13 @@ export interface MockDatabase {
   memberships: MockMembership[];
   units: MockUnit[];
   agents: MockAgent[];
+  documents: MockDocument[];
+  doc_versions: MockDocVersion[];
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 3;
+export const MOCK_DB_VERSION = 4;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -168,6 +173,8 @@ export const createSeed = (): MockDatabase => ({
     unit("unit-data", null, "Bidang Data & Informasi", "DAT", "Statistik, publikasi, dan pengelolaan informasi.", "pink", "member-dimas", 3),
   ],
   agents: SEED_AGENTS,
+  documents: structuredClone(SEED_DOCUMENTS),
+  doc_versions: structuredClone(SEED_DOC_VERSIONS),
   session: null,
 });
 

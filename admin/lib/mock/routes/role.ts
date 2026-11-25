@@ -1,3 +1,4 @@
+import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
 import type {
   AgentStatus,
   InputField,
@@ -10,6 +11,7 @@ import type {
 import { avatarFromSeed, type AvatarConfig } from "@/app/(admin)/_components/agent/avatar-config";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
+import { documentsForAgent, searchDocuments } from "../knowledge";
 import { fail, ok, type MockRoute } from "../router";
 import type { MockAgent, MockDatabase } from "../seed";
 
@@ -28,7 +30,7 @@ const toItem = (db: MockDatabase, a: MockAgent): ResponseInterface => {
     unit_name: unit?.name ?? null,
     unit_color: unit ? UNIT_COLORS[unit.color].hex : null,
     owner_name: owner ? db.users.find((u) => u.id === owner.user_id)?.full_name ?? null : null,
-    document_count: 0,
+    document_count: documentsForAgent(db, a).length,
     relation_count: 0,
     task_count: 0,
   };
@@ -109,7 +111,13 @@ const applyFields = (db: MockDatabase, orgId: string, target: MockAgent, body: u
 };
 
 /** Susunan instruksi yang nanti dikirim ke model (fase backend). Ditampilkan di tab Uji coba. */
-const composePrompt = (db: MockDatabase, a: MockAgent, brief: string, inputs: Record<string, string>) => {
+const composePrompt = (
+  db: MockDatabase,
+  a: MockAgent,
+  brief: string,
+  inputs: Record<string, string>,
+  hits: SearchHit[] = []
+) => {
   const org = db.organizations.find((o) => o.id === a.organization_id);
   const unit = db.units.find((u) => u.id === a.unit_id);
   const lines = [
@@ -135,7 +143,10 @@ const composePrompt = (db: MockDatabase, a: MockAgent, brief: string, inputs: Re
       .filter(([, v]) => v)
       .map(([k, v]) => `- ${a.input_spec.find((f) => f.key === k)?.label ?? k}: ${v}`),
     "",
-    "Potongan dokumen: (belum ada — dokumen diunggah pada tahap A3)",
+    "Potongan dokumen:",
+    ...(hits.length
+      ? hits.map((h, i) => `[${i + 1}] ${h.document_title} v${h.version_no}, hlm. ${h.page_no} — ${h.heading}\n${h.snippet}`)
+      : ["(tidak ada potongan yang cocok dalam lingkup dokumen role ini)"]),
   ];
   return lines.join("\n");
 };
@@ -266,24 +277,48 @@ export const roleRoutes: MockRoute[] = [
       for (const [k, v] of Object.entries(b.inputs ?? {})) inputs[k] = text(v, 2000);
 
       const missing = agent.input_spec.filter((f) => f.required && !inputs[f.key]).map((f) => f.label);
-      const result: TrialResult = missing.length
-        ? {
-            simulated: true,
-            status: "need_info",
-            output: `Saya belum bisa mulai. Mohon lengkapi: ${missing.join(", ")}.`,
-            notes: "Role meminta isian wajib sebelum bekerja, sesuai daftar isian di tab Instruksi.",
-            prompt_preview: composePrompt(ctx.db, agent, brief, inputs),
-            missing_inputs: missing,
-          }
-        : {
-            simulated: true,
-            status: "not_in_documents",
-            output:
-              "Saya belum punya dokumen SOP atau pedoman untuk dijadikan dasar, jadi saya tidak akan menyusun hasil yang bisa keliru. Unggah dokumen di tab Dokumen, lalu coba lagi.",
-            notes: "Simulasi. Pada fase backend, langkah ini memanggil Gemini dengan susunan instruksi di bawah dan potongan dokumen yang relevan.",
-            prompt_preview: composePrompt(ctx.db, agent, brief, inputs),
-            missing_inputs: [],
-          };
+      const query = [brief, agent.title, ...Object.values(inputs)].join(" ");
+      const hits = searchDocuments(ctx.db, documentsForAgent(ctx.db, agent), query, 4);
+      const prompt_preview = composePrompt(ctx.db, agent, brief, inputs, hits);
+      let result: TrialResult;
+      if (missing.length) {
+        result = {
+          simulated: true,
+          status: "need_info",
+          output: `Saya belum bisa mulai. Mohon lengkapi: ${missing.join(", ")}.`,
+          notes: "Role meminta isian wajib sebelum bekerja, sesuai daftar isian di tab Instruksi.",
+          prompt_preview,
+          missing_inputs: missing,
+          citations: [],
+        };
+      } else if (!hits.length) {
+        result = {
+          simulated: true,
+          status: "not_in_documents",
+          output:
+            "Saya tidak menemukan aturan yang relevan di dokumen dalam lingkup saya, jadi saya tidak akan menyusun hasil yang bisa keliru. Tambahkan dokumen di tab Dokumen atau perluas lingkup pengetahuan, lalu coba lagi.",
+          notes: "Simulasi. Pada fase backend, langkah ini memanggil Gemini dengan susunan instruksi di bawah.",
+          prompt_preview,
+          missing_inputs: [],
+          citations: [],
+        };
+      } else {
+        result = {
+          simulated: true,
+          status: "done",
+          output: [
+            `Simulasi: saya akan mengerjakan "${brief || agent.title}" berdasarkan aturan berikut.`,
+            "",
+            ...hits.map((h, i) => `[${i + 1}] ${h.heading}: ${h.snippet}`),
+            "",
+            "Pada fase backend, bagian ini berisi hasil kerja yang ditulis Gemini dari potongan dokumen di atas.",
+          ].join("\n"),
+          notes: "Simulasi. Rujukan dibuat dari potongan dokumen yang ditemukan, bukan ditulis model.",
+          prompt_preview,
+          missing_inputs: [],
+          citations: hits,
+        };
+      }
       return ok(result, "Uji coba selesai (simulasi).");
     },
   },

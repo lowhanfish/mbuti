@@ -1,4 +1,5 @@
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
+import type { SearchHit } from "../pengetahuan/types";
 
 export type AgentStatus = "draft" | "active" | "paused";
 export type OutputFormat = "text" | "template" | "table" | "json";
@@ -69,6 +70,8 @@ export interface TrialResult {
   notes: string;
   prompt_preview: string;
   missing_inputs: string[];
+  /** Potongan dokumen yang dipakai sebagai dasar (kosong bila tidak ada) */
+  citations: SearchHit[];
 }
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {

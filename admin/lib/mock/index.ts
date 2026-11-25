@@ -3,11 +3,12 @@ import { fail, matchRoute, type MockRoute } from "./router";
 import { authRoutes } from "./routes/auth";
 import { organisasiRoutes } from "./routes/organisasi";
 import { penggunaRoutes } from "./routes/pengguna";
+import { pengetahuanRoutes } from "./routes/pengetahuan";
 import { roleRoutes } from "./routes/role";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -36,7 +37,7 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const found = matchRoute(routes, method, parsed.pathname);
 
   const response = found
-    ? found.route.handler({
+    ? await found.route.handler({
         db: getDb(),
         params: found.params,
         query: parsed.searchParams,
