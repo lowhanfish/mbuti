@@ -3,10 +3,11 @@ import { fail, matchRoute, type MockRoute } from "./router";
 import { authRoutes } from "./routes/auth";
 import { organisasiRoutes } from "./routes/organisasi";
 import { penggunaRoutes } from "./routes/pengguna";
+import { roleRoutes } from "./routes/role";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 

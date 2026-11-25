@@ -20,7 +20,7 @@ const toItem = (db: MockDatabase, unit: MockUnit): ResponseInterface => {
     lead_name: leadUser?.full_name ?? null,
     sort_order: unit.sort_order,
     member_count: db.memberships.filter((m) => m.unit_id === unit.id && m.status !== "disabled").length,
-    agent_count: 0,
+    agent_count: db.agents.filter((a) => a.unit_id === unit.id).length,
     child_count: db.units.filter((u) => u.parent_id === unit.id).length,
     created_at: unit.created_at,
     updated_at: unit.updated_at,
@@ -149,6 +149,9 @@ export const unitRoutes: MockRoute[] = [
       const index = ctx.db.units.findIndex((u) => u.id === ctx.params.id && u.organization_id === member.organization_id);
       if (index < 0) return fail(404, "Unit tidak ditemukan.");
       const unit = ctx.db.units[index];
+      if (ctx.db.agents.some((a) => a.unit_id === unit.id)) {
+        return fail(409, "Unit masih punya role AI. Pindahkan role ke unit lain terlebih dahulu.");
+      }
       if (ctx.db.units.some((u) => u.parent_id === unit.id)) {
         return fail(409, "Unit masih punya sub-unit. Pindahkan atau hapus sub-unit terlebih dahulu.");
       }

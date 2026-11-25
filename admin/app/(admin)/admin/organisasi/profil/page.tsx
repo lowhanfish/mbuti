@@ -65,7 +65,7 @@ export default function OrganisasiProfilPage() {
           <div className="grid gap-4 sm:grid-cols-3 stagger">
             <StatCard label="Unit / divisi" value={Profile.stats.unit_count} icon={<Icon name="building" size={22} />} tone="brand" />
             <StatCard label="Anggota tim" value={Profile.stats.member_count} icon={<Icon name="users" size={22} />} tone="accent" />
-            <StatCard label="Role AI" value={Profile.stats.agent_count} hint="Dibuat pada tahap A2" icon={<Icon name="agent" size={22} />} tone="pink" />
+            <StatCard label="Role AI" value={Profile.stats.agent_count} icon={<Icon name="agent" size={22} />} tone="pink" />
           </div>
 
           <ProfileForm

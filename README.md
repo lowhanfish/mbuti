@@ -8,7 +8,7 @@ Rencana lengkap: [PLANNING.md](PLANNING.md).
 
 | Folder | Isi | Status |
 |---|---|---|
-| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A1 selesai: kerangka, login, organisasi, unit, pengguna (data contoh) |
+| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A2 selesai: kerangka, login, organisasi, unit, pengguna, role (data contoh) |
 | `server/` | Backend FastAPI (venv + uvicorn) | Belum dibuat; dikerjakan setelah fase frontend |
 
 ## Menjalankan frontend

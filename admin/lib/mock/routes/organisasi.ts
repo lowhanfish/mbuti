@@ -13,7 +13,7 @@ const toProfile = (db: MockDatabase, orgId: string): ResponseInterface | null =>
     stats: {
       unit_count: db.units.filter((u) => u.organization_id === orgId).length,
       member_count: db.memberships.filter((m) => m.organization_id === orgId && m.status !== "disabled").length,
-      agent_count: 0,
+      agent_count: db.agents.filter((a) => a.organization_id === orgId).length,
     },
   };
 };

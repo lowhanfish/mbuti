@@ -17,18 +17,25 @@ const visible = (items: MenuItem[]): MenuItem[] =>
 
 export const adminMenu: MenuItem[] = visible(menuData as MenuItem[]);
 
+/** Halaman turunan (mis. /admin/role/abc) ikut menandai menu induknya (/admin/role). */
+const matchesPath = (path: string, pathname: string) =>
+  path === pathname || (path !== "/admin" && pathname.startsWith(`${path}/`));
+
 export function isItemActive(item: MenuItem, pathname: string): boolean {
-  if (item.path && item.path === pathname) return true;
+  if (item.path && matchesPath(item.path, pathname)) return true;
   return Boolean(item.children?.some((child) => isItemActive(child, pathname)));
 }
 
 export function findPageTitle(items: MenuItem[], pathname: string): string | null {
-  for (const item of items) {
-    if (item.path && item.path === pathname) return item.title;
-    if (item.children) {
-      const found = findPageTitle(item.children, pathname);
-      if (found) return found;
+  let best: { title: string; length: number } | null = null;
+  const walk = (list: MenuItem[]) => {
+    for (const item of list) {
+      if (item.path && matchesPath(item.path, pathname) && (!best || item.path.length > best.length)) {
+        best = { title: item.title, length: item.path.length };
+      }
+      if (item.children) walk(item.children);
     }
-  }
-  return null;
+  };
+  walk(items);
+  return (best as { title: string } | null)?.title ?? null;
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { adminMenu, findPageTitle, isItemActive, type MenuItem } from "../_data/admin-menu";
 import { Icon } from "../_components/admin-icons";
 import { BackgroundOrbs, BrandMark } from "../_components/brand-mark";
@@ -96,11 +96,62 @@ function MenuItemRenderer({
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+/*
+ * usePathname() adalah data saat permintaan. Dengan Cache Components, bagian yang membacanya
+ * harus berada di dalam <Suspense> agar kerangka layout tetap bisa diprerender (termasuk rute dinamis).
+ */
+function SidebarNav({ onItemClick }: { onItemClick: () => void }) {
   const pathname = usePathname();
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const toggleMenu = (key: string) => {
+    setOpenMenus((prev) => ({ ...prev, [key]: !(prev[key] ?? false) }));
+  };
+  return (
+    <>
+      {adminMenu.map((item) => (
+        <MenuItemRenderer
+          key={item.title}
+          item={item}
+          pathname={pathname}
+          openMenus={openMenus}
+          toggleMenu={toggleMenu}
+          onItemClick={onItemClick}
+        />
+      ))}
+    </>
+  );
+}
+
+function HeaderTitle() {
+  const pathname = usePathname();
+  const pageTitle = findPageTitle(adminMenu, pathname) ?? "Dashboard";
+  return (
+    <div className="flex flex-col min-w-0">
+      <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-faint">
+        <Link href="/admin" className="hover:text-brand">
+          MBUTI
+        </Link>
+        <span>/</span>
+        <span className="text-muted">{pageTitle}</span>
+      </div>
+      <h1 className="text-base sm:text-lg font-bold text-ink tracking-tight truncate">{pageTitle}</h1>
+    </div>
+  );
+}
+
+function NavFallback() {
+  return (
+    <div className="space-y-2 px-1" aria-hidden="true">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div key={i} className="h-11 rounded-2xl bg-white/50 motion-safe:animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   const user = useAuthStore((state) => state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -112,12 +163,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!currentUser) router.replace("/login");
     });
   }, [checkAuth, router]);
-
-  const toggleMenu = (key: string) => {
-    setOpenMenus((prev) => ({ ...prev, [key]: !(prev[key] ?? false) }));
-  };
-
-  const pageTitle = findPageTitle(adminMenu, pathname) ?? "Dashboard";
 
   // Kerangka dan {children} selalu dirender (syarat instant navigation Next.js 16).
   // Selama sesi diperiksa, isi ditutup lapisan pemuat. Hak akses tetap ditegakkan backend.
@@ -169,16 +214,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
           <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-faint">Menu utama</div>
-          {adminMenu.map((item) => (
-            <MenuItemRenderer
-              key={item.title}
-              item={item}
-              pathname={pathname}
-              openMenus={openMenus}
-              toggleMenu={toggleMenu}
-              onItemClick={() => setSidebarOpen(false)}
-            />
-          ))}
+          <Suspense fallback={<NavFallback />}>
+            <SidebarNav onItemClick={() => setSidebarOpen(false)} />
+          </Suspense>
         </nav>
 
         <div className="p-3 shrink-0">
@@ -219,16 +257,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Icon name="menu" size={18} />
             </button>
-            <div className="flex flex-col min-w-0">
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-faint">
-                <Link href="/admin" className="hover:text-brand">
-                  MBUTI
-                </Link>
-                <span>/</span>
-                <span className="text-muted">{pageTitle}</span>
-              </div>
-              <h1 className="text-base sm:text-lg font-bold text-ink tracking-tight truncate">{pageTitle}</h1>
-            </div>
+            <Suspense fallback={<div className="h-9 w-40 rounded-xl bg-white/50 motion-safe:animate-pulse" />}>
+              <HeaderTitle />
+            </Suspense>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -254,7 +285,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <main key={pathname} className="flex-1 py-6 space-y-6 w-full rise">
+        <main className="flex-1 py-6 space-y-6 w-full">
           {children}
         </main>
       </div>
