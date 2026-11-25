@@ -1,11 +1,38 @@
-/** Logo sementara MBUTI: tumpukan blok, selaras dengan karakter kantor 3D. */
-export function BrandMark({ size = 32 }: { size?: number }) {
+import Image from "next/image";
+
+/** Kepala maskot lebah MBUTI dalam bingkai bulat. */
+export function BrandMark({ size = 32, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--color-brand)" />
-      <rect x="8" y="9" width="7" height="7" rx="1.5" fill="#fff" />
-      <rect x="17" y="9" width="7" height="7" rx="1.5" fill="var(--color-accent)" />
-      <rect x="8" y="18" width="16" height="6" rx="1.5" fill="#fff" opacity="0.85" />
-    </svg>
+    <span
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[30%] bg-gradient-to-br from-[#2a1f4a] to-ink shadow-[0_6px_16px_-4px_rgba(124,77,255,.55)] ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <Image src="/brand/mbuti-head.webp" alt="MBUTI" width={size} height={size} className="object-cover scale-110" />
+    </span>
+  );
+}
+
+/** Maskot lebah utuh, melayang pelan. */
+export function BrandMascot({ width = 360, className = "" }: { width?: number; className?: string }) {
+  return (
+    <Image
+      src="/brand/mbuti-bee.webp"
+      alt="Maskot lebah MBUTI"
+      width={width}
+      height={Math.round((width * 575) / 760)}
+      priority
+      className={`animate-float drop-shadow-[0_30px_40px_rgba(124,77,255,.35)] select-none ${className}`}
+    />
+  );
+}
+
+/** Lapisan gumpalan warna di belakang halaman. */
+export function BackgroundOrbs() {
+  return (
+    <div className="bg-orbs" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </div>
   );
 }

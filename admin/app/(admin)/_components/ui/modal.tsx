@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId } from "react";
+import { createPortal } from "react-dom";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -47,15 +48,16 @@ export function Modal({
     "3xl": "max-w-5xl",
   }[maxWidth];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+  // Dirender di <body> agar tidak terpotong konteks tumpukan (animasi/transform) milik elemen induk
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div
         className="fixed inset-0 bg-ink/45 backdrop-blur-xs"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${maxWidthClasses} rounded-3xl shadow-2xl border border-white max-h-[90vh] my-auto bg-white/95 backdrop-blur-2xl overflow-hidden z-10 flex flex-col`}
+        className={`rise relative w-full ${maxWidthClasses} rounded-[28px] shadow-[0_40px_80px_-24px_rgba(24,18,43,.45)] border border-white max-h-[90vh] my-auto bg-white/95 backdrop-blur-2xl overflow-hidden z-10 flex flex-col`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -88,5 +90,7 @@ export function Modal({
         )}
       </div>
     </div>
+  ,
+    document.body
   );
 }

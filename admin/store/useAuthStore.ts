@@ -9,6 +9,8 @@ interface AuthState {
   isLoading: boolean;
   setUser: (user: UserProfile | null) => void;
   checkAuth: () => Promise<UserProfile | null>;
+  /** Muat ulang data pengguna tanpa menampilkan layar pemuat (mis. setelah nama organisasi diubah). */
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -33,6 +35,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user: null, isAuthenticated: false, isLoading: false });
     return null;
+  },
+
+  refreshUser: async () => {
+    try {
+      const meUrl = useUrlStore.getState().URL.ME;
+      const res = await fetchData<ApiResponse<AuthDataResponse>>(meUrl, {}, false);
+      if (res.success && res.data?.user) set({ user: res.data.user });
+    } catch {
+      // Biarkan data lama; pemeriksaan sesi berikutnya akan menangani sesi yang berakhir
+    }
   },
 
   logout: async () => {

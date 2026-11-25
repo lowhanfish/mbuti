@@ -19,7 +19,7 @@ export const swallAlert = (text: string, icon: SweetAlertIcon = "success") => {
   if (typeof window === "undefined") return;
   Swal.fire({
     title: icon === "success" ? "Berhasil!" : "Pemberitahuan!",
-    text: `Data ${text}.`,
+    text: `Data ${text}${/[.!?]$/.test(text) ? "" : "."}`,
     icon,
     timer: 1500,
     showConfirmButton: false,

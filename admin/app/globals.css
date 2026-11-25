@@ -1,24 +1,74 @@
 @import "tailwindcss";
 
 /*
- * Token warna MBUTI (sementara, sampai identitas visual diputuskan).
- * Ganti nilai di sini; komponen memakai kelas seperti text-ink, bg-brand, border-line.
+ * Token warna MBUTI, diambil dari maskot lebah: madu (kuning), ungu cahaya sayap, dan hitam tubuh.
+ * Komponen memakai kelas seperti text-ink, bg-brand, bg-accent, border-line.
  */
 @theme {
-  --color-canvas: #f3f5fa;
+  --color-canvas: #faf8ff;
   --color-surface: #ffffff;
-  --color-ink: #1d2033;
-  --color-muted: #5f6681;
-  --color-faint: #9aa0b8;
-  --color-line: #e3e6f0;
-  --color-brand: #4c5bd4;
-  --color-brand-strong: #3a47b3;
-  --color-brand-soft: #e9ebfb;
-  --color-accent: #f2a93b;
-  --color-accent-soft: #fdf1dc;
+  --color-ink: #18122b;
+  --color-muted: #5f5873;
+  --color-faint: #a19ab3;
+  --color-line: #ebe5f5;
+
+  /* Ungu sayap: aksi utama, navigasi aktif */
+  --color-brand: #7c4dff;
+  --color-brand-strong: #5b2ee0;
+  --color-brand-soft: #efe8ff;
+
+  /* Madu: sorotan, angka penting, maskot */
+  --color-accent: #ffb81c;
+  --color-accent-strong: #f59e0b;
+  --color-accent-soft: #fff3d1;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-blob: blob 18s ease-in-out infinite;
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(-2deg);
+    }
+    50% {
+      transform: translateY(-14px) rotate(2deg);
+    }
+  }
+  @keyframes blob {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(6%, -8%) scale(1.08);
+    }
+    66% {
+      transform: translate(-5%, 6%) scale(0.95);
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
 }
 
 html,
@@ -27,31 +77,150 @@ body {
   color: var(--color-ink);
 }
 
-/* Latar area admin: gradasi lembut di belakang panel kaca */
+/* ── Latar aplikasi: gradasi lembut + gumpalan warna yang bergerak pelan ── */
 .admin-shell {
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.6) 100%);
-  --glass-border: rgba(255, 255, 255, 0.92);
+  --glass-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.66) 100%);
+  --glass-border: rgba(255, 255, 255, 0.95);
   --glass-shadow:
-    0 16px 38px -12px rgba(40, 52, 140, 0.14),
-    0 4px 12px -2px rgba(40, 52, 140, 0.06),
-    inset 0 1.5px 1px rgba(255, 255, 255, 0.95);
+    0 18px 40px -16px rgba(76, 40, 170, 0.18),
+    0 4px 12px -4px rgba(76, 40, 170, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  position: relative;
+  isolation: isolate;
   background-color: var(--color-canvas);
-  background-image:
-    radial-gradient(60rem 40rem at 0% 0%, rgba(76, 91, 212, 0.1), transparent 60%),
-    radial-gradient(50rem 36rem at 100% 0%, rgba(242, 169, 59, 0.1), transparent 60%);
-  background-attachment: fixed;
+}
+
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bg-orbs span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  animation: var(--animate-blob);
+}
+.bg-orbs span:nth-child(1) {
+  width: 42rem;
+  height: 42rem;
+  left: -12rem;
+  top: -14rem;
+  background: radial-gradient(circle, rgba(124, 77, 255, 0.45), transparent 65%);
+}
+.bg-orbs span:nth-child(2) {
+  width: 36rem;
+  height: 36rem;
+  right: -10rem;
+  top: -8rem;
+  background: radial-gradient(circle, rgba(255, 184, 28, 0.42), transparent 65%);
+  animation-delay: -6s;
+}
+.bg-orbs span:nth-child(3) {
+  width: 34rem;
+  height: 34rem;
+  left: 35%;
+  bottom: -18rem;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.22), transparent 65%);
+  animation-delay: -12s;
+}
+/* Pola sarang lebah tipis di latar */
+.bg-orbs::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98' viewBox='0 0 56 98'%3E%3Cpath d='M28 66 0 50V17L28 1l28 16v33L28 66Zm0 32V66' fill='none' stroke='%237c4dff' stroke-opacity='.07' stroke-width='1'/%3E%3C/svg%3E");
+  mask-image: radial-gradient(ellipse at top, #000 20%, transparent 75%);
 }
 
 .glass {
   background: var(--glass-bg);
-  border: 1.5px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
 }
 
-/* SweetAlert2 mengikuti font aplikasi */
+/* Kartu interaktif: naik sedikit dan bingkainya berpendar saat disorot */
+.card-hover {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 24px 48px -18px rgba(76, 40, 170, 0.28),
+    0 0 0 1px rgba(124, 77, 255, 0.18);
+}
+
+/* Bingkai gradasi ungu → madu */
+.ring-gradient {
+  position: relative;
+}
+.ring-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(124, 77, 255, 0.55), rgba(255, 184, 28, 0.55));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, var(--color-brand) 0%, #c04dff 45%, var(--color-accent-strong) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Kemunculan bertahap untuk isi halaman */
+.rise {
+  animation: var(--animate-rise);
+}
+.stagger > * {
+  animation: var(--animate-rise);
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 240ms;
+}
+.stagger > *:nth-child(n + 6) {
+  animation-delay: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .swal2-popup {
   font-family: var(--font-sans);
-  border-radius: 1.25rem;
+  border-radius: 1.5rem;
+}
+.swal2-confirm {
+  border-radius: 0.9rem !important;
 }

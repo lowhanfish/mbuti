@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 25 November 2026. Status: **A0 selesai** (kerangka frontend dengan data contoh); berikutnya A1.
+Diperbarui: 25 November 2026. Status: **A0 dan A1 selesai** (kerangka frontend, identitas visual lebah, organisasi, unit, pengguna); berikutnya A2.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -362,7 +362,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - Selesai bila: `npm run dev`, lint, typecheck, dan build lulus; halaman login contoh masuk ke dashboard kosong.
 
 **A1. Organisasi, unit, pengguna**
-- [ ] Profil organisasi, CRUD unit bertingkat, daftar pengguna dan hak akses.
+- [x] Profil organisasi, CRUD unit bertingkat, daftar pengguna dan hak akses.
 
 **A2. Role**
 - [ ] Daftar role per unit, form tambah/ubah, detail role dengan enam tab, editor avatar dengan pratinjau.
@@ -430,7 +430,9 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 | 2 | Satu organisasi atau banyak organisasi (SaaS) di versi pertama | Struktur multi-organisasi sejak awal, pendaftaran terbuka belakangan |
 | 3 | Contoh role untuk data contoh dan uji | Penyusun Surat Dinas dan Pemeriksa Surat |
 | 4 | Bahasa antarmuka | Bahasa Indonesia, teks dikumpulkan agar mudah diterjemahkan |
-| 5 | Nama dan identitas visual (logo, warna) | Perlu masukan |
-| 6 | Server tujuan deploy | Perlu masukan sebelum fase C |
+| 5 | Server tujuan deploy | Perlu masukan sebelum fase C |
 
-Sudah diputuskan: penyedia model AI adalah Gemini, embedding memakai `gemini-embedding-2` dengan 768 dimensi (25 November 2026).
+Sudah diputuskan (25 November 2026):
+
+- Penyedia model AI adalah Gemini; embedding memakai `gemini-embedding-2` dengan 768 dimensi.
+- Identitas visual: maskot robot lebah MBUTI (`admin/public/brand/`). Warna diambil dari maskot: ungu sayap untuk aksi utama, madu untuk sorotan, hitam lebah untuk teks dan panel gelap. Token warna ada di `admin/app/globals.css`.

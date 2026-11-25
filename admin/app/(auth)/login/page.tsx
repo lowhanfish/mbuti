@@ -10,7 +10,9 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
 import { Button, Input } from "../../(admin)/_components/ui";
-import { BrandMark } from "../../(admin)/_components/brand-mark";
+import { BackgroundOrbs, BrandMark, BrandMascot } from "../../(admin)/_components/brand-mark";
+
+const HIGHLIGHTS = ["Role bekerja dari SOP", "Hasil saling diperiksa", "Keputusan tetap di manusia"];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,42 +46,46 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex-1 grid lg:grid-cols-2">
-      <section className="hidden lg:flex flex-col justify-between p-12 bg-brand text-white relative overflow-hidden">
-        <div
-          className="absolute -right-24 -bottom-24 w-[28rem] h-[28rem] rounded-[4rem] bg-white/10 rotate-12"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute right-24 top-24 w-40 h-40 rounded-3xl bg-accent/80 -rotate-6"
-          aria-hidden="true"
-        />
+    <main className="flex-1 grid lg:grid-cols-[1.1fr_1fr]">
+      <BackgroundOrbs />
+
+      <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-[32px] bg-gradient-to-br from-ink via-[#241a45] to-[#3b2580] text-white relative overflow-hidden">
+        <div className="absolute -left-20 top-1/3 w-80 h-80 rounded-full bg-brand/40 blur-3xl" aria-hidden="true" />
+        <div className="absolute right-0 -bottom-20 w-96 h-96 rounded-full bg-accent/25 blur-3xl" aria-hidden="true" />
+
         <Link href="/" className="flex items-center gap-3 relative">
-          <span className="bg-white rounded-xl p-1">
-            <BrandMark size={34} />
+          <BrandMark size={40} />
+          <span className="text-lg font-extrabold tracking-wide">
+            MBUTI<span className="text-accent">.</span>
           </span>
-          <span className="text-lg font-bold tracking-wide">MBUTI</span>
         </Link>
-        <div className="relative space-y-4 max-w-md">
-          <h2 className="text-3xl font-bold leading-tight text-balance">
-            Kantor AI yang bekerja dari SOP Anda.
-          </h2>
-          <p className="text-white/80 leading-relaxed">
-            Susun role, unggah panduan kerja, atur siapa memeriksa siapa. Setiap hasil menyertakan
-            rujukan dokumen, dan keputusan akhir tetap di tangan manusia.
-          </p>
+
+        <div className="relative flex justify-center">
+          <BrandMascot width={400} />
         </div>
-        <p className="relative text-xs text-white/60">Multi-agent Business &amp; Unified Task Intelligence</p>
+
+        <div className="relative space-y-4 max-w-lg">
+          <h2 className="text-3xl font-bold leading-tight text-balance">
+            Kantor AI yang bekerja <span className="text-accent">dari SOP Anda.</span>
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {HIGHLIGHTS.map((item) => (
+              <span key={item} className="text-xs font-medium rounded-full bg-white/10 border border-white/15 px-3 py-1.5 backdrop-blur">
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="flex items-center justify-center p-4 sm:p-8">
-        <div className="glass w-full max-w-md rounded-3xl p-6 sm:p-8 space-y-6">
-          <div className="space-y-1">
+        <div className="glass ring-gradient w-full max-w-md rounded-[28px] p-6 sm:p-8 space-y-6 rise">
+          <div className="space-y-2">
             <div className="lg:hidden mb-4">
-              <BrandMark size={40} />
+              <BrandMark size={52} />
             </div>
-            <h1 className="text-2xl font-bold text-ink">Masuk</h1>
-            <p className="text-sm text-muted">Gunakan akun organisasi Anda.</p>
+            <h1 className="text-3xl font-bold text-ink tracking-tight">Selamat datang 👋</h1>
+            <p className="text-sm text-muted">Masuk untuk mengatur kantor AI organisasi Anda.</p>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit} noValidate>
@@ -102,29 +108,23 @@ export default function LoginPage() {
             />
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2" role="alert">
+              <p className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 rise" role="alert">
                 {error}
               </p>
             )}
 
-            <Button type="submit" className="w-full" loading={submitting} disabled={!email || !password}>
+            <Button type="submit" size="lg" className="w-full" loading={submitting} disabled={!email || !password}>
               Masuk
             </Button>
           </form>
 
           {isMockMode() && (
-            <div className="rounded-2xl bg-accent-soft border border-accent/30 p-4 space-y-3">
+            <div className="rounded-2xl bg-gradient-to-br from-accent-soft to-white border border-accent/30 p-4 space-y-3">
               <p className="text-xs text-amber-900 leading-relaxed">
-                Mode data contoh aktif. Belum ada backend; semua data tersimpan di peramban ini.
+                <strong>Mode data contoh.</strong> Belum ada backend; semua data tersimpan di peramban ini.
               </p>
-              <Button
-                variant="accent"
-                size="sm"
-                className="w-full"
-                disabled={submitting}
-                onClick={() => signIn(DEMO_ACCOUNT)}
-              >
-                Masuk dengan akun demo
+              <Button variant="dark" size="md" className="w-full" disabled={submitting} onClick={() => signIn(DEMO_ACCOUNT)}>
+                🐝 Masuk dengan akun demo
               </Button>
             </div>
           )}

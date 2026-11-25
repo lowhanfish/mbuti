@@ -124,6 +124,46 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   dot: <circle cx="12" cy="12" r="2.5" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  edit: (
+    <>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M10 11v6M14 11v6" />
+      <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="m4 7 8 6 8-6" />
+    </>
+  ),
+  tree: (
+    <>
+      <rect x="9" y="3" width="6" height="5" rx="1.2" />
+      <rect x="3" y="16" width="6" height="5" rx="1.2" />
+      <rect x="15" y="16" width="6" height="5" rx="1.2" />
+      <path d="M12 8v4M6 16v-4h12v4" />
+    </>
+  ),
+  list: <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />,
+  crown: (
+    <>
+      <path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8Z" />
+    </>
+  ),
+  shield: <path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z" />,
 };
 
 export function Icon({
