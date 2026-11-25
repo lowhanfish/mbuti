@@ -155,6 +155,8 @@ export const penggunaRoutes: MockRoute[] = [
       ctx.db.memberships.splice(index, 1);
       for (const u of ctx.db.units) if (u.lead_member_id === target.id) u.lead_member_id = null;
       for (const a of ctx.db.agents) if (a.owner_member_id === target.id) a.owner_member_id = null;
+      ctx.db.relations = ctx.db.relations.filter((r) => r.target_id !== target.id);
+      ctx.db.flow_humans = ctx.db.flow_humans.filter((id) => id !== target.id);
       return ok(null, "Pengguna dikeluarkan dari organisasi.");
     },
   },

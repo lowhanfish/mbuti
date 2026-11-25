@@ -224,3 +224,21 @@ body {
 .swal2-confirm {
   border-radius: 0.9rem !important;
 }
+
+/* Peta relasi: garis serah-terima dan rute yang disorot tampak mengalir */
+.relation-flow {
+  animation: relation-dash 0.9s linear infinite;
+}
+@keyframes relation-dash {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+.react-flow__attribution {
+  background: transparent !important;
+}
+
+/* Notifikasi selalu di atas modal */
+.swal2-container {
+  z-index: 2000 !important;
+}

@@ -6,7 +6,7 @@ import React, { Suspense, useState } from "react";
 import { confirmAlert } from "@/lib/show_swall";
 import { useAuthStore } from "@/store/useAuthStore";
 import { formatDate } from "@/utilities/labels";
-import { Badge, Button, Card, EmptyState, Skeleton } from "../../../_components/ui";
+import { Button, Card, EmptyState, Skeleton } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
 import { AgentStatusBadge } from "../components/RoleParts";
@@ -16,6 +16,7 @@ import TabInstruksi from "./components/TabInstruksi";
 import TabProfil from "./components/TabProfil";
 import TabUjiCoba from "./components/TabUjiCoba";
 import TabDokumen from "./components/TabDokumen";
+import TabRelasi from "./components/TabRelasi";
 
 const TABS = [
   { key: "profil", label: "Profil", icon: "agent" },
@@ -159,16 +160,7 @@ function RoleDetail() {
           <TabInstruksi key={Role.updated_at} role={Role} canEdit={canEdit} saving={updateMutation.isPending} onSave={save} />
         )}
         {tab === "dokumen" && <TabDokumen role={Role} canEdit={canEdit} />}
-        {tab === "relasi" && (
-          <Card>
-            <EmptyState
-              icon={<Icon name="flow" size={26} />}
-              title="Belum ada relasi"
-              description="Hubungkan role ini dengan role lain (serahkan, periksa, konsultasi, eskalasi) di Peta Relasi pada tahap A4."
-              action={<Badge variant="info">Tahap A4</Badge>}
-            />
-          </Card>
-        )}
+        {tab === "relasi" && <TabRelasi role={Role} />}
         {tab === "uji" && <TabUjiCoba role={Role} />}
         {tab === "riwayat" && (
           <Card>

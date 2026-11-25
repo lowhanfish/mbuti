@@ -5,6 +5,7 @@
 import type { AccessRole } from "@/types/global";
 import type { UpdateInterface as AgentFields } from "@/app/(admin)/admin/role/types";
 import { SEED_DOC_VERSIONS, SEED_DOCUMENTS, type MockDocVersion, type MockDocument } from "./seed-documents";
+import type { RelationFields } from "@/app/(admin)/admin/relasi/types";
 
 export type { MockDocVersion, MockDocument };
 
@@ -70,6 +71,15 @@ export interface MockAgent extends AgentFields {
   updated_at: string;
 }
 
+export interface MockRelation extends RelationFields {
+  id: string;
+  organization_id: string;
+  source_id: string;
+  target_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MockDatabase {
   version: number;
   organizations: MockOrganization[];
@@ -79,11 +89,16 @@ export interface MockDatabase {
   agents: MockAgent[];
   documents: MockDocument[];
   doc_versions: MockDocVersion[];
+  relations: MockRelation[];
+  /** Manusia (id keanggotaan) yang ditampilkan di peta relasi */
+  flow_humans: string[];
+  /** Posisi node di peta relasi; kosong = disusun otomatis */
+  flow_positions: Record<string, { x: number; y: number }>;
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 4;
+export const MOCK_DB_VERSION = 5;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -175,6 +190,9 @@ export const createSeed = (): MockDatabase => ({
   agents: SEED_AGENTS,
   documents: structuredClone(SEED_DOCUMENTS),
   doc_versions: structuredClone(SEED_DOC_VERSIONS),
+  relations: SEED_RELATIONS.map((r) => ({ ...r })),
+  flow_humans: ["member-bayu", "member-maya", "member-sari"],
+  flow_positions: {},
   session: null,
 });
 
@@ -313,5 +331,66 @@ const SEED_AGENTS: MockAgent[] = [
     model_profile: "thorough",
     owner_member_id: "member-dimas",
     avatar: { skin: "#8d5a37", hair: "#1f1a24", hair_style: "short", shirt: "#ec4899", pants: "#3f3f46", accessory: "headset" },
+  }),
+];
+
+const relation = (
+  id: string,
+  source_id: string,
+  target_id: string,
+  fields: Partial<RelationFields> & Pick<RelationFields, "relation_type">
+): MockRelation => ({
+  id,
+  organization_id: ORG,
+  source_id,
+  target_id,
+  trigger: "on_complete",
+  condition: "",
+  payload_spec: "result_context",
+  expected_output: "",
+  max_revisions: 2,
+  requires_approval: false,
+  label: "",
+  ...fields,
+  created_at: T0,
+  updated_at: T0,
+});
+
+const SEED_RELATIONS: MockRelation[] = [
+  relation("rel-rani-tegar", "agent-rani", "agent-tegar", {
+    relation_type: "review",
+    payload_spec: "references",
+    expected_output: "Daftar temuan beserta halaman pedoman, dan keputusan DITERIMA atau PERLU REVISI.",
+    max_revisions: 2,
+    label: "Periksa draf surat",
+  }),
+  relation("rel-tegar-bayu", "agent-tegar", "member-bayu", {
+    relation_type: "escalate",
+    requires_approval: true,
+    expected_output: "Persetujuan akhir sebelum surat ditandatangani dan dikirim.",
+    label: "Persetujuan akhir",
+  }),
+  relation("rel-lumi-maya", "agent-lumi", "member-maya", {
+    relation_type: "escalate",
+    trigger: "on_condition",
+    condition: "Pertanyaan menyangkut data pribadi, keluhan, atau tidak diatur di SOP.",
+    requires_approval: true,
+    label: "Di luar SOP",
+  }),
+  relation("rel-sekar-sari", "agent-sekar", "member-sari", {
+    relation_type: "escalate",
+    requires_approval: true,
+    expected_output: "Pemeriksaan angka sebelum laporan dikirim ke pimpinan.",
+    label: "Setujui laporan",
+  }),
+  relation("rel-bima-sekar", "agent-data", "agent-sekar", {
+    relation_type: "consult",
+    expected_output: "Angka realisasi per kegiatan untuk bahan ringkasan.",
+    label: "Minta angka realisasi",
+  }),
+  relation("rel-dana-sekar", "agent-dana", "agent-sekar", {
+    relation_type: "handoff",
+    expected_output: "Daftar pembayaran yang lolos verifikasi untuk dicatat di laporan.",
+    label: "Teruskan pembayaran lolos",
   }),
 ];
