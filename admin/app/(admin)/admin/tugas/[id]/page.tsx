@@ -58,7 +58,7 @@ function TaskDetail() {
               {Task.due_at && <Badge size="sm">Tenggat {formatDate(Task.due_at)}</Badge>}
             </div>
             <h2 className="text-2xl font-extrabold text-ink tracking-tight">{Task.title}</h2>
-            <p className="text-sm text-muted max-w-2xl">{Task.brief || "Tanpa arahan tambahan."}</p>
+            <p className="text-sm text-muted max-w-2xl whitespace-pre-line break-words">{Task.brief || "Tanpa arahan tambahan."}</p>
           </div>
           <div className="flex items-center gap-4 lg:gap-6">
             <div className="text-center">
