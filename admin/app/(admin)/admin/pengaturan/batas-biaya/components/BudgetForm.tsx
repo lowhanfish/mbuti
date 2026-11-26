@@ -132,7 +132,7 @@ export default function BudgetForm({
                     aria-checked={revisions === n}
                     onClick={() => set("max_revisions", String(n))}
                     className={`w-10 h-10 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:cursor-not-allowed ${
-                      revisions === n ? "bg-accent text-ink shadow-md scale-105" : "bg-white border border-line text-muted hover:text-ink"
+                      revisions === n ? "bg-accent text-ink shadow-md scale-105" : "bg-surface border border-line text-muted hover:text-ink"
                     }`}
                   >
                     {n}

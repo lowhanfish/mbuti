@@ -71,11 +71,11 @@ export default function TugasPage() {
                 aria-selected={status === f.value}
                 onClick={() => setStatus(f.value)}
                 className={`h-9 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                  status === f.value ? "bg-ink text-white shadow-md" : "bg-white/70 text-muted hover:text-ink hover:bg-white"
+                  status === f.value ? "bg-ink text-canvas shadow-md" : "bg-surface/70 text-muted hover:text-ink hover:bg-surface"
                 }`}
               >
                 {f.label}
-                <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${status === f.value ? "bg-white/15 text-accent" : "bg-canvas"}`}>{counts[f.value] ?? 0}</span>
+                <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${status === f.value ? "bg-canvas/20 text-canvas" : "bg-canvas"}`}>{counts[f.value] ?? 0}</span>
               </button>
             ))}
           </div>

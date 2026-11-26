@@ -106,7 +106,7 @@ export function FileDropzone({
         accept(e.dataTransfer.files[0]);
       }}
       className={`relative rounded-3xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
-        dragging ? "border-brand bg-brand-soft scale-[1.01]" : file ? "border-emerald-300 bg-emerald-50/60" : "border-line bg-white/70 hover:border-brand/50 hover:bg-brand-soft/40"
+        dragging ? "border-brand bg-brand-soft scale-[1.01]" : file ? "border-emerald-300 bg-emerald-50/60" : "border-line bg-surface/70 hover:border-brand/50 hover:bg-brand-soft/40"
       }`}
     >
       <input

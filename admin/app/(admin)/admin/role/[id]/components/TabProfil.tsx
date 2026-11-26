@@ -31,8 +31,8 @@ export default function TabProfil({
   onSave: (body: Partial<UpdateInterface>) => void;
 }) {
   const [form, setForm] = useState<ProfilFields>(() => pick(role));
-  const { List: units } = useResponseOptionUnit();
-  const { List: members } = useResponseOptionLead();
+  const { List: units, isLoading: unitsLoading } = useResponseOptionUnit();
+  const { List: members, isLoading: membersLoading } = useResponseOptionLead();
   const dirty = JSON.stringify(form) !== JSON.stringify(pick(role));
   const set = <K extends keyof ProfilFields>(key: K, value: ProfilFields[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -57,7 +57,7 @@ export default function TabProfil({
               maxLength={500}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Unit" value={form.unit_id ?? ""} onChange={(e) => set("unit_id", e.target.value || null)}>
+              <Select label="Unit" loading={unitsLoading} value={form.unit_id ?? ""} onChange={(e) => set("unit_id", e.target.value || null)}>
                 <option value="">— Belum ditempatkan —</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -67,6 +67,7 @@ export default function TabProfil({
               </Select>
               <Select
                 label="Penanggung jawab"
+                loading={membersLoading}
                 value={form.owner_member_id ?? ""}
                 onChange={(e) => set("owner_member_id", e.target.value || null)}
                 helperText="Manusia yang mengawasi role ini."
@@ -94,8 +95,8 @@ export default function TabProfil({
                           ? "bg-emerald-500 text-white shadow-md"
                           : s === "paused"
                             ? "bg-amber-400 text-ink shadow-md"
-                            : "bg-ink text-white shadow-md"
-                        : "bg-white border border-line text-muted hover:text-ink"
+                            : "bg-ink text-canvas shadow-md"
+                        : "bg-surface border border-line text-muted hover:text-ink"
                     }`}
                   >
                     {STATUS_LABEL[s]}

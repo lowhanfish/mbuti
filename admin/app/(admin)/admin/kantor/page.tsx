@@ -70,7 +70,7 @@ export default function KantorPage() {
                 role="tab"
                 aria-selected={mode === m}
                 onClick={() => setModeChoice(m)}
-                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === m ? "bg-ink text-accent" : "text-muted hover:text-ink"}`}
+                className={`h-8 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === m ? "bg-ink text-canvas" : "text-muted hover:text-ink"}`}
               >
                 {m.toUpperCase()}
               </button>
@@ -96,7 +96,7 @@ export default function KantorPage() {
         </Card>
       ) : mode === "3d" ? (
         <div
-          className={`overflow-hidden bg-gradient-to-b from-[#f6f2ff] to-[#fff8e8] ${
+          className={`overflow-hidden bg-gradient-to-b from-brand-soft/70 to-accent-soft/70 ${
             expanded ? FULLSCREEN_CLASSES : "relative h-[calc(100vh-190px)] min-h-[520px] rounded-[28px] glass"
           }`}
         >
@@ -122,7 +122,7 @@ export default function KantorPage() {
               </span>
             ))}
           </div>
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:block rounded-full bg-ink/85 text-white text-[11px] px-4 py-1.5 pointer-events-none">
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:block rounded-full bg-night/85 text-white text-[11px] px-4 py-1.5 pointer-events-none">
             Seret untuk memutar · klik kanan + seret untuk menggeser · gulir untuk memperbesar
           </p>
           <OfficePanel
@@ -157,7 +157,7 @@ export default function KantorPage() {
             }}
           />
           {(unitId || agentId) && (
-            <div className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-sm" onClick={() => (setUnitId(null), setAgentId(null))}>
+            <div className="fixed inset-0 z-40 bg-night/30 backdrop-blur-sm" onClick={() => (setUnitId(null), setAgentId(null))}>
               <div className="absolute inset-y-0 right-0 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <OfficePanel
                   state={Office}

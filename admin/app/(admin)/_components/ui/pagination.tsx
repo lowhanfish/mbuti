@@ -15,7 +15,7 @@ export interface PaginationProps {
 }
 
 const navButton =
-  "h-8 rounded-xl border border-white bg-white/75 hover:bg-white text-ink disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer text-xs";
+  "h-8 rounded-xl border border-rim bg-surface/75 hover:bg-surface text-ink disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer text-xs";
 
 export function Pagination({
   page,
@@ -53,7 +53,7 @@ export function Pagination({
       onClick={() => onPageChange(p)}
       aria-current={p === page ? "page" : undefined}
       className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
-        p === page ? "bg-brand text-white shadow-xs" : "bg-white/70 hover:bg-white text-ink border border-white"
+        p === page ? "bg-brand text-white shadow-xs" : "bg-surface/70 hover:bg-surface text-ink border border-rim"
       }`}
     >
       {p}
@@ -80,7 +80,7 @@ export function Pagination({
                   onPageSizeChange(Number(e.target.value));
                   onPageChange(1);
                 }}
-                className="bg-white/85 border border-white text-ink font-semibold text-xs rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-brand/30 cursor-pointer"
+                className="bg-surface/85 border border-rim text-ink font-semibold text-xs rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-brand/30 cursor-pointer"
               >
                 {pageSizeOptions.map((opt) => (
                   <option key={opt} value={opt}>

@@ -32,7 +32,7 @@ export function RoleCard({ role }: { role: ResponseInterface }) {
           <div className="absolute top-3 left-3">
             <AgentStatusBadge status={role.status} />
           </div>
-          <div className="absolute top-3 right-3 text-[10px] font-semibold text-ink/70 bg-white/70 backdrop-blur rounded-full px-2 py-0.5">
+          <div className="absolute top-3 right-3 text-[10px] font-semibold text-ink/70 bg-surface/70 backdrop-blur rounded-full px-2 py-0.5">
             {MODEL_PROFILE_LABEL[role.model_profile].label}
           </div>
           <div className="relative transition-transform duration-300 group-hover:-translate-y-1.5 group-hover:scale-105">

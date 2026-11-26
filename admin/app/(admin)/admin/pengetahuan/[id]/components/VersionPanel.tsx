@@ -30,12 +30,12 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
             <li key={v.id} className="relative flex gap-3">
               <span
                 className={`relative z-10 w-8 h-8 rounded-xl text-[11px] font-extrabold flex items-center justify-center shrink-0 ${
-                  v.is_active ? "bg-gradient-to-br from-brand to-[#9b6bff] text-white shadow-md" : "bg-white border border-line text-muted"
+                  v.is_active ? "bg-gradient-to-br from-brand to-[#9b6bff] text-white shadow-md" : "bg-surface border border-line text-muted"
                 }`}
               >
                 v{v.version_no}
               </span>
-              <div className="flex-1 min-w-0 rounded-2xl bg-white/80 border border-line p-3 space-y-1.5">
+              <div className="flex-1 min-w-0 rounded-2xl bg-surface/80 border border-line p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-ink truncate" title={v.file_name}>
                     {v.file_name}

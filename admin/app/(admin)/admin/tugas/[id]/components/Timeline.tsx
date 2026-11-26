@@ -10,7 +10,7 @@ import { RELATION_STYLE } from "../../../relasi/types";
 import { STEP_KIND_LABEL, formatRupiah, type DetailInterface, type EventType, type StepInterface } from "../../types";
 
 const EVENT_STYLE: Partial<Record<EventType, { icon: string; tone: string }>> = {
-  created: { icon: "plus", tone: "bg-ink text-accent" },
+  created: { icon: "plus", tone: "bg-night text-accent" },
   step_started: { icon: "sparkles", tone: "bg-brand-soft text-brand" },
   review_revise: { icon: "edit", tone: "bg-amber-100 text-amber-700" },
   review_approved: { icon: "check", tone: "bg-emerald-100 text-emerald-700" },
@@ -29,7 +29,7 @@ function StepCard({ step }: { step: StepInterface }) {
   const [open, setOpen] = useState(false);
   const running = step.status === "running";
   return (
-    <div className={`rounded-2xl border bg-white overflow-hidden transition-all ${running ? "border-brand shadow-[0_0_0_4px_rgba(124,77,255,.12)]" : "border-line"}`}>
+    <div className={`rounded-2xl border bg-surface overflow-hidden transition-all ${running ? "border-brand shadow-[0_0_0_4px_rgba(124,77,255,.12)]" : "border-line"}`}>
       <div className="flex items-center gap-3 p-3">
         <span className="w-11 h-11 rounded-xl flex items-end justify-center overflow-hidden shrink-0" style={{ background: `${step.agent.unit_color ?? "#7c4dff"}2a` }}>
           <Avatar2D avatar={step.agent.avatar} size={40} className={running ? "animate-float" : ""} />

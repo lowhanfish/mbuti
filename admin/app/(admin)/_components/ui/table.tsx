@@ -15,18 +15,18 @@ export function Table({ children, className = "" }: SlotProps) {
 
 export function TableHeader({ children, className = "" }: SlotProps) {
   return (
-    <thead className={`border-b border-white/70 bg-white/40 text-xs font-semibold text-muted ${className}`}>
+    <thead className={`border-b border-rim bg-surface/40 text-xs font-semibold text-muted ${className}`}>
       {children}
     </thead>
   );
 }
 
 export function TableBody({ children, className = "" }: SlotProps) {
-  return <tbody className={`divide-y divide-white/70 ${className}`}>{children}</tbody>;
+  return <tbody className={`divide-y divide-rim ${className}`}>{children}</tbody>;
 }
 
 export function TableRow({ children, className = "" }: SlotProps) {
-  return <tr className={`hover:bg-white/55 transition-colors duration-150 ${className}`}>{children}</tr>;
+  return <tr className={`hover:bg-surface/55 transition-colors duration-150 ${className}`}>{children}</tr>;
 }
 
 export function TableHead({ children, className = "" }: SlotProps) {

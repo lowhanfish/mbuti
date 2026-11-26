@@ -81,6 +81,23 @@ types/                  tipe bersama dan bentuk respons API
 5. Tambahkan menu di `app/(admin)/_data/admin-menu.json`.
 6. Tambahkan endpoint dan bentuk datanya ke `API_CONTRACT.md`.
 
+## Tema dan skeleton
+
+Tema gelap adalah bawaan; tombol matahari/bulan di kepala halaman (dan di halaman masuk) beralih ke terang, dan
+pilihannya disimpan di `localStorage` (`mbuti-theme`). Atribut `data-theme` dipasang di `<html>` oleh skrip di
+`app/layout.tsx` sebelum halaman tampil (`lib/theme.ts`). Halaman depan selalu bertema malamnya sendiri.
+
+Warna diambil dari token di `app/globals.css` (`canvas`, `surface`, `surface-2`, `ink`, `muted`, `faint`, `line`,
+`rim`, `brand`, `accent`, `night`). Untuk komponen baru:
+
+- Pakai `bg-surface`, bukan `bg-white`, dan `border-rim` untuk tepi kaca.
+- `night` selalu gelap di kedua tema (tombol gelap, panel merek). `bg-ink text-canvas` dipakai untuk pilihan yang
+  sedang aktif, karena berbalik warna di tema gelap.
+- Warna status Tailwind (rose, emerald, amber, ...) dibalik otomatis di tema gelap; tambahkan nadanya di
+  `globals.css` bila memakai nada baru.
+- Selama data dimuat tampilkan kerangka (`Skeleton`, `SkeletonCard`, `SkeletonTableRows`, `StatCard loading`,
+  `Select loading`), bukan teks "Memuat…" atau keadaan kosong.
+
 ## Catatan Next.js 16
 
 Proyek memakai `cacheComponents` dan `partialPrefetching`. Layout admin selalu merender `{children}`;

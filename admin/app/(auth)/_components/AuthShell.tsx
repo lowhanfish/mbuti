@@ -1,6 +1,7 @@
 import Link from "next/link";
 import React from "react";
 import { BackgroundOrbs, BrandMark, BrandMascot } from "../../(admin)/_components/brand-mark";
+import { ThemeToggle } from "../../(admin)/_components/theme-toggle";
 
 const HIGHLIGHTS = ["Role bekerja dari SOP", "Hasil saling diperiksa", "Keputusan tetap di manusia"];
 
@@ -21,7 +22,7 @@ export function AuthShell({
     <main className="flex-1 grid lg:grid-cols-[1.1fr_1fr]">
       <BackgroundOrbs />
 
-      <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-4xl bg-linear-to-br from-ink via-[#241a45] to-[#3b2580] text-white relative overflow-hidden">
+      <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-4xl bg-linear-to-br from-night via-night-2 to-[#3b2580] text-white relative overflow-hidden">
         <div className="absolute -left-20 top-1/3 w-80 h-80 rounded-full bg-brand/40 blur-3xl" aria-hidden="true" />
         <div className="absolute right-0 -bottom-20 w-96 h-96 rounded-full bg-accent/25 blur-3xl" aria-hidden="true" />
 
@@ -50,7 +51,16 @@ export function AuthShell({
         </div>
       </section>
 
-      <section className="flex items-center justify-center p-4 sm:p-8">
+      <section className="relative flex items-center justify-center p-4 pt-20 sm:p-8 sm:pt-20 lg:pt-8">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2">
+          <Link
+            href="/"
+            className="h-10 px-3.5 rounded-2xl bg-surface/80 border border-rim text-xs font-semibold text-muted hover:text-brand flex items-center transition-colors"
+          >
+            ← Beranda
+          </Link>
+          <ThemeToggle />
+        </div>
         <div className={`glass ring-gradient w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-[28px] p-6 sm:p-8 space-y-6 rise`}>
           <div className="space-y-2">
             <Link href="/" className="lg:hidden mb-4 inline-block" aria-label="Halaman depan MBUTI">

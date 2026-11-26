@@ -27,7 +27,7 @@ export default function FormRoleModal({
 }) {
   const [form, setForm] = useState<CreateInterface>({ name: "", title: "", unit_id: defaultUnitId, goal: "", status: "draft" });
   const [touched, setTouched] = useState(false);
-  const { List: units } = useResponseOptionUnit();
+  const { List: units, isLoading: unitsLoading } = useResponseOptionUnit();
 
   const nameError = touched && form.name.trim().length < 2 ? "Nama minimal 2 karakter." : undefined;
   const titleError = touched && form.title.trim().length < 3 ? "Jabatan minimal 3 karakter." : undefined;
@@ -80,7 +80,7 @@ export default function FormRoleModal({
               maxLength={100}
             />
           </div>
-          <Select label="Unit" value={form.unit_id ?? ""} onChange={(e) => setForm({ ...form, unit_id: e.target.value || null })}>
+          <Select label="Unit" loading={unitsLoading} value={form.unit_id ?? ""} onChange={(e) => setForm({ ...form, unit_id: e.target.value || null })}>
             <option value="">— Belum ditempatkan —</option>
             {units.map((u) => (
               <option key={u.id} value={u.id}>
@@ -104,7 +104,7 @@ export default function FormRoleModal({
                   key={t.title}
                   type="button"
                   onClick={() => setForm({ ...form, title: t.title, goal: t.goal })}
-                  className="h-8 px-3 rounded-xl text-xs font-semibold bg-white border border-line text-muted hover:text-brand hover:border-brand/40 transition-colors cursor-pointer"
+                  className="h-8 px-3 rounded-xl text-xs font-semibold bg-surface border border-line text-muted hover:text-brand hover:border-brand/40 transition-colors cursor-pointer"
                 >
                   {t.title}
                 </button>

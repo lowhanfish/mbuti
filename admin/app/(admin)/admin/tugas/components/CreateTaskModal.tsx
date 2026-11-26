@@ -47,7 +47,7 @@ function RoutePreview({ agentId, limits }: { agentId: string; limits?: BudgetSet
   const rels = Graph.relations.filter((r) => route.edges.has(r.id));
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-ink to-[#2d2150] text-white p-5 space-y-3">
+    <div className="rounded-3xl bg-gradient-to-br from-night to-[#2d2150] text-white p-5 space-y-3">
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Pratinjau rute</p>
       <div className="flex items-center gap-2 text-sm font-semibold">
         <span className="w-2 h-2 rounded-full bg-accent" />
@@ -101,7 +101,7 @@ export default function CreateTaskModal({
   onClose: () => void;
   onSubmit: (body: CreateInterface) => void;
 }) {
-  const { List } = useResponseListRole({ search: "", unit_id: "", status: "active" });
+  const { List, isLoading: rolesLoading } = useResponseListRole({ search: "", unit_id: "", status: "active" });
   const roles = useMemo(() => List?.data ?? [], [List]);
   const [agentId, setAgentId] = useState(defaultAgentId ?? "");
   const [title, setTitle] = useState("");
@@ -173,7 +173,7 @@ export default function CreateTaskModal({
                 setInputs({});
               }}
               className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition-all cursor-pointer ${
-                agentId === r.id ? "border-brand bg-brand-soft/70 shadow-[0_0_0_3px_rgba(124,77,255,.15)]" : "border-line bg-white hover:border-brand/40"
+                agentId === r.id ? "border-brand bg-brand-soft/70 shadow-[0_0_0_3px_rgba(124,77,255,.15)]" : "border-line bg-surface hover:border-brand/40"
               }`}
             >
               <span className="w-10 h-10 rounded-xl flex items-end justify-center overflow-hidden shrink-0" style={{ background: `${r.unit_color ?? "#7c4dff"}2a` }}>
@@ -185,7 +185,17 @@ export default function CreateTaskModal({
               </span>
             </button>
           ))}
-          {roles.length === 0 && <p className="text-sm text-faint col-span-full">Belum ada role aktif.</p>}
+          {rolesLoading &&
+            Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-2xl border border-line bg-surface p-2 motion-safe:animate-pulse" aria-busy="true">
+                <div className="w-10 h-10 rounded-xl bg-brand-soft shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-16 rounded bg-brand-soft" />
+                  <div className="h-2.5 w-20 rounded bg-brand-soft/70" />
+                </div>
+              </div>
+            ))}
+          {!rolesLoading && roles.length === 0 && <p className="text-sm text-faint col-span-full">Belum ada role aktif.</p>}
         </div>
       </div>
 

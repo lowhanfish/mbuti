@@ -35,8 +35,8 @@ export default function UploadDocumentModal({
   const [description, setDescription] = useState("");
   const [touched, setTouched] = useState(false);
 
-  const { List: units } = useResponseOptionUnit();
-  const { List: roles } = useResponseListRole({ search: "", unit_id: "", status: "" });
+  const { List: units, isLoading: unitsLoading } = useResponseOptionUnit();
+  const { List: roles, isLoading: rolesLoading } = useResponseListRole({ search: "", unit_id: "", status: "" });
 
   const scopeError = touched && scope !== "organization" && !scopeId ? `Pilih ${scope === "unit" ? "unit" : "role"} pemilik dokumen.` : undefined;
 
@@ -102,7 +102,7 @@ export default function UploadDocumentModal({
                 <label
                   key={s}
                   className={`rounded-2xl border p-3 cursor-pointer transition-all ${
-                    scope === s ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-white hover:border-brand/40"
+                    scope === s ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-surface hover:border-brand/40"
                   }`}
                 >
                   <input
@@ -120,7 +120,7 @@ export default function UploadDocumentModal({
               ))}
             </div>
             {scope === "unit" && (
-              <Select aria-label="Unit pemilik" value={scopeId} error={scopeError} onChange={(e) => setScopeId(e.target.value)}>
+              <Select aria-label="Unit pemilik" loading={unitsLoading} value={scopeId} error={scopeError} onChange={(e) => setScopeId(e.target.value)}>
                 <option value="">— Pilih unit —</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -130,7 +130,7 @@ export default function UploadDocumentModal({
               </Select>
             )}
             {scope === "agent" && (
-              <Select aria-label="Role pemilik" value={scopeId} error={scopeError} onChange={(e) => setScopeId(e.target.value)}>
+              <Select aria-label="Role pemilik" loading={rolesLoading} value={scopeId} error={scopeError} onChange={(e) => setScopeId(e.target.value)}>
                 <option value="">— Pilih role —</option>
                 {(roles?.data ?? []).map((r) => (
                   <option key={r.id} value={r.id}>

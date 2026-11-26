@@ -39,7 +39,7 @@ export default function RolePage() {
     unit_id: unitId,
     status,
   });
-  const { List: units } = useResponseOptionUnit();
+  const { List: units, isLoading: unitsLoading } = useResponseOptionUnit();
   const createMutation = useCreateRole();
 
   const roles = useMemo(() => List?.data ?? [], [List]);
@@ -85,18 +85,18 @@ export default function RolePage() {
                   aria-selected={active}
                   onClick={() => setStatus(f.value)}
                   className={`h-9 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                    active ? "bg-ink text-white shadow-md" : "bg-white/70 text-muted hover:text-ink hover:bg-white"
+                    active ? "bg-ink text-canvas shadow-md" : "bg-surface/70 text-muted hover:text-ink hover:bg-surface"
                   }`}
                 >
                   {f.label}
-                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${active ? "bg-white/15 text-accent" : "bg-canvas"}`}>{count}</span>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${active ? "bg-canvas/20 text-canvas" : "bg-canvas"}`}>{count}</span>
                 </button>
               );
             })}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="sm:w-56">
-              <Select aria-label="Saring unit" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+              <Select aria-label="Saring unit" loading={unitsLoading} value={unitId} onChange={(e) => setUnitId(e.target.value)}>
                 <option value="">Semua unit</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>

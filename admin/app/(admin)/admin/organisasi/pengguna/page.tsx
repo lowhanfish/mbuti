@@ -153,7 +153,7 @@ export default function OrganisasiPenggunaPage() {
               aria-pressed={active}
               className={`text-left rounded-3xl p-4 transition-all cursor-pointer ${
                 active
-                  ? "bg-gradient-to-br from-ink to-[#3b2580] text-white shadow-[0_16px_30px_-14px_rgba(24,18,43,.8)] -translate-y-0.5"
+                  ? "bg-gradient-to-br from-night to-[#3b2580] text-white shadow-[0_16px_30px_-14px_rgba(24,18,43,.8)] -translate-y-0.5"
                   : "glass card-hover text-ink"
               }`}
             >
@@ -246,7 +246,15 @@ export default function OrganisasiPenggunaPage() {
             {/* Kartu untuk layar sempit */}
             <ul className="md:hidden divide-y divide-line/70">
               {isLoading ? (
-                <li className="p-5 text-sm text-muted">Memuat…</li>
+                Array.from({ length: 4 }, (_, i) => (
+                  <li key={i} className="p-4 flex items-center gap-3 motion-safe:animate-pulse" aria-busy="true">
+                    <div className="w-10 h-10 rounded-2xl bg-brand-soft shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className={`h-3.5 rounded-md bg-brand-soft ${i % 2 ? "w-1/2" : "w-2/3"}`} />
+                      <div className="h-2.5 w-32 rounded-md bg-brand-soft/70" />
+                    </div>
+                  </li>
+                ))
               ) : rows.length === 0 ? (
                 <li className="p-8 text-center text-sm text-faint">Tidak ada pengguna yang cocok dengan saringan.</li>
               ) : (

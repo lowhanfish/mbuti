@@ -1,7 +1,7 @@
 import React from "react";
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`motion-safe:animate-pulse bg-white/55 border border-white/70 rounded-xl ${className}`} />;
+  return <div className={`motion-safe:animate-pulse bg-surface/55 border border-rim rounded-xl ${className}`} />;
 }
 
 export function SkeletonText({ lines = 3, className = "" }: { lines?: number; className?: string }) {
@@ -10,7 +10,7 @@ export function SkeletonText({ lines = 3, className = "" }: { lines?: number; cl
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className={`h-4 bg-white/55 border border-white/70 rounded-lg ${i === lines - 1 ? "w-2/3" : "w-full"}`}
+          className={`h-4 bg-surface/55 border border-rim rounded-lg ${i === lines - 1 ? "w-2/3" : "w-full"}`}
         />
       ))}
     </div>
@@ -21,11 +21,11 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
   return (
     <div className={`p-5 glass rounded-3xl motion-safe:animate-pulse flex items-center justify-between ${className}`}>
       <div className="space-y-2 flex-1 mr-4">
-        <div className="h-3 w-24 bg-white/60 rounded-md" />
-        <div className="h-6 w-36 bg-white/80 rounded-lg" />
-        <div className="h-3 w-20 bg-white/50 rounded-md" />
+        <div className="h-3 w-24 bg-surface/60 rounded-md" />
+        <div className="h-6 w-36 bg-surface/80 rounded-lg" />
+        <div className="h-3 w-20 bg-surface/50 rounded-md" />
       </div>
-      <div className="w-12 h-12 rounded-2xl bg-white/70" />
+      <div className="w-12 h-12 rounded-2xl bg-surface/70" />
     </div>
   );
 }

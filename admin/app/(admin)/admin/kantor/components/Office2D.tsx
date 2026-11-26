@@ -32,7 +32,7 @@ export default function Office2D({
               <span className="block text-[10px] font-bold tracking-[0.18em] opacity-80">{room.unit.code || "UNIT"}</span>
               <span className="block font-bold">{room.unit.name}</span>
             </span>
-            {room.unit.active_task_count > 0 && <span className="text-[10px] font-bold bg-ink/80 text-accent rounded-full px-2 py-1">{room.unit.active_task_count} aktif</span>}
+            {room.unit.active_task_count > 0 && <span className="text-[10px] font-bold bg-night/80 text-accent rounded-full px-2 py-1">{room.unit.active_task_count} aktif</span>}
           </button>
           <div className="p-3 grid grid-cols-3 gap-2" style={{ background: tint(room.unit.color, 0.86) }}>
             {room.agents.map(({ agent }) => (
@@ -40,7 +40,7 @@ export default function Office2D({
                 key={agent.id}
                 type="button"
                 onClick={() => onSelectAgent(agent.id)}
-                className="rounded-2xl bg-white/85 border border-white p-2 flex flex-col items-center gap-1 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                className="rounded-2xl bg-surface/85 border border-rim p-2 flex flex-col items-center gap-1 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
               >
                 <Avatar2D avatar={agent.avatar} size={52} className={["working", "reviewing", "consulting"].includes(agent.activity) ? "animate-float" : ""} />
                 <span className="text-xs font-bold text-ink truncate max-w-full">{agent.name}</span>

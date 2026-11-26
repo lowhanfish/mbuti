@@ -21,8 +21,8 @@ export function Badge({ children, variant = "neutral", size = "md", dot = false,
     danger: "bg-rose-500/12 text-rose-700",
     info: "bg-brand-soft text-brand-strong",
     accent: "bg-accent-soft text-amber-800",
-    dark: "bg-ink text-accent",
-    neutral: "bg-white/80 text-muted border border-line",
+    dark: "bg-night text-accent dark:bg-accent-soft",
+    neutral: "bg-surface/80 text-muted border border-line",
   }[variant];
 
   return (

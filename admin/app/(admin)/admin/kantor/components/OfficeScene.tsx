@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { BlockyCharacter, type CharacterPose } from "../../../_components/agent/blocky-character";
@@ -9,6 +9,13 @@ import { RELATION_STYLE } from "../../relasi/types";
 import { buildLayout, tint, type RoomLayout } from "../office-layout";
 import { ACTIVITY_LABEL, type AgentActivity, type OfficeAgent, type OfficeState, type OfficeTransfer } from "../types";
 import { TextSprite } from "./Sprites";
+import { DEFAULT_THEME, readTheme, subscribeTheme } from "@/lib/theme";
+
+/** Lantai dan garis bantu mengikuti tema tampilan. */
+const GROUND = {
+  light: { floor: "#f3efff", grid: ["#e4dcff", "#ece6ff"], sky: "#c4b5fd" },
+  dark: { floor: "#1a1330", grid: ["#2f2549", "#241c3c"], sky: "#3b2580" },
+} as const;
 
 const POSE: Record<AgentActivity, CharacterPose> = {
   idle: "idle",
@@ -251,19 +258,20 @@ function Scene({
   }, [rooms]);
 
   const transfers = state.transfers.filter((t) => positions.has(t.from_agent_id) && positions.has(t.to_agent_id));
+  const ground = GROUND[useSyncExternalStore(subscribeTheme, readTheme, () => DEFAULT_THEME)];
 
   return (
     <>
       <Controls span={span} controlsRef={controlsRef} />
-      <hemisphereLight args={["#ffffff", "#c4b5fd", 0.9]} />
+      <hemisphereLight args={["#ffffff", ground.sky, 0.9]} />
       <ambientLight intensity={0.35} />
       <directionalLight position={[18, 28, 12]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-40} shadow-camera-right={40} shadow-camera-top={40} shadow-camera-bottom={-40} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow onClick={() => (onSelectUnit(null), onSelectAgent(null))}>
         <planeGeometry args={[span * 3, span * 3]} />
-        <meshStandardMaterial color="#f3efff" />
+        <meshStandardMaterial color={ground.floor} />
       </mesh>
-      <gridHelper args={[span * 3, Math.round(span * 1.5), "#e4dcff", "#ece6ff"]} position={[0, 0, 0]} />
+      <gridHelper key={ground.floor} args={[span * 3, Math.round(span * 1.5), ground.grid[0], ground.grid[1]]} position={[0, 0, 0]} />
 
       {rooms.map((room) => (
         <group key={room.unit.id}>

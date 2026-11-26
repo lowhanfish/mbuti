@@ -47,7 +47,7 @@ export default function SearchPanel({ agentId = "", title = "Uji pencarian" }: {
                 <Link
                   key={`${h.document_id}-${h.page_no}`}
                   href={citationHref(h, debounced)}
-                  className="block rounded-2xl border border-line bg-white p-3 hover:border-brand/40 hover:shadow-md transition-all rise"
+                  className="block rounded-2xl border border-line bg-surface p-3 hover:border-brand/40 hover:shadow-md transition-all rise"
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
                   <div className="flex items-center justify-between gap-2 text-[11px]">

@@ -28,7 +28,7 @@ export default function BusyAgents({ items }: { items?: BusyAgent[] }) {
         <ul className="p-3 space-y-1 stagger">
           {items.map((b) => (
             <li key={b.agent.id}>
-              <Link href={`/admin/role/${b.agent.id}`} className="group flex items-center gap-3 rounded-2xl px-3 py-2 hover:bg-white transition-colors">
+              <Link href={`/admin/role/${b.agent.id}`} className="group flex items-center gap-3 rounded-2xl px-3 py-2 hover:bg-surface transition-colors">
                 <span
                   className="w-11 h-11 rounded-xl flex items-end justify-center overflow-hidden shrink-0 transition-transform group-hover:scale-110 group-hover:-rotate-3"
                   style={{ background: `${b.agent.unit_color ?? "#7c4dff"}2a` }}

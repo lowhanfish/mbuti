@@ -4,9 +4,18 @@
  * Token warna MBUTI, diambil dari maskot lebah: madu (kuning), ungu cahaya sayap, dan hitam tubuh.
  * Komponen memakai kelas seperti text-ink, bg-brand, bg-accent, border-line.
  */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --color-canvas: #faf8ff;
   --color-surface: #ffffff;
+  /* Permukaan kedua: isian, baris tabel yang disorot, panel di dalam kartu */
+  --color-surface-2: #f6f2ff;
+  /* Selalu gelap di kedua tema: tombol gelap, panel merek, lapisan modal */
+  --color-night: #18122b;
+  --color-night-2: #241a45;
+  /* Garis tepi kaca: putih di tema terang, tembus tipis di tema gelap */
+  --color-rim: #ffffff;
   --color-ink: #18122b;
   --color-muted: #5f5873;
   --color-faint: #a19ab3;
@@ -77,6 +86,57 @@ body {
   color: var(--color-ink);
 }
 
+/*
+ * Tema gelap (bawaan). Atribut data-theme dipasang di <html> sebelum halaman tampil
+ * (app/layout.tsx). Halaman depan (.lp-root) selalu bertema malamnya sendiri.
+ */
+html[data-theme="dark"]:not(:has(.lp-root)) {
+  color-scheme: dark;
+  --color-canvas: #0f0a1f;
+  --color-surface: #1a1330;
+  --color-surface-2: #231a3d;
+  --color-ink: #f3efff;
+  --color-muted: #b4abcc;
+  --color-faint: #7f7799;
+  --color-line: #2f2549;
+  --color-rim: rgb(255 255 255 / 0.08);
+
+  --color-brand: #9b6bff;
+  --color-brand-strong: #7c4dff;
+  --color-brand-soft: #2b1f52;
+  --color-accent: #ffc23d;
+  --color-accent-strong: #f5a524;
+  --color-accent-soft: #3b2c12;
+
+  /*
+   * Warna status dari palet Tailwind dibalik: latar muda menjadi gelap, teks tua menjadi terang,
+   * sehingga lencana dan pesan tetap terbaca tanpa mengubah setiap komponen.
+   */
+  --color-rose-50: #3a1420;
+  --color-rose-100: #4a1828;
+  --color-rose-200: #6b1f36;
+  --color-rose-600: #fb7185;
+  --color-rose-700: #fda4af;
+  --color-red-100: #4a1717;
+  --color-red-600: #f87171;
+  --color-emerald-50: #0f2e24;
+  --color-emerald-100: #133a2d;
+  --color-emerald-300: #1f6b50;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-amber-50: #33260c;
+  --color-amber-100: #3d2d0e;
+  --color-amber-200: #5c4310;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-pink-100: #3f1530;
+  --color-pink-700: #f9a8d4;
+  --color-slate-600: #cbd5e1;
+  --color-blue-600: #60a5fa;
+}
+
 /* ── Latar aplikasi: gradasi lembut + gumpalan warna yang bergerak pelan ── */
 .admin-shell {
   --glass-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.66) 100%);
@@ -96,6 +156,14 @@ body {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+}
+html[data-theme="dark"] .admin-shell {
+  --glass-bg: linear-gradient(140deg, rgba(36, 26, 64, 0.78) 0%, rgba(26, 19, 48, 0.62) 100%);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow:
+    0 18px 44px -18px rgba(0, 0, 0, 0.6),
+    0 4px 12px -4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .bg-orbs span {
   position: absolute;
@@ -127,6 +195,9 @@ body {
   background: radial-gradient(circle, rgba(236, 72, 153, 0.22), transparent 65%);
   animation-delay: -12s;
 }
+html[data-theme="dark"] .bg-orbs span {
+  opacity: 0.32;
+}
 /* Pola sarang lebah tipis di latar */
 .bg-orbs::after {
   content: "";
@@ -156,6 +227,11 @@ body {
   box-shadow:
     0 24px 48px -18px rgba(76, 40, 170, 0.28),
     0 0 0 1px rgba(124, 77, 255, 0.18);
+}
+html[data-theme="dark"] .card-hover:hover {
+  box-shadow:
+    0 24px 48px -18px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(155, 107, 255, 0.35);
 }
 
 /* Bingkai gradasi ungu → madu */
@@ -220,6 +296,12 @@ body {
 .swal2-popup {
   font-family: var(--font-sans);
   border-radius: 1.5rem;
+  background: var(--color-surface) !important;
+  color: var(--color-ink) !important;
+}
+.swal2-title,
+.swal2-html-container {
+  color: var(--color-ink) !important;
 }
 .swal2-confirm {
   border-radius: 0.9rem !important;
@@ -467,4 +549,25 @@ body:has(.lp-root) {
     translate: 0 0;
     scale: 1;
   }
+}
+
+/* Peta relasi (React Flow) di tema gelap */
+html[data-theme="dark"] .react-flow__minimap {
+  background: var(--color-surface);
+}
+.relation-map,
+html {
+  --rf-mask: rgb(239 232 255 / 0.6);
+}
+html[data-theme="dark"]:not(:has(.lp-root)) {
+  --rf-mask: rgb(15 10 31 / 0.6);
+}
+html[data-theme="dark"] .react-flow__controls-button {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+  fill: var(--color-ink);
+}
+html[data-theme="dark"] .react-flow__controls-button:hover {
+  background: var(--color-surface-2);
 }

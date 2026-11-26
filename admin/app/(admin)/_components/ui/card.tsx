@@ -52,20 +52,32 @@ export function StatCard({
   hint,
   icon,
   tone = "brand",
+  loading = false,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon: React.ReactNode;
   tone?: keyof typeof STAT_TONES;
+  /** Angka dan keterangan diganti kerangka selama data dimuat */
+  loading?: boolean;
 }) {
   return (
     <Card interactive className="group">
       <div className="relative p-5 flex items-start justify-between gap-4">
         <div className="space-y-1.5 min-w-0">
           <p className="text-xs font-semibold text-muted">{label}</p>
-          <p className="text-3xl font-bold text-ink tabular-nums tracking-tight">{value}</p>
-          {hint && <p className="text-[11px] text-faint">{hint}</p>}
+          {loading ? (
+            <div className="space-y-2 pt-1 motion-safe:animate-pulse" aria-busy="true">
+              <div className="h-8 w-20 rounded-lg bg-brand-soft" />
+              <div className="h-3 w-28 rounded-md bg-brand-soft/70" />
+            </div>
+          ) : (
+            <>
+              <p className="text-3xl font-bold text-ink tabular-nums tracking-tight">{value}</p>
+              {hint && <p className="text-[11px] text-faint">{hint}</p>}
+            </>
+          )}
         </div>
         <div
           className={`w-12 h-12 rounded-2xl bg-gradient-to-br text-white flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${STAT_TONES[tone]}`}

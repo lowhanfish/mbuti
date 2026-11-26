@@ -34,7 +34,7 @@ export default function ApiKeyPanel({ settings, canSee }: { settings: ResponseIn
               {settings.api_keys.map((k) => {
                 const status = API_KEY_STATUS[k.status];
                 return (
-                  <li key={k.env_name} className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-3">
+                  <li key={k.env_name} className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3">
                     <span
                       className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         k.status === "active" ? "bg-emerald-100 text-emerald-700" : k.status === "cooling" ? "bg-amber-100 text-amber-700" : "bg-canvas text-faint"
@@ -63,7 +63,7 @@ export default function ApiKeyPanel({ settings, canSee }: { settings: ResponseIn
       </Card>
 
       <div className="space-y-4">
-        <div className="rounded-3xl bg-gradient-to-br from-ink to-[#2d2150] text-white p-5 space-y-2">
+        <div className="rounded-3xl bg-gradient-to-br from-night to-[#2d2150] text-white p-5 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">Rotasi kunci</p>
           <p className="text-sm leading-relaxed text-white/85">
             Kunci yang kena batas permintaan diistirahatkan sementara, lalu permintaan pindah ke kunci berikutnya.

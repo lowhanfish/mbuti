@@ -27,7 +27,7 @@ function AgentRow({ agent, onSelect }: { agent: OfficeAgent; onSelect: (id: stri
     <button
       type="button"
       onClick={() => onSelect(agent.id)}
-      className="w-full flex items-center gap-2.5 rounded-2xl bg-white/85 border border-white p-2 text-left hover:border-brand/40 hover:shadow-sm transition-all cursor-pointer"
+      className="w-full flex items-center gap-2.5 rounded-2xl bg-surface/85 border border-rim p-2 text-left hover:border-brand/40 hover:shadow-sm transition-all cursor-pointer"
     >
       <span className="w-10 h-10 rounded-xl bg-canvas flex items-end justify-center overflow-hidden shrink-0">
         <Avatar2D avatar={agent.avatar} size={38} />
@@ -44,8 +44,16 @@ function AgentRow({ agent, onSelect }: { agent: OfficeAgent; onSelect: (id: stri
 }
 
 function UnitDocs({ unitId }: { unitId: string }) {
-  const { List } = useResponseListDocument({ scope: "unit", scope_id: unitId });
+  const { List, isLoading } = useResponseListDocument({ scope: "unit", scope_id: unitId });
   const docs = (List?.data ?? []).slice(0, 4);
+  if (isLoading) {
+    return (
+      <div className="space-y-1.5 motion-safe:animate-pulse" aria-busy="true" aria-label="Memuat dokumen unit">
+        <div className="h-3 w-3/4 rounded bg-brand-soft" />
+        <div className="h-3 w-1/2 rounded bg-brand-soft/70" />
+      </div>
+    );
+  }
   if (!docs.length) return <p className="text-xs text-faint">Belum ada dokumen unit.</p>;
   return (
     <ul className="space-y-1">
@@ -142,7 +150,7 @@ export default function OfficePanel({
                   ["Tugas aktif", unit.active_task_count],
                   ["Dokumen", unit.document_count],
                 ].map(([k, v]) => (
-                  <div key={k} className="rounded-2xl bg-white/85 border border-white py-2">
+                  <div key={k} className="rounded-2xl bg-surface/85 border border-rim py-2">
                     <p className="text-lg font-bold text-ink">{v}</p>
                     <p className="text-[10px] text-muted">{k}</p>
                   </div>

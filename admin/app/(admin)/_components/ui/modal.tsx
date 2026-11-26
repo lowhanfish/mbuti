@@ -52,12 +52,12 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div
-        className="fixed inset-0 bg-ink/45 backdrop-blur-xs"
+        className="fixed inset-0 bg-night/45 backdrop-blur-xs"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`rise relative w-full ${maxWidthClasses} rounded-[28px] shadow-[0_40px_80px_-24px_rgba(24,18,43,.45)] border border-white max-h-[90vh] my-auto bg-white/95 backdrop-blur-2xl overflow-hidden z-10 flex flex-col`}
+        className={`rise relative w-full ${maxWidthClasses} rounded-[28px] shadow-[0_40px_80px_-24px_rgba(24,18,43,.45)] border border-rim max-h-[90vh] my-auto bg-surface/95 backdrop-blur-2xl overflow-hidden z-10 flex flex-col`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

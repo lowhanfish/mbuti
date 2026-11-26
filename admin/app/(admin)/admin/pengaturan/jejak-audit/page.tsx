@@ -152,7 +152,15 @@ export default function JejakAuditPage() {
 
               <ul className="md:hidden divide-y divide-line/70">
                 {isLoading ? (
-                  <li className="p-5 text-sm text-muted">Memuat…</li>
+                  Array.from({ length: 4 }, (_, i) => (
+                  <li key={i} className="p-4 flex items-center gap-3 motion-safe:animate-pulse" aria-busy="true">
+                    <div className="w-10 h-10 rounded-2xl bg-brand-soft shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className={`h-3.5 rounded-md bg-brand-soft ${i % 2 ? "w-1/2" : "w-2/3"}`} />
+                      <div className="h-2.5 w-32 rounded-md bg-brand-soft/70" />
+                    </div>
+                  </li>
+                ))
                 ) : rows.length === 0 ? (
                   <li className="p-8 text-center text-sm text-faint">{EMPTY}</li>
                 ) : (

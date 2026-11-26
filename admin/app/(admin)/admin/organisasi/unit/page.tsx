@@ -120,7 +120,7 @@ export default function OrganisasiUnitPage() {
                   title={label}
                   onClick={() => setView(mode)}
                   className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                    view === mode ? "bg-white text-brand shadow-sm" : "text-muted hover:text-ink"
+                    view === mode ? "bg-surface text-brand shadow-sm" : "text-muted hover:text-ink"
                   }`}
                 >
                   <Icon name={icon} size={15} />

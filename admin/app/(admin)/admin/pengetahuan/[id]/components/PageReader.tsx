@@ -69,7 +69,7 @@ export default function PageReader({
                   onClick={() => setPage(s.page_no)}
                   aria-current={s.page_no === current.page_no ? "page" : undefined}
                   className={`w-full text-left rounded-xl px-2.5 py-2 text-xs transition-all cursor-pointer ${
-                    s.page_no === current.page_no ? "bg-ink text-white" : "text-muted hover:bg-white hover:text-ink"
+                    s.page_no === current.page_no ? "bg-ink text-canvas" : "text-muted hover:bg-surface hover:text-ink"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 font-bold">
@@ -93,12 +93,12 @@ export default function PageReader({
           <button
             type="button"
             onClick={copyCitation}
-            className="h-8 px-3 rounded-xl text-xs font-semibold bg-white border border-line text-muted hover:text-brand hover:border-brand/40 transition-colors cursor-pointer"
+            className="h-8 px-3 rounded-xl text-xs font-semibold bg-surface border border-line text-muted hover:text-brand hover:border-brand/40 transition-colors cursor-pointer"
           >
             {copied ? "Tersalin ✓" : "Salin rujukan"}
           </button>
         </div>
-        <div className="rounded-2xl bg-white border border-line p-5 text-sm text-ink leading-7 whitespace-pre-wrap shadow-inner">
+        <div className="rounded-2xl bg-surface border border-line p-5 text-sm text-ink leading-7 whitespace-pre-wrap shadow-inner">
           <Highlight text={current.text} terms={terms} />
         </div>
         <p className="text-[11px] text-faint mt-3">Rujukan: {citationText(title, version.version_no, current.page_no)}</p>

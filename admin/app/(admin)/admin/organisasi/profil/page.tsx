@@ -45,7 +45,7 @@ export default function OrganisasiProfilPage() {
           <Card glow className="relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,28,.25),transparent_55%),radial-gradient(circle_at_bottom_left,rgba(124,77,255,.2),transparent_55%)]" aria-hidden="true" />
             <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5">
-              <div className="w-20 h-20 rounded-[26px] bg-gradient-to-br from-ink via-[#3b2580] to-brand text-accent text-2xl font-extrabold flex items-center justify-center shadow-[0_18px_30px_-12px_rgba(76,40,170,.7)] shrink-0">
+              <div className="w-20 h-20 rounded-[26px] bg-gradient-to-br from-night via-[#3b2580] to-brand text-accent text-2xl font-extrabold flex items-center justify-center shadow-[0_18px_30px_-12px_rgba(76,40,170,.7)] shrink-0">
                 {initials(Profile.name)}
               </div>
               <div className="space-y-2 min-w-0">

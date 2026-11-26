@@ -10,7 +10,7 @@ import { FileGlyph, IngestionStatusView } from "./DocumentParts";
 
 export function ScopeChip({ doc }: { doc: ResponseInterface }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted bg-white border border-line rounded-full px-2 py-0.5 max-w-full">
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted bg-surface border border-line rounded-full px-2 py-0.5 max-w-full">
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: doc.scope_color ?? "var(--color-brand)" }} />
       <span className="truncate">{doc.scope === "organization" ? SCOPE_LABEL.organization : doc.scope_name ?? SCOPE_LABEL[doc.scope]}</span>
     </span>
@@ -35,7 +35,7 @@ export default function DocumentList({
       {docs.map((doc) => {
         const inherited = inheritedLabel?.(doc);
         return (
-          <li key={doc.id} className="group relative flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-white/70 transition-colors">
+          <li key={doc.id} className="group relative flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-surface/70 transition-colors">
             <FileGlyph fileName={doc.active_version?.file_name ?? "berkas"} />
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">

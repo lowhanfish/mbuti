@@ -8,7 +8,7 @@ import type { ResponseInterface } from "../types";
 
 export const useResponseDashboard = () => {
   const url = useUrlStore((state) => state.URL.APP);
-  const { data, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryFn: () => fetchData<ApiResponse<ResponseInterface>>(`${url}/api/v1/admin/dashboard/summary`),
     queryKey: ["dashboard"],
     refetchOnMount: "always",
@@ -18,5 +18,5 @@ export const useResponseDashboard = () => {
       return tasks && tasks.queued + tasks.running > 0 ? 1500 : 10_000;
     },
   });
-  return { Summary: data?.data, isError, error, refetch };
+  return { Summary: data?.data, isLoading, isError, error, refetch };
 };

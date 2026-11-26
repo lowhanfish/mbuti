@@ -31,14 +31,14 @@ export function AgentStack({ agents, size = 34 }: { agents: AgentRef[]; size?: n
         <span
           key={a.id}
           title={`${a.name} · ${a.title}`}
-          className="rounded-xl border-2 border-white flex items-end justify-center overflow-hidden shadow-sm"
+          className="rounded-xl border-2 border-rim flex items-end justify-center overflow-hidden shadow-sm"
           style={{ width: size, height: size, background: `${a.unit_color ?? "#7c4dff"}33` }}
         >
           <Avatar2D avatar={a.avatar} size={size - 4} />
         </span>
       ))}
       {agents.length > 5 && (
-        <span className="rounded-xl border-2 border-white bg-canvas text-[10px] font-bold text-muted flex items-center justify-center" style={{ width: size, height: size }}>
+        <span className="rounded-xl border-2 border-rim bg-canvas text-[10px] font-bold text-muted flex items-center justify-center" style={{ width: size, height: size }}>
           +{agents.length - 5}
         </span>
       )}

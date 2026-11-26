@@ -83,7 +83,7 @@ function Chips<T extends string>({
             aria-checked={value === key}
             onClick={() => onChange(key)}
             className={`h-8 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              value === key ? "bg-ink text-accent" : "bg-white border border-line text-muted hover:text-brand hover:border-brand/40"
+              value === key ? "bg-ink text-canvas" : "bg-surface border border-line text-muted hover:text-brand hover:border-brand/40"
             }`}
           >
             {options[key]}
@@ -107,7 +107,7 @@ export function AvatarEditor({
 
   return (
     <div className="grid gap-5 md:grid-cols-[minmax(0,260px)_1fr] items-start">
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-brand-soft via-white to-accent-soft border border-white shadow-inner">
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-brand-soft via-surface to-accent-soft border border-rim shadow-inner">
         <Avatar3DLazy avatar={value} className="h-[300px] w-full" />
         <span className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-faint pointer-events-none">
           Seret untuk memutar

@@ -52,7 +52,7 @@ function OptionCards<T extends string>({
           <label
             key={key}
             className={`rounded-2xl border p-3 cursor-pointer transition-all ${
-              value === key ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-white hover:border-brand/40"
+              value === key ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-surface hover:border-brand/40"
             }`}
           >
             <input type="radio" className="sr-only" checked={value === key} onChange={() => onChange(key)} />
@@ -203,7 +203,7 @@ export default function TabInstruksi({
                 aria-checked={form.output_format === key}
                 onClick={() => set("output_format", key)}
                 className={`h-11 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  form.output_format === key ? "bg-ink text-accent shadow-md" : "bg-white border border-line text-muted hover:text-ink"
+                  form.output_format === key ? "bg-ink text-canvas shadow-md" : "bg-surface border border-line text-muted hover:text-ink"
                 }`}
               >
                 {OUTPUT_FORMAT_LABEL[key]}

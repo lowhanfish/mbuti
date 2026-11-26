@@ -60,7 +60,7 @@ export default function RelationForm({
                     requires_approval: t === "escalate" ? true : value.requires_approval,
                   })
                 }
-                className={`rounded-2xl border p-2.5 text-left transition-all cursor-pointer ${active ? "text-white shadow-lg" : "bg-white border-line hover:border-brand/40"}`}
+                className={`rounded-2xl border p-2.5 text-left transition-all cursor-pointer ${active ? "text-white shadow-lg" : "bg-surface border-line hover:border-brand/40"}`}
                 style={active ? { background: s.color, borderColor: s.color } : undefined}
               >
                 <span className="flex items-center gap-1.5 text-sm font-bold">
@@ -136,7 +136,7 @@ export default function RelationForm({
                 disabled={n > revisionLimit && value.max_revisions !== n}
                 onClick={() => set("max_revisions", n)}
                 className={`w-10 h-10 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
-                  value.max_revisions === n ? "bg-accent text-ink shadow-md" : "bg-white border border-line text-muted hover:text-ink"
+                  value.max_revisions === n ? "bg-accent text-ink shadow-md" : "bg-surface border border-line text-muted hover:text-ink"
                 }`}
               >
                 {n}
@@ -156,7 +156,7 @@ export default function RelationForm({
       )}
 
       {value.relation_type !== "escalate" && (
-        <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3 cursor-pointer">
+        <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3 cursor-pointer">
           <span>
             <span className="block text-sm font-semibold text-ink">Perlu persetujuan manusia dulu</span>
             <span className="block text-[11px] text-muted">Tugas berhenti sebelum relasi ini dijalankan.</span>

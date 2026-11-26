@@ -41,7 +41,7 @@ export default function PersetujuanPage() {
               setPage(1);
             }}
             className={`h-10 px-4 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-              tab === key ? "bg-gradient-to-r from-brand to-[#9b6bff] text-white shadow-md" : "text-muted hover:text-ink hover:bg-white/80"
+              tab === key ? "bg-gradient-to-r from-brand to-[#9b6bff] text-white shadow-md" : "text-muted hover:text-ink hover:bg-surface/80"
             }`}
           >
             {label}

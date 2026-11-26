@@ -132,7 +132,7 @@ function NodeInfo({ node, graph, canEdit, onClose }: { node: GraphNode; graph: G
         {node.kind === "agent" ? (
           <Avatar2D avatar={node.avatar} size={56} />
         ) : (
-          <span className="w-12 h-12 rounded-full bg-ink text-accent font-bold flex items-center justify-center">👤</span>
+          <span className="w-12 h-12 rounded-full bg-night text-accent font-bold flex items-center justify-center">👤</span>
         )}
         <div className="min-w-0">
           <p className="font-bold text-ink">{node.name}</p>
@@ -270,21 +270,21 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
         <MiniMap
           pannable
           zoomable
-          className="!rounded-2xl !overflow-hidden !border !border-white !shadow-md hidden md:block"
-          nodeColor={(n) => (n.type === "human" ? "#18122b" : ((n.data as { unit_color?: string | null }).unit_color ?? "#7c4dff"))}
-          maskColor="rgba(239,232,255,.6)"
+          className="!rounded-2xl !overflow-hidden !border !border-rim !shadow-md hidden md:block"
+          nodeColor={(n) => (n.type === "human" ? "#a19ab3" : ((n.data as { unit_color?: string | null }).unit_color ?? "#7c4dff"))}
+          maskColor="var(--rf-mask)"
           bgColor="rgba(255,255,255,.9)"
         />
 
         <Panel position="top-left" className="!m-3">
           <div className="glass rounded-2xl p-2 flex flex-wrap items-center gap-1.5">
             {Object.entries(RELATION_STYLE).map(([key, s]) => (
-              <span key={key} className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-ink">
+              <span key={key} className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[11px] font-semibold text-ink">
                 <span className="w-3 h-0.5 rounded" style={{ background: s.color }} />
                 {s.label}
               </span>
             ))}
-            <FullscreenButton expanded={expanded} onToggle={toggle} withLabel className="!h-8 !bg-white" />
+            <FullscreenButton expanded={expanded} onToggle={toggle} withLabel className="!h-8 !bg-surface" />
             {canEdit && (
               <>
                 <span className="w-px h-5 bg-line mx-1" />
@@ -306,7 +306,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
 
         {!selectedRelation && !selectedGraphNode && (
           <Panel position="bottom-center" className="!mb-4 hidden sm:block">
-            <div className="rounded-full bg-ink/90 text-white text-xs px-4 py-2 shadow-lg backdrop-blur">
+            <div className="rounded-full bg-night/90 text-white text-xs px-4 py-2 shadow-lg backdrop-blur">
               Klik role untuk menyorot rutenya · klik garis untuk mengatur aturan{canEdit ? " · tarik titik kanan kartu untuk membuat relasi" : ""}
             </div>
           </Panel>
@@ -380,7 +380,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
                   <button
                     type="button"
                     onClick={() => addHuman.mutate(m.id, { onSuccess: () => setHumanPicker(false) })}
-                    className="w-full flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-left hover:border-brand/40 hover:shadow-sm transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-left hover:border-brand/40 hover:shadow-sm transition-all cursor-pointer"
                   >
                     <span>
                       <span className="block text-sm font-semibold text-ink">{m.value}</span>

@@ -65,7 +65,7 @@ function Outbox() {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
       {open && (
-        <div className="w-[min(380px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-white border border-line shadow-2xl p-4 space-y-3 rise">
+        <div className="w-[min(380px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-3xl bg-surface border border-line shadow-2xl p-4 space-y-3 rise">
           <div>
             <p className="text-sm font-bold text-ink">Kotak keluar (data contoh)</p>
             <p className="text-[11px] text-muted leading-relaxed">
@@ -101,7 +101,7 @@ function Outbox() {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="relative inline-flex items-center gap-2 rounded-full bg-ink text-white text-xs font-semibold px-4 h-10 shadow-lg hover:bg-[#2a2140]"
+        className="relative inline-flex items-center gap-2 rounded-full bg-night dark:bg-brand text-white text-xs font-semibold px-4 h-10 shadow-lg hover:bg-night-2 dark:hover:bg-brand-strong"
       >
         <Icon name="mail" size={16} />
         Kotak keluar

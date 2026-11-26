@@ -4,7 +4,7 @@ import Image from "next/image";
 export function BrandMark({ size = 32, className = "" }: { size?: number; className?: string }) {
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[30%] bg-gradient-to-br from-[#2a1f4a] to-ink shadow-[0_6px_16px_-4px_rgba(124,77,255,.55)] ${className}`}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[30%] bg-gradient-to-br from-[#2a1f4a] to-night shadow-[0_6px_16px_-4px_rgba(124,77,255,.55)] ${className}`}
       style={{ width: size, height: size }}
     >
       <Image src="/brand/mbuti-head.webp" alt="MBUTI" width={size} height={size} className="object-cover scale-110" />

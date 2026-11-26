@@ -119,7 +119,7 @@ export default function LoginPage() {
       <FooterLink text="Belum punya akun?" href="/daftar" label="Daftarkan organisasi" />
 
       {isMockMode() && (
-        <div className="rounded-2xl bg-gradient-to-br from-accent-soft to-white border border-accent/30 p-4 space-y-3">
+        <div className="rounded-2xl bg-gradient-to-br from-accent-soft to-surface border border-accent/30 p-4 space-y-3">
           <p className="text-xs text-amber-900 leading-relaxed">
             <strong>Mode data contoh.</strong> Belum ada backend; semua data tersimpan di peramban ini.
           </p>

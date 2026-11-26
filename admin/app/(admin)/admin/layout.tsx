@@ -9,6 +9,8 @@ import { BackgroundOrbs, BrandMark } from "../_components/brand-mark";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isMockMode } from "@/lib/transport";
 import { MockOutbox } from "../../(auth)/_components/MockOutbox";
+import { ThemeToggle } from "../_components/theme-toggle";
+import { useResponseApprovals } from "./tugas/hooks/crud";
 import { ACCESS_ROLE_LABEL } from "@/utilities/labels";
 import type { UserProfile } from "@/types/global";
 
@@ -44,10 +46,10 @@ function MenuItemRenderer({
             ? "text-white font-semibold bg-gradient-to-r from-brand to-[#9b6bff] shadow-[0_10px_22px_-10px_rgba(124,77,255,.9)]"
             : isActive
               ? "text-brand font-semibold bg-brand-soft/70"
-              : "text-muted font-medium hover:bg-white hover:text-ink"
+              : "text-muted font-medium hover:bg-surface hover:text-ink"
         }`
       : `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer select-none text-left ${
-          isExactActive ? "bg-white text-brand font-semibold shadow-sm" : "text-muted font-medium hover:bg-white/80 hover:text-brand"
+          isExactActive ? "bg-surface text-brand font-semibold shadow-sm" : "text-muted font-medium hover:bg-surface/80 hover:text-brand"
         }`;
 
   const innerContent = (
@@ -55,7 +57,7 @@ function MenuItemRenderer({
       {level === 1 ? (
         <span
           className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-            isExactActive ? "bg-white/20" : "bg-white/70 group-hover:bg-brand-soft group-hover:text-brand"
+            isExactActive ? "bg-white/20" : "bg-surface/70 group-hover:bg-brand-soft group-hover:text-brand"
           }`}
         >
           <Icon name={item.icon} size={17} />
@@ -145,11 +147,72 @@ function HeaderTitle() {
   );
 }
 
+/** Lonceng: pintasan ke Persetujuan beserta jumlah keputusan yang menunggu. */
+function ApprovalBell() {
+  const { pendingCount } = useResponseApprovals("pending", 1, 1);
+  const label = pendingCount > 0 ? `${pendingCount} keputusan menunggu Anda` : "Tidak ada keputusan yang menunggu";
+  return (
+    <Link
+      href="/admin/persetujuan"
+      className="relative w-10 h-10 rounded-2xl bg-surface/80 border border-rim text-muted hover:text-brand flex items-center justify-center transition-colors"
+      aria-label={label}
+      title={label}
+    >
+      <Icon name="bell" size={18} />
+      {pendingCount > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-accent text-night text-[11px] font-bold flex items-center justify-center ring-2 ring-canvas">
+          {pendingCount > 99 ? "99+" : pendingCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/** Kerangka halaman admin selama sesi diperiksa, agar tata letak tidak meloncat. */
+function ShellSkeleton() {
+  const bar = "rounded-xl bg-brand-soft/80";
+  return (
+    <div className="motion-safe:animate-pulse">
+      <div className="glass fixed top-3 bottom-3 left-3 w-[268px] rounded-[28px] hidden lg:flex flex-col p-4 gap-3">
+        <div className="flex items-center gap-3 h-[52px] px-1">
+          <BrandMark size={42} />
+          <div className="space-y-1.5">
+            <div className={`h-3.5 w-16 ${bar}`} />
+            <div className={`h-2.5 w-28 ${bar}`} />
+          </div>
+        </div>
+        {Array.from({ length: 9 }, (_, i) => (
+          <div key={i} className="h-11 rounded-2xl bg-surface/50" />
+        ))}
+        <div className="mt-auto h-16 rounded-2xl bg-surface/60" />
+      </div>
+      <div className="lg:pl-[308px] px-3 lg:pr-7 pt-3 space-y-6">
+        <div className="glass h-16 rounded-[22px] px-5 flex items-center justify-between">
+          <div className="space-y-1.5">
+            <div className={`h-2.5 w-24 ${bar}`} />
+            <div className={`h-4 w-36 ${bar}`} />
+          </div>
+          <div className="flex gap-2">
+            <div className="w-10 h-10 rounded-2xl bg-surface/70" />
+            <div className="w-10 h-10 rounded-2xl bg-surface/70" />
+          </div>
+        </div>
+        <div className="glass h-44 rounded-[28px]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="glass h-28 rounded-3xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NavFallback() {
   return (
     <div className="space-y-2 px-1" aria-hidden="true">
       {Array.from({ length: 9 }).map((_, i) => (
-        <div key={i} className="h-11 rounded-2xl bg-white/50 motion-safe:animate-pulse" />
+        <div key={i} className="h-11 rounded-2xl bg-surface/50 motion-safe:animate-pulse" />
       ))}
     </div>
   );
@@ -180,17 +243,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <BackgroundOrbs />
 
       {!ready && (
-        <div className="admin-shell fixed inset-0 z-[60] flex items-center justify-center">
+        <div className="admin-shell fixed inset-0 z-[60]" role="status" aria-label="Memeriksa sesi">
           <BackgroundOrbs />
-          <div className="flex flex-col items-center gap-4 text-muted text-sm" role="status">
-            <BrandMark size={64} className="animate-float" />
-            <span>Memeriksa sesi…</span>
-          </div>
+          <ShellSkeleton />
         </div>
       )}
 
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-ink/30 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+        <div className="fixed inset-0 bg-night/30 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       )}
 
       <aside
@@ -211,7 +271,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <button
             type="button"
-            className="lg:hidden w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:bg-white"
+            className="lg:hidden w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:bg-surface"
             onClick={() => setSidebarOpen(false)}
             aria-label="Tutup menu"
           >
@@ -227,7 +287,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="p-3 shrink-0">
-          <div className="rounded-2xl p-3 bg-gradient-to-br from-ink to-[#2d2150] text-white relative overflow-hidden">
+          <div className="rounded-2xl p-3 bg-gradient-to-br from-night to-[#2d2150] dark:from-brand-soft dark:to-surface-2 dark:border dark:border-rim text-white relative overflow-hidden">
             <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-accent/30 blur-xl" aria-hidden="true" />
             <div className="flex items-center gap-2.5 relative">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-strong text-ink font-bold text-sm flex items-center justify-center uppercase shrink-0">
@@ -258,13 +318,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="lg:hidden w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-muted hover:text-brand transition-colors"
+              className="lg:hidden w-10 h-10 rounded-2xl bg-surface/80 border border-rim flex items-center justify-center text-muted hover:text-brand transition-colors"
               onClick={() => setSidebarOpen(true)}
               aria-label="Buka menu"
             >
               <Icon name="menu" size={18} />
             </button>
-            <Suspense fallback={<div className="h-9 w-40 rounded-xl bg-white/50 motion-safe:animate-pulse" />}>
+            <Suspense fallback={<div className="h-9 w-40 rounded-xl bg-surface/50 motion-safe:animate-pulse" />}>
               <HeaderTitle />
             </Suspense>
           </div>
@@ -272,7 +332,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-2 sm:gap-3">
             {isMockMode() && (
               <span
-                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-ink text-accent text-[11px] font-semibold px-3 py-1.5"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-night dark:bg-accent-soft text-accent text-[11px] font-semibold px-3 py-1.5"
                 title="Semua data di layar ini adalah data contoh di peramban, belum tersambung ke backend."
               >
                 <span className="relative flex w-2 h-2">
@@ -282,13 +342,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 Data contoh
               </span>
             )}
-            <button
-              type="button"
-              className="relative w-10 h-10 rounded-2xl bg-white text-muted hover:text-brand flex items-center justify-center transition-colors"
-              aria-label="Notifikasi"
-            >
-              <Icon name="bell" size={18} />
-            </button>
+            <ThemeToggle />
+            {ready && <ApprovalBell />}
           </div>
         </header>
 

@@ -47,7 +47,7 @@ export default function FormUnitModal({
 }) {
   const [form, setForm] = useState<CreateInterface>(initial);
   const [touched, setTouched] = useState(false);
-  const { List: leadOptions } = useResponseOptionLead();
+  const { List: leadOptions, isLoading: leadLoading } = useResponseOptionLead();
 
   const parentOptions = useMemo(() => {
     const blocked = editingId ? blockedParentIds(allUnits, editingId) : new Set<string>();
@@ -128,6 +128,7 @@ export default function FormUnitModal({
             </Select>
             <Select
               label="Penanggung jawab"
+              loading={leadLoading}
               value={form.lead_member_id ?? ""}
               onChange={(e) => set("lead_member_id", e.target.value || null)}
               helperText="Manusia yang menyetujui hasil kerja unit."

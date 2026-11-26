@@ -116,7 +116,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
               <Avatar2D avatar={role.avatar} size={54} />
               <div className="flex-1 space-y-2">
                 <Badge variant={RESULT_STYLE[result.status].variant}>{RESULT_STYLE[result.status].label}</Badge>
-                <div className="rounded-2xl rounded-tl-md bg-white border border-line p-3 text-sm text-ink leading-relaxed whitespace-pre-wrap">
+                <div className="rounded-2xl rounded-tl-md bg-surface border border-line p-3 text-sm text-ink leading-relaxed whitespace-pre-wrap">
                   {result.output}
                 </div>
                 {result.notes && <p className="text-xs text-muted">{result.notes}</p>}
@@ -132,7 +132,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                         href={citationHref(c)}
                         className="flex items-center gap-2 rounded-xl bg-brand-soft/60 px-3 py-1.5 text-xs text-brand-strong hover:bg-brand-soft transition-colors"
                       >
-                        <span className="w-5 h-5 rounded-md bg-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <span className="w-5 h-5 rounded-md bg-surface text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                         <span className="truncate">{citationText(c.document_title, c.version_no, c.page_no)}</span>
                       </Link>
                     ))}
@@ -140,7 +140,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                 )}
               </div>
             </div>
-            <div className="rounded-2xl bg-ink text-white/90 overflow-hidden">
+            <div className="rounded-2xl bg-night text-white/90 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowPrompt((v) => !v)}

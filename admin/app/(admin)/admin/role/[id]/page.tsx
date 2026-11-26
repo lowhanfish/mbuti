@@ -107,7 +107,7 @@ function RoleDetail() {
             <p className="text-sm text-muted max-w-2xl leading-relaxed">{Role.goal || "Belum ada tujuan kerja."}</p>
             <div className="flex flex-wrap gap-2 pt-1">
               {facts.map((f) => (
-                <span key={f.label} className="text-[11px] rounded-full bg-white/80 border border-white px-2.5 py-1 text-muted">
+                <span key={f.label} className="text-[11px] rounded-full bg-surface/80 border border-rim px-2.5 py-1 text-muted">
                   {f.label}: <strong className="text-ink font-semibold">{f.value}</strong>
                 </span>
               ))}
@@ -143,7 +143,7 @@ function RoleDetail() {
             className={`h-10 px-4 rounded-xl text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
               tab === t.key
                 ? "bg-gradient-to-r from-brand to-[#9b6bff] text-white shadow-[0_8px_18px_-8px_rgba(124,77,255,.9)]"
-                : "text-muted hover:text-ink hover:bg-white/80"
+                : "text-muted hover:text-ink hover:bg-surface/80"
             }`}
           >
             <Icon name={t.icon} size={16} />

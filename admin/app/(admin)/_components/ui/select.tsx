@@ -13,6 +13,8 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   error?: string;
   helperText?: string;
   options?: SelectOption[];
+  /** Pilihan masih dimuat: tidak bisa dipilih dan menampilkan keterangan memuat */
+  loading?: boolean;
 }
 
 export function Select({
@@ -24,6 +26,7 @@ export function Select({
   className = "",
   id,
   required,
+  loading = false,
   ...props
 }: SelectProps) {
   const selectId = fieldId(id, label);
@@ -35,10 +38,16 @@ export function Select({
           id={selectId}
           required={required}
           aria-invalid={error ? true : undefined}
-          className={`${fieldClasses(Boolean(error))} h-10 px-3 pr-8 appearance-none cursor-pointer ${className}`}
+          className={`${fieldClasses(Boolean(error))} h-10 px-3 pr-8 appearance-none cursor-pointer ${
+            loading ? "motion-safe:animate-pulse text-faint" : ""
+          } ${className}`}
           {...props}
+          disabled={loading || props.disabled}
+          aria-busy={loading || undefined}
         >
-          {options
+          {loading ? (
+            <option value={typeof props.value === "string" ? props.value : ""}>Memuat pilihan…</option>
+          ) : options
             ? options.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}

@@ -36,7 +36,7 @@ export default function TabRiwayat({ role }: { role: ResponseInterface }) {
       <ul className="divide-y divide-line/70">
         {tasks.map((t) => (
           <li key={t.id}>
-            <Link href={`/admin/tugas/${t.id}`} className="flex items-center gap-4 px-6 py-3.5 hover:bg-white/70 transition-colors">
+            <Link href={`/admin/tugas/${t.id}`} className="flex items-center gap-4 px-6 py-3.5 hover:bg-surface/70 transition-colors">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-ink truncate">{t.title}</p>
                 <p className="text-[11px] text-faint">

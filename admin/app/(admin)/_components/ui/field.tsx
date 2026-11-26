@@ -2,7 +2,7 @@ import React from "react";
 
 /** Kelas bersama untuk input, textarea, dan select agar tampilannya seragam. */
 export const fieldClasses = (hasError: boolean) =>
-  `w-full text-sm bg-white/90 backdrop-blur text-ink placeholder:text-faint border rounded-xl outline-none transition-all duration-150 ${
+  `w-full text-sm bg-surface/90 backdrop-blur text-ink placeholder:text-faint border rounded-xl outline-none transition-all duration-150 ${
     hasError
       ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-100"
       : "border-line focus:border-brand focus:ring-3 focus:ring-brand/20"

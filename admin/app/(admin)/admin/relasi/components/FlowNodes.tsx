@@ -23,8 +23,8 @@ export const AgentNode = memo(function AgentNode({ data, selected }: NodeProps<A
   const color = data.unit_color ?? "#7c4dff";
   return (
     <div
-      className={`w-[220px] rounded-2xl bg-white/95 backdrop-blur border transition-all duration-300 ${
-        selected || data.focused ? "border-brand shadow-[0_0_0_4px_rgba(124,77,255,.18),0_18px_30px_-14px_rgba(76,40,170,.5)]" : "border-white shadow-[0_12px_26px_-14px_rgba(76,40,170,.45)]"
+      className={`w-[220px] rounded-2xl bg-surface/95 backdrop-blur border transition-all duration-300 ${
+        selected || data.focused ? "border-brand shadow-[0_0_0_4px_rgba(124,77,255,.18),0_18px_30px_-14px_rgba(76,40,170,.5)]" : "border-rim shadow-[0_12px_26px_-14px_rgba(76,40,170,.45)]"
       } ${data.dimmed ? "opacity-30 saturate-50" : ""}`}
     >
       <Handle type="target" position={Position.Left} className={handleClass} />
@@ -52,7 +52,7 @@ export const AgentNode = memo(function AgentNode({ data, selected }: NodeProps<A
 export const HumanNode = memo(function HumanNode({ data, selected }: NodeProps<HumanFlowNode>) {
   return (
     <div
-      className={`w-[200px] rounded-full bg-gradient-to-r from-ink to-[#3b2580] text-white pl-1.5 pr-4 py-1.5 flex items-center gap-2.5 transition-all duration-300 ${
+      className={`w-[200px] rounded-full bg-gradient-to-r from-night to-[#3b2580] text-white pl-1.5 pr-4 py-1.5 flex items-center gap-2.5 transition-all duration-300 ${
         selected || data.focused ? "shadow-[0_0_0_4px_rgba(236,72,153,.25),0_16px_28px_-12px_rgba(24,18,43,.7)]" : "shadow-[0_12px_24px_-12px_rgba(24,18,43,.7)]"
       } ${data.dimmed ? "opacity-30" : ""}`}
     >

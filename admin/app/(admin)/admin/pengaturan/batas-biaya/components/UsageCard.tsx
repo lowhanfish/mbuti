@@ -34,7 +34,7 @@ export default function UsageCard({ budget }: { budget: ResponseInterface }) {
               ["Tugas bulan ini", String(usage.task_count)],
               ["Rata-rata per tugas", formatRupiah(usage.task_count ? (usage.used - usage.trial_cost) / usage.task_count : 0)],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl bg-white/80 border border-white px-3 py-2.5">
+              <div key={label} className="rounded-2xl bg-surface/80 border border-rim px-3 py-2.5">
                 <dt className="text-[11px] text-muted">{label}</dt>
                 <dd className="text-sm font-bold text-ink tabular-nums">{value}</dd>
               </div>

@@ -21,7 +21,7 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
 
   return (
     <Card glow={pending} className="relative">
-      {pending && <div className="absolute inset-0 bg-gradient-to-br from-accent-soft/70 via-white/30 to-brand-soft/60 pointer-events-none" aria-hidden="true" />}
+      {pending && <div className="absolute inset-0 bg-gradient-to-br from-accent-soft/70 via-surface/30 to-brand-soft/60 pointer-events-none" aria-hidden="true" />}
       <div className="relative p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5 min-w-0">
@@ -42,7 +42,7 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
             </p>
           </div>
           {approval.last_agent && (
-            <div className="flex items-center gap-2 rounded-2xl bg-white/80 border border-white px-2 py-1.5">
+            <div className="flex items-center gap-2 rounded-2xl bg-surface/80 border border-rim px-2 py-1.5">
               <Avatar2D avatar={approval.last_agent.avatar} size={34} />
               <span className="text-xs">
                 <span className="block font-semibold text-ink">{approval.last_agent.name}</span>
@@ -53,7 +53,7 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
         </div>
 
         {approval.last_output && (
-          <div className="rounded-2xl bg-white border border-line">
+          <div className="rounded-2xl bg-surface border border-line">
             <pre className={`px-4 py-3 text-[12.5px] leading-relaxed whitespace-pre-wrap font-sans text-ink ${expanded ? "" : "max-h-32 overflow-hidden"}`}>{approval.last_output}</pre>
             <button
               type="button"

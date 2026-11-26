@@ -22,7 +22,7 @@ function RelationCard({
 }) {
   const style = RELATION_STYLE[r.relation_type];
   return (
-    <li className="relative rounded-2xl bg-white border border-line p-4 pl-5 overflow-hidden">
+    <li className="relative rounded-2xl bg-surface border border-line p-4 pl-5 overflow-hidden">
       <span className="absolute left-0 top-0 bottom-0 w-1.5" style={{ background: style.color }} />
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold text-white" style={{ background: style.color }}>

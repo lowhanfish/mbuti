@@ -28,7 +28,7 @@ function AccessRolePicker({
           <label
             key={role}
             className={`flex gap-3 rounded-2xl border p-3 cursor-pointer transition-all ${
-              value === role ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-white hover:border-brand/40"
+              value === role ? "border-brand bg-brand-soft/60 shadow-[0_0_0_3px_rgba(124,77,255,.12)]" : "border-line bg-surface hover:border-brand/40"
             }`}
           >
             <input
@@ -51,9 +51,9 @@ function AccessRolePicker({
 }
 
 function UnitSelect({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
-  const { List } = useResponseOptionUnit();
+  const { List, isLoading } = useResponseOptionUnit();
   return (
-    <Select label="Unit" value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
+    <Select label="Unit" loading={isLoading} value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">— Tanpa unit —</option>
       {List.map((u) => (
         <option key={u.id} value={u.id}>
@@ -186,7 +186,7 @@ export function EditMemberModal({
           <UnitSelect value={form.unit_id} onChange={(unit_id) => setForm({ ...form, unit_id })} />
           <AccessRolePicker value={form.access_role} allowOwner={allowOwner} onChange={(access_role) => setForm({ ...form, access_role })} />
           {member.status !== "invited" && !member.is_self && (
-            <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3 cursor-pointer">
+            <label className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3 cursor-pointer">
               <span>
                 <span className="block text-sm font-semibold text-ink">Akun aktif</span>
                 <span className="block text-[11px] text-muted">Akun nonaktif tidak bisa masuk, tetapi riwayatnya tetap tersimpan.</span>

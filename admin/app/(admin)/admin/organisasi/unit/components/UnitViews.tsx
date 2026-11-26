@@ -44,7 +44,7 @@ function UnitTile({ unit, size = 44 }: { unit: ResponseInterface; size?: number 
 export function UnitTreeView({ nodes, ...actions }: Actions & { nodes: UnitNode[] }) {
   const renderNode = (node: UnitNode): React.ReactNode => (
     <li key={node.id} className="relative">
-      <div className="group flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white transition-all">
+      <div className="group flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-surface transition-all">
         <UnitTile unit={node} />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -93,7 +93,7 @@ export function UnitCardView({ items, ...actions }: Actions & { items: ResponseI
               <span className="text-[11px] font-extrabold tracking-[0.2em] bg-white/20 rounded-lg px-2 py-1 backdrop-blur">
                 {unit.code || "—"}
               </span>
-              <div className="bg-white/90 rounded-xl text-ink opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="bg-surface/90 rounded-xl text-ink opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 <UnitActions unit={unit} {...actions} />
               </div>
             </div>
