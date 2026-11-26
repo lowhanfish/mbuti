@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai; berikutnya B0 (backend belum dimulai).
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0 selesai** (kerangka backend); berikutnya B1.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -48,7 +48,7 @@ Nama `agent` dipakai di kode karena kata "role" sudah dipakai untuk hak akses pe
 | Kantor 3D | Three.js lewat `@react-three/fiber` dan `@react-three/drei` | Karakter blok buatan sendiri |
 | Backend | Python 3.12, FastAPI, Pydantic v2 | Dijalankan dengan `uvicorn` di dalam `venv` |
 | ORM | SQLAlchemy 2 async, gaya `Column()` | Alembic untuk migrasi |
-| Database | PostgreSQL 17 + pgvector | Driver `psycopg` 3 (async) |
+| Database | PostgreSQL 17 atau lebih baru + pgvector | Driver `psycopg` 3 (async); pengembangan memakai Neon |
 | Antrean | Celery + Redis | Worker untuk olah dokumen dan eksekusi agen |
 | Model AI | Google Gemini lewat SDK `google-genai` | Nama model diatur di `.env`, tidak ditulis di kode |
 | Embedding | `gemini-embedding-2`, 768 dimensi | Sama dengan Toto-L; 768 masih di bawah batas indeks HNSW pgvector (2.000) |
@@ -65,11 +65,13 @@ Nama `agent` dipakai di kode karena kata "role" sudah dipakai untuk hak akses pe
 
 ## 4. Lingkungan pengembangan (tanpa Docker)
 
-Kondisi mesin saat ini: Python 3.12 ada, Redis 8 sudah berjalan, Node 20, **PostgreSQL belum terpasang**.
+Kondisi mesin saat ini: Python 3.12 ada, Redis 8 sudah berjalan, Node 20. PostgreSQL tidak dipasang lokal: database pengembangan memakai server jauh (Neon, PostgreSQL 18, lewat pooler) yang alamatnya diisi di `server/.env` (`DATABASE_URL`). Ini hanya untuk pengembangan; server produksi ditentukan di fase C.
 
-- [ ] Pasang PostgreSQL dan pgvector: `brew install postgresql@17 pgvector`, lalu `brew services start postgresql@17`.
+Karena database pengembangan berada di layanan luar, isi hanya dengan data dan dokumen contoh atau publik.
+
+- [x] Siapkan PostgreSQL dengan pgvector (Neon). Pilihan lokal bila diperlukan nanti: Postgres.app atau kompilasi sumber, karena pgvector dari Homebrew tidak mendukung PostgreSQL 17.
 - [ ] Naikkan Node ke versi 22 LTS atau lebih baru (Node 20 sudah lewat masa dukungan).
-- [ ] Buat database `mbuti` dan `mbuti_test`, lalu `CREATE EXTENSION vector;` di keduanya.
+- [x] Buat database `mbuti` dan `mbuti_test`; ekstensi `vector` diaktifkan oleh migrasi.
 
 Menjalankan sistem (empat terminal):
 
@@ -394,7 +396,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 ### Fase B — Backend
 
-**B0. Kerangka backend**: `server/` dengan venv, FastAPI, config, exceptions, logging, Alembic, koneksi PostgreSQL, Celery, health check, pytest.
+**B0. Kerangka backend** (selesai 26 November 2026): `server/` dengan venv, FastAPI, config, exceptions, logging, Alembic, koneksi PostgreSQL, Celery, health check, pytest.
 
 **B1. Auth dan organisasi**: login, refresh, logout, CSRF, skrip akun pertama, keanggotaan, unit, uji isolasi. Undangan dan pendaftaran menyusul.
 

@@ -1,0 +1,168 @@
+"""Pengaturan aplikasi dari variabel lingkungan dan `server/.env`."""
+
+import json
+from pathlib import Path
+from typing import Annotated, Any
+
+from pydantic import Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from sqlalchemy.engine import URL, make_url
+
+SERVER_DIR = Path(__file__).resolve().parents[2]
+
+
+def parse_database_url(raw: str) -> URL:
+    """
+    Baca `DATABASE_URL` dan arahkan ke driver psycopg 3.
+
+    Pesan galat tidak boleh memuat isi URL karena berisi kata sandi.
+    """
+    try:
+        url = make_url(raw.strip())
+    except Exception:
+        # Pesan asli SQLAlchemy memuat URL lengkap, jadi rantai galatnya diputus.
+        raise ValueError(
+            "DATABASE_URL tidak bisa dibaca. Bentuknya "
+            "postgresql://pengguna:sandi@host:5432/nama_database."
+        ) from None
+
+    if url.drivername.split("+")[0] not in {"postgresql", "postgres"}:
+        raise ValueError("DATABASE_URL harus berawalan postgresql://.")
+    if "@" in (url.host or ""):
+        raise ValueError("Karakter khusus di kata sandi DATABASE_URL harus di-percent-encode.")
+    if not url.database:
+        raise ValueError("DATABASE_URL harus menyebut nama database.")
+    return url.set(drivername="postgresql+psycopg")
+
+
+class Settings(BaseSettings):
+    """
+    Variabel lingkungan mengalahkan isi `.env`. Variabel yang tidak dikenal diabaikan,
+    sehingga `.env` boleh memuat pengaturan tahap berikutnya.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=SERVER_DIR / ".env",
+        env_file_encoding="utf-8",
+        env_ignore_empty=True,
+        extra="ignore",
+        case_sensitive=True,
+        # Nilai yang salah tidak boleh ikut tercetak di pesan galat (bisa berisi rahasia).
+        hide_input_in_errors=True,
+    )
+
+    # ==========================
+    # APLIKASI
+    # ==========================
+    APP_NAME: str = "MBUTI"
+    APP_ENV: str = "development"
+    APP_DEBUG: bool = True
+    APP_HOST: str = "127.0.0.1"
+    APP_PORT: int = 8000
+    LOG_LEVEL: str = "INFO"
+
+    # ==========================
+    # DATABASE (PostgreSQL)
+    # ==========================
+    # Bila diisi, dipakai sebagai pengganti DB_HOST, DB_PORT, DB_NAME, DB_USER, dan DB_PASSWORD.
+    DATABASE_URL: SecretStr = Field(default=SecretStr(""))
+    # Saat APP_ENV=testing, nama database diganti dengan ini pada server yang sama.
+    TEST_DB_NAME: str = "mbuti_test"
+    DB_HOST: str = "127.0.0.1"
+    DB_PORT: int = 5432
+    DB_NAME: str = "mbuti"
+    # Kosong berarti memakai nama pengguna sistem operasi (bawaan libpq).
+    DB_USER: str = ""
+    DB_PASSWORD: SecretStr = Field(default=SecretStr(""))
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
+    DB_CONNECT_TIMEOUT: int = 10
+    DB_ECHO: bool = False
+
+    # ==========================
+    # REDIS DAN CELERY
+    # ==========================
+    # Basis data 1 agar tidak bercampur dengan aplikasi lain yang memakai basis data 0.
+    REDIS_URL: str = "redis://127.0.0.1:6379/1"
+    # Kosong berarti sama dengan REDIS_URL.
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+
+    # ==========================
+    # CORS
+    # ==========================
+    ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_origins(cls, value: Any) -> Any:
+        """Terima larik JSON atau daftar dipisah koma."""
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("["):
+                return json.loads(text)
+            return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
+
+    @field_validator("ALLOWED_ORIGINS")
+    @classmethod
+    def reject_wildcard(cls, value: list[str]) -> list[str]:
+        if "*" in value:
+            raise ValueError("ALLOWED_ORIGINS tidak boleh '*' karena permintaan membawa cookie.")
+        return value
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def validate_log_level(cls, value: str) -> str:
+        level = value.upper()
+        valid = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if level not in valid:
+            raise ValueError(f"LOG_LEVEL harus salah satu dari {sorted(valid)}")
+        return level
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, value: SecretStr) -> SecretStr:
+        if value.get_secret_value():
+            parse_database_url(value.get_secret_value())
+        return value
+
+    @field_validator("TEST_DB_NAME")
+    @classmethod
+    def validate_test_database(cls, value: str) -> str:
+        if not value.endswith("_test"):
+            raise ValueError("TEST_DB_NAME harus berakhiran '_test'.")
+        return value
+
+    def get_database_url(self) -> URL:
+        """URL SQLAlchemy untuk PostgreSQL lewat psycopg 3."""
+        if self.DATABASE_URL.get_secret_value():
+            url = parse_database_url(self.DATABASE_URL.get_secret_value())
+        else:
+            url = URL.create(
+                drivername="postgresql+psycopg",
+                username=self.DB_USER or None,
+                password=self.DB_PASSWORD.get_secret_value() or None,
+                host=self.DB_HOST,
+                port=self.DB_PORT,
+                database=self.DB_NAME,
+            )
+        # Pengujian tidak boleh menyentuh database pengembangan, dari mana pun URL-nya berasal.
+        if self.APP_ENV == "testing":
+            url = url.set(database=self.TEST_DB_NAME)
+        return url
+
+    @property
+    def celery_broker_url(self) -> str:
+        return self.CELERY_BROKER_URL or self.REDIS_URL
+
+    @property
+    def celery_result_backend(self) -> str:
+        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+
+
+settings = Settings()
