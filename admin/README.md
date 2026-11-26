@@ -2,6 +2,7 @@
 
 Antarmuka MBUTI: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, TanStack Query, Zustand, SweetAlert2.
 Struktur dan pola kode mengikuti `admin/` di repo edusetara. Rencana lengkap ada di [`../PLANNING.md`](../PLANNING.md).
+Kontrak API untuk backend ada di [`API_CONTRACT.md`](API_CONTRACT.md).
 
 ## Menjalankan
 
@@ -71,6 +72,7 @@ types/                  tipe bersama dan bentuk respons API
 3. Tambahkan route contoh di `lib/mock/routes/<fitur>.ts`, lalu daftarkan di `lib/mock/index.ts`.
 4. Panggil endpoint di `hooks/crud.tsx` lewat `fetchData` dengan URL dari `useUrlStore`.
 5. Tambahkan menu di `app/(admin)/_data/admin-menu.json`.
+6. Tambahkan endpoint dan bentuk datanya ke `API_CONTRACT.md`.
 
 ## Catatan Next.js 16
 

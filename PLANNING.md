@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan); berikutnya A8.
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). A8: kontrak API sudah ditulis, **menunggu tinjauan**; backend belum dimulai.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -329,7 +329,7 @@ Mengikuti edusetara:
 { "success": true, "statusCode": 200, "total": 42, "skip": 0, "limit": 10, "data": [ ] }
 ```
 
-Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PUT /update/{id}`, `DELETE /delete/{id}`, ditambah aksi khusus seperti `POST /api/v1/admin/tugas/{id}/approve`. Prefix `/api/v1/admin/<fitur>`. Daftar endpoint lengkap ditulis di `admin/API_CONTRACT.md` pada akhir fase frontend.
+Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PUT /update/{id}`, `DELETE /delete/{id}`, ditambah aksi khusus seperti `POST /api/v1/admin/tugas/{id}/approve`. Prefix `/api/v1/admin/<fitur>`. Daftar endpoint lengkap ada di [`admin/API_CONTRACT.md`](admin/API_CONTRACT.md).
 
 ## 9. Rancangan backend
 
@@ -383,7 +383,8 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - [x] Ringkasan, pengaturan model AI dan batas biaya. Nilainya dipakai mesin simulasi dan form Buat tugas.
 
 **A8. Kontrak API**
-- [ ] Tulis `admin/API_CONTRACT.md` dari `types.ts` dan pengendali mock. **Ditinjau bersama sebelum backend dimulai.**
+- [x] Tulis [`admin/API_CONTRACT.md`](admin/API_CONTRACT.md) dari `types.ts` dan pengendali mock.
+- [ ] **Ditinjau bersama sebelum backend dimulai**, termasuk keputusan di bagian 13 kontrak.
 
 ### Fase B — Backend
 
