@@ -35,6 +35,20 @@ export const requestServer = async (url: string, init: RequestInit): Promise<Res
   }
 };
 
+/** Galat dari server beserta status HTTP dan kode khusus (mis. `email_not_verified`) bila ada. */
+export class ApiError extends Error {
+  status: number;
+  code: string | null;
+
+  constructor(data: unknown, status: number) {
+    super(errorMessageFrom(data, status));
+    this.name = "ApiError";
+    this.status = status;
+    const code = data && typeof data === "object" ? (data as { code?: unknown }).code : null;
+    this.code = typeof code === "string" ? code : null;
+  }
+}
+
 /** Ambil pesan galat yang bisa dibaca manusia dari body respons. */
 export const errorMessageFrom = (data: unknown, status: number): string => {
   if (data && typeof data === "object") {

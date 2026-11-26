@@ -49,7 +49,7 @@ export const useInviteMember = () => {
       fetchData<ApiResponse<ResponseInterface>>(`${url}${BASE}/invite`, { method: "POST", body: { ...body } }),
     onSuccess: () => {
       invalidate();
-      swallAlert("undangan dibuat", "success");
+      swallAlert("undangan terkirim", "success");
     },
     onError: (err: Error) => swallAlert(`gagal diundang: ${err.message}`, "error"),
   });
@@ -79,5 +79,18 @@ export const useDeleteMember = () => {
       swallAlert("pengguna dikeluarkan", "success");
     },
     onError: (err: Error) => swallAlert(`gagal dikeluarkan: ${err.message}`, "error"),
+  });
+};
+
+export const useResendInvite = () => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const invalidate = useInvalidateMembers();
+  return useMutation({
+    mutationFn: (id: string) => fetchData<ApiResponse<ResponseInterface>>(`${url}${BASE}/resend-invite/${id}`, { method: "POST" }),
+    onSuccess: () => {
+      invalidate();
+      swallAlert("undangan dikirim ulang", "success");
+    },
+    onError: (err: Error) => swallAlert(`gagal dikirim ulang: ${err.message}`, "error"),
   });
 };

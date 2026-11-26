@@ -25,7 +25,7 @@ import {
 import { Icon } from "../../../_components/admin-icons";
 import { EditMemberModal, InviteMemberModal } from "./components/MemberModals";
 import { MemberAvatar, RoleBadge, StatusBadge } from "./components/MemberParts";
-import { useDeleteMember, useInviteMember, useResponseListMember, useUpdateMember } from "./hooks/crud";
+import { useDeleteMember, useInviteMember, useResendInvite, useResponseListMember, useUpdateMember } from "./hooks/crud";
 import { STATUS_LABEL, type MemberStatus, type ResponseInterface } from "./types";
 
 const STATUS_TABS: Array<{ value: "" | MemberStatus; label: string }> = [
@@ -63,6 +63,7 @@ export default function OrganisasiPenggunaPage() {
   const inviteMutation = useInviteMember();
   const updateMutation = useUpdateMember();
   const deleteMutation = useDeleteMember();
+  const resendMutation = useResendInvite();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
@@ -84,6 +85,15 @@ export default function OrganisasiPenggunaPage() {
   const rowActions = (member: ResponseInterface) =>
     canEdit && (
       <div className="flex items-center justify-end gap-0.5">
+        {member.status === "invited" && (
+          <IconButton
+            label={`Kirim ulang undangan ke ${member.full_name}`}
+            disabled={resendMutation.isPending}
+            onClick={() => resendMutation.mutate(member.id)}
+          >
+            <Icon name="mail" size={16} />
+          </IconButton>
+        )}
         <IconButton label={`Ubah ${member.full_name}`} onClick={() => setEditing(member)}>
           <Icon name="edit" size={16} />
         </IconButton>

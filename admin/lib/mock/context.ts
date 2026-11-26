@@ -6,6 +6,9 @@ export const requireMember = (ctx: MockContext): MockMembership | MockResponse =
   const userId = ctx.db.session?.user_id;
   const membership = ctx.db.memberships.find((m) => m.user_id === userId && m.status === "active");
   if (!userId || !membership) return fail(401, "Silakan masuk terlebih dahulu.");
+  const organization = ctx.db.organizations.find((o) => o.id === membership.organization_id);
+  if (organization?.status === "pending") return fail(403, "Organisasi masih menunggu persetujuan.", "organization_pending");
+  if (organization?.status === "suspended") return fail(403, "Organisasi ditangguhkan. Hubungi pengelola MBUTI.", "organization_suspended");
   return membership;
 };
 

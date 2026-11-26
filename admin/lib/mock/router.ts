@@ -66,7 +66,8 @@ export const list = <T>(items: T[], query: URLSearchParams): MockResponse => {
   };
 };
 
-export const fail = (status: number, message: string): MockResponse => ({
+/** `code` membedakan galat yang perlu ditangani khusus di frontend, mis. `email_not_verified`. */
+export const fail = (status: number, message: string, code?: string): MockResponse => ({
   status,
-  body: { success: false, statusCode: status, message },
+  body: { success: false, statusCode: status, message, ...(code ? { code } : {}) },
 });

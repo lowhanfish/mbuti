@@ -8,7 +8,13 @@ import { Icon } from "../_components/admin-icons";
 import { BackgroundOrbs, BrandMark } from "../_components/brand-mark";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isMockMode } from "@/lib/transport";
+import { MockOutbox } from "../../(auth)/_components/MockOutbox";
 import { ACCESS_ROLE_LABEL } from "@/utilities/labels";
+import type { UserProfile } from "@/types/global";
+
+/** Organisasi yang belum disetujui atau ditangguhkan belum boleh membuka halaman admin. */
+const isOrganizationBlocked = (user: UserProfile) =>
+  user.organization?.status === "pending" || user.organization?.status === "suspended";
 
 function MenuItemRenderer({
   item,
@@ -161,12 +167,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     checkAuth().then((currentUser) => {
       if (!currentUser) router.replace("/login");
+      else if (isOrganizationBlocked(currentUser)) router.replace("/menunggu-persetujuan");
     });
   }, [checkAuth, router]);
 
   // Kerangka dan {children} selalu dirender (syarat instant navigation Next.js 16).
   // Selama sesi diperiksa, isi ditutup lapisan pemuat. Hak akses tetap ditegakkan backend.
-  const ready = !isLoading && Boolean(user);
+  const ready = !isLoading && Boolean(user) && !(user && isOrganizationBlocked(user));
 
   return (
     <div className="admin-shell min-h-screen flex flex-col antialiased">
@@ -289,6 +296,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
+      {/* Email undangan di mode data contoh */}
+      <MockOutbox />
     </div>
   );
 }

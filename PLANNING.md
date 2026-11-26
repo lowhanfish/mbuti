@@ -493,6 +493,16 @@ Tetap satu organisasi per pengguna.
 - Urutan kerja: halaman dengan data contoh (mode `mock` menampilkan "email" di panel samping) → kontrak API → backend
   → uji (termasuk token kedaluwarsa, dipakai dua kali, dan email ganda).
 
+Kemajuan:
+
+- [x] Halaman dengan data contoh (26 November 2026): `/daftar`, `/daftar/terkirim`, `/verifikasi`, `/lupa-sandi`,
+      `/atur-ulang-sandi`, `/undangan`, `/menunggu-persetujuan`, `/ketentuan`, `/privasi`; kirim ulang undangan di
+      halaman Pengguna; panel Kotak keluar dan tombol setujui simulasi di mode `mock`. `MOCK_DB_VERSION` naik ke 10.
+- [ ] Kontrak API (`admin/API_CONTRACT.md`): endpoint di atas, `GET /auth/options`, `POST /admin/pengguna/resend-invite/{id}`,
+      `organization.status` pada profil, dan kolom `code` pada galat (`email_not_verified`, `invalid_token`,
+      `organization_pending`, `organization_suspended`).
+- [ ] Backend, skrip `scripts.setujui_organisasi`, dan uji.
+
 ## 12. Risiko
 
 | Risiko | Penanganan |

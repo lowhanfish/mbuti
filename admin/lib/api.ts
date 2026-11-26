@@ -1,4 +1,4 @@
-import { errorMessageFrom, sendRequest } from "@/lib/transport";
+import { ApiError, sendRequest } from "@/lib/transport";
 
 /** Permintaan tanpa penanganan sesi (login, halaman publik). */
 export const callAPI = async <T>(url: string, option: RequestInit = {}): Promise<T> => {
@@ -16,7 +16,7 @@ export const callAPI = async <T>(url: string, option: RequestInit = {}): Promise
   });
 
   if (!result.ok) {
-    throw new Error(errorMessageFrom(result.data, result.status));
+    throw new ApiError(result.data, result.status);
   }
   return result.data as T;
 };

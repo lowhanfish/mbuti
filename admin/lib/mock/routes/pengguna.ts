@@ -2,6 +2,7 @@ import type { ResponseInterface } from "@/app/(admin)/admin/organisasi/pengguna/
 import type { AccessRole } from "@/types/global";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
 import { removeRelations } from "../lookup";
+import { sendInvite } from "../accounts";
 import { fail, ok, paging, type MockRoute } from "../router";
 import type { MemberStatus, MockDatabase, MockMembership } from "../seed";
 
@@ -106,7 +107,22 @@ export const penggunaRoutes: MockRoute[] = [
         last_active_at: null,
       };
       ctx.db.memberships.push(membership);
-      return ok(toItem(ctx.db, membership, self.id), "Undangan dibuat.", 201);
+      sendInviteFor(ctx.db, membership, self.user_id);
+      return ok(toItem(ctx.db, membership, self.id), "Undangan terkirim.", 201);
+    },
+  },
+  {
+    method: "POST",
+    path: `${BASE}/resend-invite/:id`,
+    handler: (ctx) => {
+      const self = requireManager(ctx);
+      if (isFailure(self)) return self;
+      const target = ctx.db.memberships.find((m) => m.id === ctx.params.id && m.organization_id === self.organization_id);
+      if (!target) return fail(404, "Pengguna tidak ditemukan.");
+      if (target.status !== "invited") return fail(409, "Pengguna ini sudah bergabung.");
+      if (target.access_role === "owner" && self.access_role !== "owner") return fail(403, "Hanya pemilik yang dapat mengundang pemilik lain.");
+      sendInviteFor(ctx.db, target, self.user_id);
+      return ok(toItem(ctx.db, target, self.id), "Undangan dikirim ulang.");
     },
   },
   {
@@ -164,3 +180,11 @@ export const penggunaRoutes: MockRoute[] = [
     },
   },
 ];
+
+/** Kirim email undangan berisi tautan baru; tautan lama untuk keanggotaan itu tidak berlaku lagi. */
+function sendInviteFor(db: MockDatabase, membership: MockMembership, inviterUserId: string) {
+  const user = db.users.find((u) => u.id === membership.user_id);
+  const organization = db.organizations.find((o) => o.id === membership.organization_id);
+  const inviter = db.users.find((u) => u.id === inviterUserId);
+  if (user && organization) sendInvite(db, user, membership.id, organization.name, inviter?.full_name ?? organization.name);
+}

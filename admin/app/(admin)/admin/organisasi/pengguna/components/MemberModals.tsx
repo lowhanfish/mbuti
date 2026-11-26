@@ -94,7 +94,7 @@ export function InviteMemberModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Undang anggota"
-      description="Anggota tercatat sebagai Diundang. Pengiriman email undangan belum tersedia, jadi ia belum bisa masuk."
+      description="Kami kirim email berisi tautan undangan (berlaku 7 hari). Anggota tercatat sebagai Diundang sampai ia membuat kata sandi."
       maxWidth="xl"
       footer={
         <>

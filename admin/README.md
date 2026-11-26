@@ -29,6 +29,10 @@ Buka http://localhost:3000, lalu masuk dengan akun backend. Cara menyalakan back
 Semua permintaan lewat `lib/transport.ts`. Halaman dan hooks tidak tahu apakah datanya contoh atau sungguhan,
 jadi berpindah sumber data cukup dengan mengganti variabel ini.
 
+Email (verifikasi, undangan, atur ulang kata sandi) tidak dikirim di mode `mock`. Buka lewat tombol **Kotak keluar**
+di kanan bawah. Organisasi yang baru mendaftar menunggu persetujuan; di mode `mock` setujui dengan tombol simulasi di
+halaman "Menunggu persetujuan".
+
 Untuk mengembalikan data contoh ke keadaan awal, hapus kunci `mbuti-mock-db` di `localStorage` peramban.
 Bila bentuk data contoh berubah, naikkan `MOCK_DB_VERSION` di `lib/mock/seed.ts`.
 Role dan relasi yang dihapus setelah dipakai tugas dipindah ke arsip (`lib/mock/lookup.ts`).
@@ -50,9 +54,10 @@ npm run build
 
 ```text
 app/
-  (publish)/            halaman depan
+  (publish)/            halaman depan, ketentuan/, privasi/
     _landing/           bagian halaman depan: adegan 3D (HiveScene, effects, RobotBee) dan harga rencana (Pricing)
-  (auth)/login/         masuk
+  (auth)/               masuk, daftar, verifikasi, lupa-sandi, atur-ulang-sandi, undangan, menunggu-persetujuan
+    _components/        AuthShell, PasswordFields, MockOutbox (kotak keluar data contoh)
   (admin)/
     _components/ui/     komponen bersama (Button, Card, Modal, Table, ...)
     _components/        ikon, logo, halaman sementara

@@ -41,7 +41,10 @@ const ACTIONS: Array<[string, RegExp, string, string]> = [
   ["POST", /tugas\/create$/, "tugas.buat", "Membuat tugas"],
   ["POST", /tugas\/[^/]+\/cancel$/, "tugas.hentikan", "Menghentikan tugas"],
   ["POST", /persetujuan\/[^/]+\/decide$/, "persetujuan.putuskan", "Memutuskan persetujuan"],
+  ["POST", /pengguna\/resend-invite\//, "anggota.undang", "Mengirim ulang undangan"],
   ["POST", /auth\/login$/, "auth.masuk", "Masuk"],
+  ["POST", /auth\/verify-email$/, "auth.verifikasi", "Memverifikasi email"],
+  ["POST", /auth\/accept-invite$/, "anggota.terima", "Menerima undangan"],
   ["POST", /auth\/logout$/, "auth.keluar", "Keluar"],
 ];
 

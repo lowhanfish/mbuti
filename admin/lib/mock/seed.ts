@@ -10,12 +10,15 @@ import type { RelationFields } from "@/app/(admin)/admin/relasi/types";
 import type { MockApproval, MockEvent, MockStep, MockTask } from "./engine";
 import { seedTasks } from "./seed-tasks";
 import { defaultSettings, type MockSettings } from "./settings";
+import type { MockAuthToken, MockEmail } from "./accounts";
 
 export type { MockDocVersion, MockDocument };
 
 export type OrganizationSector = "pemerintahan" | "pendidikan" | "kesehatan" | "usaha" | "nirlaba" | "lainnya";
 export type UnitColor = "violet" | "honey" | "pink" | "teal" | "sky" | "lime" | "orange" | "slate";
 export type MemberStatus = "active" | "invited" | "disabled";
+/** `pending` = baru mendaftar dan menunggu persetujuan pengelola platform. */
+export type OrganizationStatus = "pending" | "active" | "suspended";
 
 export interface MockOrganization {
   id: string;
@@ -23,6 +26,7 @@ export interface MockOrganization {
   slug: string;
   description: string;
   sector: OrganizationSector;
+  status: OrganizationStatus;
   timezone: string;
   email: string;
   phone: string;
@@ -119,11 +123,15 @@ export interface MockDatabase {
   /** Role dan relasi yang dihapus setelah dipakai tugas */
   archived_agents: MockAgent[];
   archived_relations: MockRelation[];
+  /** Token sekali pakai: verifikasi email, atur ulang kata sandi, undangan */
+  auth_tokens: MockAuthToken[];
+  /** Email yang "terkirim"; di mode data contoh ditampilkan di panel Kotak keluar */
+  outbox: MockEmail[];
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 9;
+export const MOCK_DB_VERSION = 10;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -154,6 +162,7 @@ const createBase = (): MockDatabase => ({
       slug: "dinas-contoh-nusantara",
       description: "Organisasi contoh untuk memperagakan MBUTI: pelayanan administrasi, persuratan, dan data.",
       sector: "pemerintahan",
+      status: "active",
       timezone: "Asia/Makassar",
       email: "halo@contoh-nusantara.test",
       phone: "0401-000000",
@@ -227,6 +236,8 @@ const createBase = (): MockDatabase => ({
   llm_calls: [],
   archived_agents: [],
   archived_relations: [],
+  auth_tokens: [],
+  outbox: [],
   session: null,
 });
 

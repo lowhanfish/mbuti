@@ -27,10 +27,14 @@ export interface ApiListResponse<T> {
 
 export type AccessRole = "owner" | "admin" | "member" | "viewer";
 
+/** `pending`: baru mendaftar, menunggu persetujuan pengelola platform. */
+export type OrganizationStatus = "pending" | "active" | "suspended";
+
 export interface OrganizationSummary {
   id: string;
   name: string;
   slug: string;
+  status: OrganizationStatus;
 }
 
 export interface UserProfile {
