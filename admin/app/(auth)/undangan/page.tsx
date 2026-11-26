@@ -10,7 +10,8 @@ import type { ApiResponse, AuthDataResponse } from "@/types/global";
 import { ACCESS_ROLE_DESCRIPTION, ACCESS_ROLE_LABEL, formatDate } from "@/utilities/labels";
 import { Button, Input } from "../../(admin)/_components/ui";
 import { buttonClasses } from "../../(admin)/_components/ui/button-classes";
-import { AuthShell, Notice } from "../_components/AuthShell";
+import { Icon } from "../../(admin)/_components/admin-icons";
+import { AuthShell, Eyebrow, Notice } from "../_components/AuthShell";
 import { PasswordFields, passwordPairError, type PasswordPair } from "../_components/PasswordFields";
 import { landingPathFor } from "../_components/redirect";
 import { useLinkToken } from "../_components/useTokenAction";
@@ -70,7 +71,7 @@ function AcceptInvite() {
 
   if (shown.kind === "invalid") {
     return (
-      <AuthShell title="Undangan tidak berlaku" subtitle="Undangan berlaku 7 hari dan hanya bisa dipakai sekali.">
+      <AuthShell eyebrow={<Eyebrow>Minta undangan baru</Eyebrow>} title="Undangan tidak berlaku" subtitle="Undangan berlaku 7 hari dan hanya bisa dipakai sekali.">
         <Notice tone="error">{shown.message}</Notice>
         <p className="text-sm text-muted">Minta admin organisasi Anda mengirim ulang undangan dari halaman Pengguna.</p>
         <Link href="/login" className={`${buttonClasses("secondary", "lg")} w-full`}>
@@ -83,6 +84,7 @@ function AcceptInvite() {
   const { invite } = shown;
   return (
     <AuthShell
+      eyebrow={<Eyebrow>Anda diundang 🎉</Eyebrow>}
       title={<>Bergabung ke {invite.organization_name}</>}
       subtitle={<>{invite.inviter_name} mengundang Anda ke MBUTI. Buat kata sandi untuk mulai.</>}
     >
@@ -100,6 +102,7 @@ function AcceptInvite() {
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <Input
           label="Nama lengkap"
+          leftIcon={<Icon name="users" size={16} />}
           autoComplete="name"
           required
           maxLength={150}
@@ -109,8 +112,9 @@ function AcceptInvite() {
         />
         <PasswordFields value={passwords} onChange={setPasswords} touched={touched} />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button type="submit" size="lg" className="w-full" loading={submitting}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting}>
           Terima undangan
+          <Icon name="arrow" size={18} />
         </Button>
       </form>
     </AuthShell>

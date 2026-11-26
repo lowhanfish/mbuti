@@ -11,7 +11,7 @@ import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
 import { Icon } from "../../(admin)/_components/admin-icons";
 import { Button, Input } from "../../(admin)/_components/ui";
-import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
+import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../_components/AuthShell";
 import { landingPathFor } from "../_components/redirect";
 
 export default function LoginPage() {
@@ -70,18 +70,10 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      eyebrow={
-        <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-strong text-[11px] font-bold px-3 py-1 mb-1 tracking-wide">
-          <span className="relative flex w-2 h-2">
-            <span className="absolute inset-0 rounded-full bg-accent animate-ping opacity-70" />
-            <span className="relative w-2 h-2 rounded-full bg-accent" />
-          </span>
-          Tim AI Anda sudah siap bekerja
-        </span>
-      }
+      eyebrow={<Eyebrow>Tim AI Anda sudah siap bekerja</Eyebrow>}
       title={
         <>
-          Selamat datang <span className="inline-block origin-[70%_70%] motion-safe:animate-[wave_2.4s_ease-in-out_infinite]">👋</span>
+          Selamat datang <Wave />
         </>
       }
       subtitle="Masuk untuk mengatur kantor AI organisasi Anda."

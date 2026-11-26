@@ -8,7 +8,8 @@ import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
 import { SECTOR_OPTIONS, type OrganizationSector } from "../../(admin)/admin/organisasi/profil/types";
 import { Button, Input, Select } from "../../(admin)/_components/ui";
-import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
+import { Icon } from "../../(admin)/_components/admin-icons";
+import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../_components/AuthShell";
 import { PasswordFields, passwordPairError, type PasswordPair } from "../_components/PasswordFields";
 import { rememberEmail } from "../_components/pending-email";
 import { EMAIL_PATTERN, type AuthOptionsResponse, type RegisterInterface, type RegistrationMode } from "../types";
@@ -83,7 +84,7 @@ export default function RegisterPage() {
 
   if (mode === "closed") {
     return (
-      <AuthShell title="Pendaftaran ditutup" subtitle="Saat ini akun baru dibuat oleh pengelola MBUTI.">
+      <AuthShell eyebrow={<Eyebrow tone="brand">Segera dibuka</Eyebrow>} title="Pendaftaran ditutup" subtitle="Saat ini akun baru dibuat oleh pengelola MBUTI.">
         <Notice>Bila organisasi Anda ingin mencoba MBUTI, hubungi pengelola. Anggota organisasi yang sudah ada bisa diundang oleh admin-nya.</Notice>
         <FooterLink text="Sudah punya akun?" href="/login" label="Masuk" />
       </AuthShell>
@@ -93,13 +94,19 @@ export default function RegisterPage() {
   return (
     <AuthShell
       wide
-      title="Daftarkan organisasi"
+      eyebrow={<Eyebrow tone="brand">Masa uji coba · akses dibuka bertahap</Eyebrow>}
+      title={
+        <>
+          Daftarkan organisasi <Wave>🐝</Wave>
+        </>
+      }
       subtitle="Buat akun pemilik dan ruang kerja organisasi Anda. Anggota lain bisa diundang setelahnya."
     >
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Nama lengkap"
+            leftIcon={<Icon name="users" size={16} />}
             autoComplete="name"
             required
             maxLength={150}
@@ -109,6 +116,7 @@ export default function RegisterPage() {
           />
           <Input
             label="Email kerja"
+            leftIcon={<Icon name="mail" size={16} />}
             type="email"
             autoComplete="email"
             required
@@ -120,6 +128,7 @@ export default function RegisterPage() {
           />
           <Input
             label="Nama organisasi"
+            leftIcon={<Icon name="building" size={16} />}
             autoComplete="organization"
             required
             maxLength={150}
@@ -168,8 +177,9 @@ export default function RegisterPage() {
         )}
         {error && <Notice tone="error">{error}</Notice>}
 
-        <Button type="submit" size="lg" className="w-full" loading={submitting} disabled={mode === null}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting} disabled={mode === null}>
           Daftar
+          <Icon name="arrow" size={18} />
         </Button>
       </form>
 

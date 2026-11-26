@@ -13,9 +13,164 @@ import { DEFAULT_THEME, readTheme, subscribeTheme } from "@/lib/theme";
 
 /** Lantai dan garis bantu mengikuti tema tampilan. */
 const GROUND = {
-  light: { floor: "#f3efff", grid: ["#e4dcff", "#ece6ff"], sky: "#c4b5fd" },
-  dark: { floor: "#1a1330", grid: ["#2f2549", "#241c3c"], sky: "#3b2580" },
+  light: {
+    floor: "#f3efff",
+    grid: ["#e4dcff", "#ece6ff"],
+    sky: "#c4b5fd",
+    slab: "#e7e1f3",
+    wall: "#ddd4f2",
+    wallTop: "#c9bdea",
+    window: "#bfe3ff",
+    glass: "#c4b5fd",
+  },
+  dark: {
+    floor: "#1a1330",
+    grid: ["#2f2549", "#241c3c"],
+    sky: "#3b2580",
+    slab: "#2a2147",
+    wall: "#3a2d66",
+    wallTop: "#4b3b82",
+    window: "#5ec8ff",
+    glass: "#9b6bff",
+  },
 } as const;
+type GroundTheme = (typeof GROUND)[keyof typeof GROUND];
+
+/** Tepi lantai gedung di sekeliling ruangan */
+const BUILDING_MARGIN = 1.6;
+const WALL_H = 2.6;
+const LOW_WALL_H = 0.45;
+const DOOR_W = 3;
+
+/** Tanaman pot sederhana untuk sudut gedung dan pintu masuk. */
+function Plant({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
+  return (
+    <group position={[x, 0, z]} scale={scale}>
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <cylinderGeometry args={[0.32, 0.24, 0.6, 12]} />
+        <meshStandardMaterial color="#c2703d" roughness={0.8} />
+      </mesh>
+      <mesh position={[0, 0.95, 0]} castShadow>
+        <icosahedronGeometry args={[0.55, 0]} />
+        <meshStandardMaterial color="#3fa86b" roughness={0.7} flatShading />
+      </mesh>
+      <mesh position={[0.22, 1.35, 0.1]} castShadow>
+        <icosahedronGeometry args={[0.34, 0]} />
+        <meshStandardMaterial color="#4cc27e" roughness={0.7} flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+/** Deret jendela bercahaya di sisi dalam dinding luar. */
+function Windows({ length, axis, offset, color }: { length: number; axis: "x" | "z"; offset: number; color: string }) {
+  const count = Math.max(1, Math.floor(length / 3.4));
+  const step = length / count;
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => {
+        const along = -length / 2 + step * (i + 0.5);
+        const position: [number, number, number] = axis === "x" ? [along, 1.55, offset] : [offset, 1.55, along];
+        return (
+          <mesh key={i} position={position} rotation={axis === "x" ? [0, 0, 0] : [0, Math.PI / 2, 0]}>
+            <planeGeometry args={[Math.min(2, step - 0.8), 1.05]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.35} transparent opacity={0.85} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * Gedung kantor: lantai, dinding luar belakang dan kiri setinggi penuh dengan jendela,
+ * dinding depan dan kanan yang rendah agar isi kantor tetap terlihat, dan pintu masuk di depan.
+ */
+function Building({
+  bounds,
+  theme,
+}: {
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  theme: GroundTheme;
+}) {
+  const minX = bounds.minX - BUILDING_MARGIN;
+  const maxX = bounds.maxX + BUILDING_MARGIN;
+  const minZ = bounds.minZ - BUILDING_MARGIN;
+  const maxZ = bounds.maxZ + BUILDING_MARGIN;
+  const w = maxX - minX;
+  const d = maxZ - minZ;
+  const cx = (minX + maxX) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const t = 0.24;
+  const frontSide = (w - DOOR_W) / 2;
+  const wallMat = <meshStandardMaterial color={theme.wall} roughness={0.9} />;
+  const capMat = <meshStandardMaterial color={theme.wallTop} roughness={0.9} />;
+
+  return (
+    <group>
+      {/* Lantai gedung (lorong di antara ruangan) */}
+      <mesh position={[cx, 0.03, cz]} receiveShadow>
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color={theme.slab} roughness={0.95} />
+      </mesh>
+
+      {/* Dinding belakang dan kiri, setinggi penuh */}
+      <mesh position={[cx, WALL_H / 2, minZ + t / 2]} castShadow receiveShadow>
+        <boxGeometry args={[w, WALL_H, t]} />
+        {wallMat}
+      </mesh>
+      <mesh position={[cx, WALL_H + 0.06, minZ + t / 2]}>
+        <boxGeometry args={[w + 0.1, 0.12, t + 0.1]} />
+        {capMat}
+      </mesh>
+      <mesh position={[minX + t / 2, WALL_H / 2, cz]} castShadow receiveShadow>
+        <boxGeometry args={[t, WALL_H, d]} />
+        {wallMat}
+      </mesh>
+      <mesh position={[minX + t / 2, WALL_H + 0.06, cz]}>
+        <boxGeometry args={[t + 0.1, 0.12, d + 0.1]} />
+        {capMat}
+      </mesh>
+      <Windows length={w - 1.5} axis="x" offset={minZ + t + 0.01} color={theme.window} />
+      <Windows length={d - 1.5} axis="z" offset={minX + t + 0.01} color={theme.window} />
+
+      {/* Dinding kanan dan depan, rendah agar kantor terlihat */}
+      <mesh position={[maxX - t / 2, LOW_WALL_H / 2, cz]} castShadow receiveShadow>
+        <boxGeometry args={[t, LOW_WALL_H, d]} />
+        {capMat}
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[cx + side * (DOOR_W / 2 + frontSide / 2), LOW_WALL_H / 2, maxZ - t / 2]} castShadow receiveShadow>
+          <boxGeometry args={[frontSide, LOW_WALL_H, t]} />
+          {capMat}
+        </mesh>
+      ))}
+
+      {/* Pintu masuk: kusen, ambang atas, keset, dan papan nama */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[cx + side * (DOOR_W / 2 + 0.12), 1.2, maxZ - t / 2]} castShadow>
+          <boxGeometry args={[0.24, 2.4, 0.34]} />
+          {capMat}
+        </mesh>
+      ))}
+      <mesh position={[cx, 2.5, maxZ - t / 2]} castShadow>
+        <boxGeometry args={[DOOR_W + 0.72, 0.24, 0.36]} />
+        {capMat}
+      </mesh>
+      <mesh position={[cx, 0.07, maxZ + 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[DOOR_W - 0.4, 1.1]} />
+        <meshStandardMaterial color="#7c4dff" transparent opacity={0.55} />
+      </mesh>
+      <TextSprite text="MBUTI · Pintu masuk" position={[cx, 3.15, maxZ - t / 2]} height={0.5} bg="#18122b" fg="#ffb81c" font={22} bold />
+
+      {/* Tanaman di sudut dan di samping pintu */}
+      <Plant x={minX + 0.75} z={minZ + 0.75} />
+      <Plant x={maxX - 0.75} z={minZ + 0.75} scale={0.9} />
+      <Plant x={cx - DOOR_W / 2 - 0.85} z={maxZ - 0.75} scale={0.8} />
+      <Plant x={cx + DOOR_W / 2 + 0.85} z={maxZ - 0.75} scale={0.8} />
+    </group>
+  );
+}
 
 const POSE: Record<AgentActivity, CharacterPose> = {
   idle: "idle",
@@ -156,6 +311,9 @@ function Room({
 }) {
   const { unit, x, z, w, d } = room;
   const floor = tint(unit.color, selected ? 0.55 : hovered ? 0.65 : 0.78);
+  const glass = tint(unit.color, 0.35);
+  const roomDoor = 1.8;
+  const frontPart = (w - roomDoor) / 2;
   return (
     <group position={[x, 0, z]}>
       <mesh
@@ -187,6 +345,30 @@ function Room({
         <boxGeometry args={[0.12, 1.2, d]} />
         <meshStandardMaterial color={tint(unit.color, 0.4)} transparent opacity={0.9} />
       </mesh>
+      {/* Sekat kaca depan (dengan pintu) dan kanan */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * (roomDoor / 2 + frontPart / 2), 0.62, d / 2 - 0.04]}>
+          <boxGeometry args={[frontPart, 1.0, 0.06]} />
+          <meshStandardMaterial color={glass} transparent opacity={0.22} roughness={0.1} />
+        </mesh>
+      ))}
+      <mesh position={[w / 2 - 0.04, 0.62, 0]}>
+        <boxGeometry args={[0.06, 1.0, d]} />
+        <meshStandardMaterial color={glass} transparent opacity={0.18} roughness={0.1} />
+      </mesh>
+      {/* Bingkai sekat: tiang di sudut dan di kedua sisi pintu */}
+      {[
+        [w / 2 - 0.05, d / 2 - 0.05],
+        [-w / 2 + 0.05, d / 2 - 0.05],
+        [roomDoor / 2, d / 2 - 0.05],
+        [-roomDoor / 2, d / 2 - 0.05],
+        [w / 2 - 0.05, -d / 2 + 0.05],
+      ].map(([px, pz], i) => (
+        <mesh key={i} position={[px, 0.62, pz]} castShadow>
+          <boxGeometry args={[0.1, 1.0, 0.1]} />
+          <meshStandardMaterial color={tint(unit.color, 0.15)} />
+        </mesh>
+      ))}
       {/* Garis tepi saat dipilih */}
       {selected && (
         <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -259,6 +441,15 @@ function Scene({
 
   const transfers = state.transfers.filter((t) => positions.has(t.from_agent_id) && positions.has(t.to_agent_id));
   const ground = GROUND[useSyncExternalStore(subscribeTheme, readTheme, () => DEFAULT_THEME)];
+  const bounds = useMemo(
+    () => ({
+      minX: Math.min(...rooms.map((r) => r.x - r.w / 2)),
+      maxX: Math.max(...rooms.map((r) => r.x + r.w / 2)),
+      minZ: Math.min(...rooms.map((r) => r.z - r.d / 2)),
+      maxZ: Math.max(...rooms.map((r) => r.z + r.d / 2)),
+    }),
+    [rooms]
+  );
 
   return (
     <>
@@ -272,6 +463,8 @@ function Scene({
         <meshStandardMaterial color={ground.floor} />
       </mesh>
       <gridHelper key={ground.floor} args={[span * 3, Math.round(span * 1.5), ground.grid[0], ground.grid[1]]} position={[0, 0, 0]} />
+
+      {rooms.length > 0 && <Building bounds={bounds} theme={ground} />}
 
       {rooms.map((room) => (
         <group key={room.unit.id}>

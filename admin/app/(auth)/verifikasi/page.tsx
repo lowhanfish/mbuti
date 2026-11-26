@@ -6,7 +6,7 @@ import { callAPI } from "@/lib/api";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
-import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
+import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../_components/AuthShell";
 import { ResendVerification } from "../_components/ResendVerification";
 import { landingPathFor } from "../_components/redirect";
 import { useLinkToken } from "../_components/useTokenAction";
@@ -44,19 +44,27 @@ function VerifyEmail() {
   const shown: State = token ? state : { kind: "failed", message: "Tautan verifikasi tidak lengkap. Buka lagi dari email Anda." };
 
   if (shown.kind === "checking") {
-    return <AuthShell title="Memeriksa tautan…" subtitle="Sebentar, email Anda sedang diverifikasi.">{null}</AuthShell>;
+    return <AuthShell eyebrow={<Eyebrow tone="brand">Sebentar lagi</Eyebrow>} title="Memeriksa tautan…" subtitle="Sebentar, email Anda sedang diverifikasi.">{null}</AuthShell>;
   }
 
   if (shown.kind === "done") {
     return (
-      <AuthShell title="Email terverifikasi ✅" subtitle="Terima kasih. Anda sedang diarahkan…">
+      <AuthShell
+        eyebrow={<Eyebrow tone="success">Akun aktif</Eyebrow>}
+        title={
+          <>
+            Email terverifikasi <Wave>🎉</Wave>
+          </>
+        }
+        subtitle="Terima kasih. Anda sedang diarahkan…"
+      >
         <Notice tone="success">Akun Anda sudah aktif.</Notice>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Tautan tidak berlaku" subtitle="Verifikasi belum berhasil.">
+    <AuthShell eyebrow={<Eyebrow>Minta tautan baru</Eyebrow>} title="Tautan tidak berlaku" subtitle="Verifikasi belum berhasil.">
       <Notice tone="error">{shown.message}</Notice>
       <p className="text-sm text-muted">Isi email yang Anda daftarkan untuk menerima tautan baru.</p>
       <ResendVerification label="Kirim tautan baru" />

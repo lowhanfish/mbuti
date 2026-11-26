@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { callAPI } from "@/lib/api";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
+import { Icon } from "../../(admin)/_components/admin-icons";
 import { Button, Input } from "../../(admin)/_components/ui";
 import { Notice } from "./AuthShell";
 import { EMAIL_PATTERN } from "../types";
@@ -48,7 +49,7 @@ export function ResendVerification({ initialEmail = "", label = "Kirim ulang tau
   return (
     <form className="space-y-3" onSubmit={send} noValidate>
       {!initialEmail && (
-        <Input label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@instansi.go.id" />
+        <Input label="Email" type="email" autoComplete="email" leftIcon={<Icon name="mail" size={16} />} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@instansi.go.id" />
       )}
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
       <Button type="submit" variant="secondary" className="w-full" loading={sending} disabled={cooldown > 0}>

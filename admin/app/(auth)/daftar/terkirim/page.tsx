@@ -2,7 +2,7 @@
 
 import React, { useSyncExternalStore } from "react";
 import { isMockMode } from "@/lib/transport";
-import { AuthShell, FooterLink, Notice } from "../../_components/AuthShell";
+import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../../_components/AuthShell";
 import { ResendVerification } from "../../_components/ResendVerification";
 import { recallEmail } from "../../_components/pending-email";
 
@@ -12,7 +12,12 @@ export default function RegisteredPage() {
 
   return (
     <AuthShell
-      title="Periksa email Anda 📬"
+      eyebrow={<Eyebrow tone="success">Pendaftaran diterima · satu langkah lagi</Eyebrow>}
+      title={
+        <>
+          Periksa email Anda <Wave>📬</Wave>
+        </>
+      }
       subtitle={
         email ? (
           <>

@@ -6,7 +6,8 @@ import { isMockMode } from "@/lib/transport";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
 import { Button, Input } from "../../(admin)/_components/ui";
-import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
+import { Icon } from "../../(admin)/_components/admin-icons";
+import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../_components/AuthShell";
 import { EMAIL_PATTERN, type EmailInterface } from "../types";
 
 export default function ForgotPasswordPage() {
@@ -38,7 +39,13 @@ export default function ForgotPasswordPage() {
 
   if (sentMessage) {
     return (
-      <AuthShell title="Periksa email Anda 📬" subtitle="Tautan atur ulang berlaku 1 jam dan hanya bisa dipakai sekali.">
+      <AuthShell
+        eyebrow={<Eyebrow tone="success">Tautan dikirim</Eyebrow>}
+        title={
+          <>
+            Periksa email Anda <Wave>📬</Wave>
+          </>
+        } subtitle="Tautan atur ulang berlaku 1 jam dan hanya bisa dipakai sekali.">
         <Notice tone="success">{sentMessage}</Notice>
         {isMockMode() && <Notice>Mode data contoh: buka email lewat tombol <strong>Kotak keluar</strong> di kanan bawah.</Notice>}
         <Button variant="secondary" className="w-full" onClick={() => setSentMessage(null)}>
@@ -50,7 +57,13 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthShell title="Lupa kata sandi?" subtitle="Isi email akun Anda. Kami kirim tautan untuk membuat kata sandi baru.">
+    <AuthShell
+      eyebrow={<Eyebrow tone="brand">Tenang, bisa dipulihkan</Eyebrow>}
+      title={
+        <>
+          Lupa kata sandi? <Wave>🔑</Wave>
+        </>
+      } subtitle="Isi email akun Anda. Kami kirim tautan untuk membuat kata sandi baru.">
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <Input
           label="Email"
@@ -62,10 +75,12 @@ export default function ForgotPasswordPage() {
           error={emailError}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nama@instansi.go.id"
+          leftIcon={<Icon name="mail" size={16} />}
         />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button type="submit" size="lg" className="w-full" loading={submitting}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting}>
           Kirim tautan
+          <Icon name="arrow" size={18} />
         </Button>
       </form>
       <FooterLink text="Sudah ingat?" href="/login" label="Masuk" />

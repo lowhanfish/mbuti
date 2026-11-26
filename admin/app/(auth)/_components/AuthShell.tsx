@@ -97,8 +97,8 @@ export function AuthShell({
         </div>
       </section>
 
-      <section className="relative flex items-center justify-center p-4 pt-20 sm:p-8 sm:pt-20 lg:pt-8">
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2">
+      <section className="relative flex items-center justify-center p-4 pt-20 sm:p-8 sm:pt-24">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 flex items-center gap-2">
           <Link
             href="/"
             className="h-10 px-3.5 rounded-2xl bg-surface/80 border border-rim text-xs font-semibold text-muted hover:text-brand flex items-center transition-colors"
@@ -149,4 +149,28 @@ export function FooterLink({ text, href, label }: { text: string; href: string; 
       </Link>
     </p>
   );
+}
+
+/** Lencana kecil di atas judul halaman akun. `tone` brand untuk info, accent untuk sorotan. */
+export function Eyebrow({ children, tone = "accent" }: { children: React.ReactNode; tone?: "accent" | "brand" | "success" }) {
+  const classes = {
+    accent: "bg-accent-soft text-accent-strong",
+    brand: "bg-brand-soft text-brand",
+    success: "bg-emerald-50 text-emerald-700",
+  }[tone];
+  const dot = { accent: "bg-accent", brand: "bg-brand", success: "bg-emerald-500" }[tone];
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full text-[11px] font-bold px-3 py-1 mb-1 tracking-wide ${classes}`}>
+      <span className="relative flex w-2 h-2">
+        <span className={`absolute inset-0 rounded-full animate-ping opacity-70 ${dot}`} />
+        <span className={`relative w-2 h-2 rounded-full ${dot}`} />
+      </span>
+      {children}
+    </span>
+  );
+}
+
+/** Lambaian tangan untuk judul. */
+export function Wave({ children = "👋" }: { children?: React.ReactNode }) {
+  return <span className="inline-block origin-[70%_70%] motion-safe:animate-[wave_2.4s_ease-in-out_infinite]">{children}</span>;
 }

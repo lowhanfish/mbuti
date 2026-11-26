@@ -8,7 +8,8 @@ import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
 import { Button } from "../../(admin)/_components/ui";
 import { buttonClasses } from "../../(admin)/_components/ui/button-classes";
-import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
+import { Icon } from "../../(admin)/_components/admin-icons";
+import { AuthShell, Eyebrow, FooterLink, Notice } from "../_components/AuthShell";
 import { PasswordFields, passwordPairError, type PasswordPair } from "../_components/PasswordFields";
 import { useLinkToken } from "../_components/useTokenAction";
 import type { ResetPasswordInterface } from "../types";
@@ -44,7 +45,7 @@ function ResetPassword() {
 
   if (doneMessage) {
     return (
-      <AuthShell title="Kata sandi diganti ✅" subtitle="Semua sesi lama sudah dikeluarkan demi keamanan.">
+      <AuthShell eyebrow={<Eyebrow tone="success">Berhasil</Eyebrow>} title="Kata sandi diganti ✅" subtitle="Semua sesi lama sudah dikeluarkan demi keamanan.">
         <Notice tone="success">{doneMessage}</Notice>
         <Link href="/login" className={`${buttonClasses("primary", "lg")} w-full`}>
           Masuk
@@ -55,7 +56,7 @@ function ResetPassword() {
 
   if (!token || error?.linkBroken) {
     return (
-      <AuthShell title="Tautan tidak berlaku" subtitle="Tautan atur ulang hanya berlaku 1 jam dan sekali pakai.">
+      <AuthShell eyebrow={<Eyebrow>Minta tautan baru</Eyebrow>} title="Tautan tidak berlaku" subtitle="Tautan atur ulang hanya berlaku 1 jam dan sekali pakai.">
         <Notice tone="error">{error?.text ?? "Tautan atur ulang tidak lengkap. Buka lagi dari email Anda."}</Notice>
         <Link href="/lupa-sandi" className={`${buttonClasses("primary", "lg")} w-full`}>
           Minta tautan baru
@@ -65,12 +66,13 @@ function ResetPassword() {
   }
 
   return (
-    <AuthShell title="Buat kata sandi baru" subtitle="Setelah diganti, Anda perlu masuk lagi di semua perangkat.">
+    <AuthShell eyebrow={<Eyebrow tone="brand">Langkah terakhir</Eyebrow>} title="Buat kata sandi baru" subtitle="Setelah diganti, Anda perlu masuk lagi di semua perangkat.">
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <PasswordFields value={passwords} onChange={setPasswords} touched={touched} label="Kata sandi baru" />
         {error && <Notice tone="error">{error.text}</Notice>}
-        <Button type="submit" size="lg" className="w-full" loading={submitting}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting}>
           Simpan kata sandi
+          <Icon name="arrow" size={18} />
         </Button>
       </form>
       <FooterLink text="Tidak jadi?" href="/login" label="Kembali ke halaman masuk" />

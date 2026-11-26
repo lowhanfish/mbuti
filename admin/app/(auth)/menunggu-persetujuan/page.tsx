@@ -7,7 +7,7 @@ import { isMockMode } from "@/lib/transport";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import { Button } from "../../(admin)/_components/ui";
-import { AuthShell, Notice } from "../_components/AuthShell";
+import { AuthShell, Eyebrow, Notice, Wave } from "../_components/AuthShell";
 
 /** Organisasi baru menunggu persetujuan pengelola platform (atau sedang ditangguhkan). */
 export default function PendingApprovalPage() {
@@ -50,7 +50,16 @@ export default function PendingApprovalPage() {
 
   return (
     <AuthShell
-      title={suspended ? "Organisasi ditangguhkan" : "Menunggu persetujuan ⏳"}
+      eyebrow={suspended ? <Eyebrow>Akses dijeda</Eyebrow> : <Eyebrow tone="success">Email terverifikasi · sedang ditinjau</Eyebrow>}
+      title={
+        suspended ? (
+          "Organisasi ditangguhkan"
+        ) : (
+          <>
+            Menunggu persetujuan <Wave>⏳</Wave>
+          </>
+        )
+      }
       subtitle={
         suspended ? (
           <>Akses <strong className="text-ink">{organizationName}</strong> ke MBUTI sedang ditangguhkan.</>
