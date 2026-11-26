@@ -137,6 +137,10 @@ Pemeriksaan kesehatan (database, Redis, worker, antrean, tugas macet, disk, umur
 python -m scripts.periksa --cadangan ~/cadangan-mbuti
 ```
 
+Bila `ALERT_EMAILS` diisi, pengelola diberi email saat ada yang gagal, pengingat tiap `ALERT_REMIND_HOURS` jam
+(bawaan 6) selama masih gagal, dan email saat pulih. Email ini dikirim langsung, tidak lewat antrean, agar tetap
+sampai walau Redis atau worker mati. Tambahkan `--tanpa-email` saat memeriksa dengan tangan.
+
 Jejak tindakan ada di aplikasi: **Pengaturan > Jejak Audit**.
 
 ### Menguji

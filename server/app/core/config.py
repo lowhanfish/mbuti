@@ -123,6 +123,16 @@ class Settings(BaseSettings):
     SMTP_TIMEOUT_SECONDS: int = 20
 
     # ==========================
+    # PEMBERITAHUAN PEMANTAUAN (scripts.periksa)
+    # ==========================
+    # Penerima email saat pemeriksaan GAGAL dan saat pulih. Kosong berarti tidak ada email.
+    ALERT_EMAILS: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Selama masih gagal, pengingat dikirim ulang setiap sekian jam
+    ALERT_REMIND_HOURS: int = 6
+    # Keadaan pemberitahuan terakhir, agar email tidak dikirim tiap 5 menit
+    ALERT_STATE_FILE: Path = SERVER_DIR / ".periksa-status.json"
+
+    # ==========================
     # MODEL AI
     # ==========================
     # Kunci utama; kunci cadangan bernama GEMINI_API_KEY1, GEMINI_API_KEY2, ...
@@ -188,6 +198,14 @@ class Settings(BaseSettings):
             if text.startswith("["):
                 return json.loads(text)
             return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
+
+    @field_validator("ALERT_EMAILS", mode="before")
+    @classmethod
+    def parse_alert_emails(cls, value: Any) -> Any:
+        """Daftar dipisah koma."""
+        if isinstance(value, str):
+            return [email.strip() for email in value.split(",") if email.strip()]
         return value
 
     @field_validator("ALLOWED_ORIGINS")

@@ -26,3 +26,6 @@ server/uploads/
 
 # Konfigurasi lokal Claude Code
 .claude/
+
+# Keadaan pemberitahuan pemantauan
+server/.periksa-status.json

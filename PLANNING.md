@@ -415,7 +415,8 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - [x] Uji alur ujung ke ujung untuk contoh "Penyusun Surat → Pemeriksa Surat → Persetujuan Kepala"
       (`server/tests/integration/test_sample_flow.py`, data contoh lewat `scripts/data_contoh.py`).
 - [x] Batas laju, audit log, cadangan database, pemantauan galat. Cadangan dibuat tanpa `pg_dump` dan pemulihannya
-      diuji di database uji. Pemantauan berupa pemeriksaan berkala dan kode galat; pemberitahuan otomatis belum ada.
+      diuji di database uji. Pemantauan berupa pemeriksaan berkala dan kode galat; pemberitahuan email saat gagal,
+      pengingat, dan pulih ditambahkan 26 November 2026 (`ALERT_EMAILS`, `app/services/alerts.py`).
 - [ ] Deploy tanpa Docker: `systemd` untuk uvicorn, worker, dan beat; Nginx sebagai reverse proxy; `next build` + `next start`.
       Berkas dan panduan ada di `deploy/`, tetapi **belum dipasang di server** (menunggu server tujuan).
 - [x] README: persiapan lingkungan, migrasi, seed, menjalankan, uji, dan cara membuat modul baru.
