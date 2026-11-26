@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0 selesai** (kerangka backend); berikutnya B1.
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0 dan B1 selesai** (kerangka backend; auth, profil organisasi, unit, pengguna); berikutnya B2.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -398,11 +398,11 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 **B0. Kerangka backend** (selesai 26 November 2026): `server/` dengan venv, FastAPI, config, exceptions, logging, Alembic, koneksi PostgreSQL, Celery, health check, pytest.
 
-**B1. Auth dan organisasi**: login, refresh, logout, CSRF, skrip akun pertama, keanggotaan, unit, uji isolasi. Undangan dan pendaftaran menyusul.
+**B1. Auth dan organisasi** (selesai 26 November 2026): login, refresh, logout, CSRF, batas laju, skrip akun pertama, keanggotaan, profil, unit, uji isolasi. Undangan dan pendaftaran menyusul.
 
-**B2. Role dan relasi**: CRUD, validasi graf, tandai terhapus alih-alih hapus.
+**B2. Role dan relasi**: CRUD, validasi graf, tandai terhapus alih-alih hapus. Lengkapi juga yang menunggu tabel role: `agent_count` di profil dan unit, tolak hapus unit yang masih punya role, dan tolak menjadikan pemantau tujuan eskalasi.
 
-**B3. Pengetahuan**: unggah, worker ekstraksi, potong, embedding, pencarian gabungan, endpoint uji pencarian, baca versi lama, unduh berkas.
+**B3. Pengetahuan**: unggah, worker ekstraksi, potong, embedding, pencarian gabungan, endpoint uji pencarian, baca versi lama, unduh berkas, tolak hapus unit yang masih punya dokumen.
 
 **B4. Eksekusi satu role**: provider model, runner, rujukan, biaya, uji coba role dari tab "Uji coba".
 

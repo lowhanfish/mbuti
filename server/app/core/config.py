@@ -1,10 +1,11 @@
 """Pengaturan aplikasi dari variabel lingkungan dan `server/.env`."""
 
 import json
+import secrets
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -91,6 +92,19 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str = ""
 
     # ==========================
+    # SESI MASUK
+    # ==========================
+    # Wajib di produksi. Di pengembangan boleh kosong: dibuat acak tiap aplikasi menyala.
+    JWT_SECRET_KEY: SecretStr = Field(default=SecretStr(""))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 14
+    # Wajib true di produksi (HTTPS)
+    COOKIE_SECURE: bool = False
+    # Percobaan masuk per menit dari satu alamat, dan kegagalan per 5 menit untuk satu email
+    LOGIN_LIMIT_PER_MINUTE: int = 20
+    LOGIN_FAILURE_LIMIT: int = 5
+
+    # ==========================
     # CORS
     # ==========================
     ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = Field(
@@ -137,6 +151,18 @@ class Settings(BaseSettings):
         if not value.endswith("_test"):
             raise ValueError("TEST_DB_NAME harus berakhiran '_test'.")
         return value
+
+    @model_validator(mode="after")
+    def secure_session_settings(self) -> "Settings":
+        secret = self.JWT_SECRET_KEY.get_secret_value()
+        if self.APP_ENV == "production":
+            if len(secret) < 32:
+                raise ValueError("JWT_SECRET_KEY wajib diisi, minimal 32 karakter, di produksi.")
+            if not self.COOKIE_SECURE:
+                raise ValueError("COOKIE_SECURE harus true di produksi.")
+        elif not secret:
+            self.JWT_SECRET_KEY = SecretStr(secrets.token_urlsafe(48))
+        return self
 
     def get_database_url(self) -> URL:
         """URL SQLAlchemy untuk PostgreSQL lewat psycopg 3."""

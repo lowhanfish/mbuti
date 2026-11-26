@@ -17,6 +17,8 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
     "pgvector>=0.3.0",
     "celery[redis]>=5.4.0",
+    "pyjwt>=2.9.0",
+    "argon2-cffi>=23.1.0",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +30,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "scripts*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -48,5 +50,5 @@ select = ["E", "F", "W", "I", "B", "C4", "UP"]
 ignore = ["B008"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["app", "scripts", "tests"]
 known-third-party = ["alembic"]

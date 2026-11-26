@@ -101,7 +101,8 @@ Parameter: `skip` (bawaan 0), `limit` (maksimal 200), dan saringan per endpoint.
 ### 1.4 Sesi dan hak akses
 
 - Cookie sesi HttpOnly; permintaan dikirim dengan `credentials: "include"`.
-- `POST`, `PUT`, `PATCH`, `DELETE` membawa header `X-CSRF-Token` yang dibaca frontend dari cookie `csrf_token`.
+- `POST`, `PUT`, `PATCH`, `DELETE` (kecuali login) membawa header `X-CSRF-Token` yang dibaca frontend dari cookie
+  `csrf_token`, termasuk `/auth/refresh`. Header `Origin` yang tidak dikenal ditolak (`403`).
 - Saat 401, frontend memanggil `POST /auth/refresh` sekali lalu mengulang permintaan. Bila gagal, pindah ke `/login`.
 
 Singkatan hak akses di tabel endpoint:
@@ -151,8 +152,17 @@ export interface AuthDataResponse {
 | POST | `/auth/refresh` | Cookie refresh | | `null` |
 | POST | `/auth/logout` | Sesi | | `null` |
 
-- Login salah: `401` "Email atau kata sandi salah." (sama untuk email tidak terdaftar). Akun nonaktif: `403`.
-- Backend menambah batas laju pada login (PLANNING bagian 10).
+- Login salah: `401` "Email atau kata sandi salah." (sama untuk email tidak terdaftar atau undangan tanpa kata
+  sandi). Kata sandi benar tetapi akun atau keanggotaan nonaktif: `403`.
+- Batas laju login: 20 percobaan per menit per alamat, dan 5 kegagalan per 5 menit untuk satu email dari satu
+  alamat (`429`). Bila Redis mati, login dijawab `503`.
+- Cookie: `access_token` (15 menit) dan `refresh_token` (14 hari, hanya dikirim ke `/api/v1/auth`) HttpOnly;
+  `csrf_token` terbaca frontend. Semuanya `SameSite=Lax`, dan `Secure` di produksi. `data.csrf_token` juga dikirim
+  saat login.
+- Token refresh diganti tiap dipakai. Token lama yang dipakai lagi setelah 10 detik mencabut seluruh sesi.
+- Logout tetap berhasil walau token akses sudah kedaluwarsa. Menonaktifkan atau mengeluarkan anggota mengakhiri
+  sesinya.
+- Pengguna tanpa keanggotaan aktif bisa memanggil `/auth/me` (`access_role: null`), tetapi `/admin/*` menjawab `403`.
 - B1 hanya login dan skrip pembuat akun pertama. Penerimaan undangan (`POST /auth/accept-invite`, tautan sekali pakai)
   ditambah bersama halamannya; pendaftaran terbuka menyusul.
 

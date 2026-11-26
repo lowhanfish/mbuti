@@ -70,9 +70,10 @@ const refreshSession = async (): Promise<void> => {
   refreshPromise = (async () => {
     try {
       const refreshUrl = useUrlStore.getState().URL.REFRESH;
+      const csrfToken = getCookie("csrf_token");
       const result = await sendRequest(refreshUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) },
       });
       if (!result.ok) {
         if (typeof window !== "undefined" && window.location.pathname !== "/login") {

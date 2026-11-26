@@ -33,6 +33,9 @@ def build_async_engine(url: URL | None = None, **options: Any) -> AsyncEngine:
         connect_args={
             "connect_timeout": settings.DB_CONNECT_TIMEOUT,
             "options": "-c timezone=UTC",
+            # Pooler mode transaksi (mis. Neon) memindahkan koneksi antar-sesi server, sehingga
+            # prepared statement otomatis psycopg dimatikan.
+            "prepare_threshold": None,
         },
         **pool_options,
         **options,

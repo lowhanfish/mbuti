@@ -9,7 +9,7 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 | Folder | Isi | Status |
 |---|---|---|
 | [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0 selesai: konfigurasi, bentuk galat, Alembic, PostgreSQL + pgvector, Celery, health check, tes. Belum ada endpoint fitur |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B1 selesai: kerangka, auth (cookie, CSRF, batas laju), profil organisasi, unit, pengguna, tes isolasi. Fitur lain menyusul |
 
 ## Menjalankan frontend
 
@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000 dan masuk dengan tombol **Masuk dengan akun demo**. Selama fase frontend, semua data adalah data contoh di peramban.
+Buka http://localhost:3000 dan masuk dengan tombol **Masuk dengan akun demo**. Semua data adalah data contoh di peramban sampai frontend disambungkan ke backend (tahap B6).
 
 ## Menjalankan backend
 
@@ -43,7 +43,7 @@ CREATE DATABASE mbuti;
 CREATE DATABASE mbuti_test;
 ```
 
-Ekstensi `vector` diaktifkan oleh migrasi. Bila akun database tidak boleh membuat ekstensi, minta administrator menjalankan `CREATE EXTENSION vector;` di kedua database.
+Ekstensi `vector` diaktifkan oleh migrasi. Isi juga `JWT_SECRET_KEY` bila ingin sesi bertahan saat server dimulai ulang tanpa perlu diperpanjang; di produksi wajib. Bila akun database tidak boleh membuat ekstensi, minta administrator menjalankan `CREATE EXTENSION vector;` di kedua database.
 
 ### Menjalankan
 
@@ -51,6 +51,12 @@ Semua perintah dijalankan dari `server/` dengan venv aktif.
 
 ```bash
 alembic upgrade head
+```
+
+Buat akun pemilik pertama (sekali; kata sandi diketik tersembunyi):
+
+```bash
+python -m scripts.create_account
 ```
 
 ```bash
@@ -81,6 +87,6 @@ pytest
 ruff check .
 ```
 
-Bila `server/.env` memakai server jauh (mis. Neon), tes integrasi butuh koneksi internet dan lebih lambat.
+Bila `server/.env` memakai server jauh (mis. Neon), tes integrasi butuh koneksi internet dan jauh lebih lambat (beberapa menit).
 
 `pytest tests/unit` berjalan tanpa database. Tes di `tests/integration` butuh PostgreSQL dan Redis, memakai database `mbuti_test` pada server yang sama, serta memasang dan membatalkan migrasi di sana. Jangan menyimpan data apa pun di database uji.
