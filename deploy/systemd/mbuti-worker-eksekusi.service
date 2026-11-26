@@ -1,0 +1,22 @@
+[Unit]
+Description=MBUTI worker eksekusi tugas
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+User=mbuti
+Group=mbuti
+WorkingDirectory=/opt/mbuti/server
+ExecStart=/opt/mbuti/server/.venv/bin/celery -A app.workers.celery_app worker -Q execution --concurrency=1 -n eksekusi@%%h --loglevel=info
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/mbuti
+# Satu langkah model bisa berjalan beberapa menit
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

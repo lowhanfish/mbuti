@@ -119,7 +119,11 @@ async def test_http_exception_without_detail_is_translated(client: AsyncClient) 
 async def test_unhandled_error_hides_details_and_keeps_cors(client: AsyncClient) -> None:
     response = await client.get("/test/crash", headers={"Origin": ORIGIN})
 
-    assert_error(response, 500, "Terjadi kesalahan pada server. Coba lagi nanti.")
+    code = response.headers["x-request-id"]
+    assert_error(
+        response, 500, f"Terjadi kesalahan pada server. Coba lagi nanti. Kode galat: {code}."
+    )
+    assert "rincian internal" not in response.text
     assert response.headers["access-control-allow-origin"] == ORIGIN
     assert response.headers["access-control-allow-credentials"] == "true"
 
@@ -144,3 +148,12 @@ async def test_cors_rejects_other_origin(client: AsyncClient) -> None:
     response = await client.get("/test/not-found", headers={"Origin": "http://jahat.example"})
 
     assert "access-control-allow-origin" not in response.headers
+
+
+async def test_request_id_is_accepted_only_when_reasonable(client: AsyncClient) -> None:
+    kept = await client.get("/test/crash", headers={"X-Request-ID": "nginx-12345678"})
+    replaced = await client.get("/test/crash", headers={"X-Request-ID": "<script>"})
+
+    assert kept.headers["x-request-id"] == "nginx-12345678"
+    assert replaced.headers["x-request-id"] != "<script>"
+    assert len(replaced.headers["x-request-id"]) == 12

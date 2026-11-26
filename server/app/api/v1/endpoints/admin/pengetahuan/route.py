@@ -5,7 +5,13 @@ from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentMember, get_current_member, get_db, require_manager
+from app.api.deps import (
+    CurrentMember,
+    get_current_member,
+    get_db,
+    limited,
+    require_manager,
+)
 from app.api.v1.common import ApiResponse, Paging, paging
 from app.api.v1.endpoints.admin.pengetahuan import service
 from app.api.v1.endpoints.admin.pengetahuan.schema import (
@@ -55,7 +61,11 @@ async def read_documents(
     return DocumentList(total=total, skip=page.skip, limit=page.limit, data=data, summary=summary)
 
 
-@router.get("/search", response_model=ApiResponse[list[SearchHit]])
+@router.get(
+    "/search",
+    response_model=ApiResponse[list[SearchHit]],
+    dependencies=[limited("cari", "RATE_SEARCH_PER_MINUTE")],
+)
 async def search(
     q: str = "",
     agent_id: str = "",
@@ -67,7 +77,10 @@ async def search(
 
 
 @router.post(
-    "/create", response_model=ApiResponse[DocumentItem], status_code=status.HTTP_201_CREATED
+    "/create",
+    response_model=ApiResponse[DocumentItem],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[limited("unggah", "RATE_UPLOAD_PER_MINUTE")],
 )
 async def create_document(
     file: UploadFile | None = File(default=None),
@@ -135,6 +148,7 @@ async def read_document(
 
 @router.post(
     "/{document_id}/versions",
+    dependencies=[limited("unggah", "RATE_UPLOAD_PER_MINUTE")],
     response_model=ApiResponse[DocumentDetail],
     status_code=status.HTTP_201_CREATED,
 )

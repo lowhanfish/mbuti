@@ -87,9 +87,10 @@ async def clean_rate_limits() -> AsyncGenerator[None, None]:
 
     async def clear() -> None:
         async with Redis.from_url(settings.REDIS_URL) as client:
-            keys = [key async for key in client.scan_iter(f"{key_prefix()}*")]
-            if keys:
-                await client.delete(*keys)
+            for pattern in (f"{key_prefix()}*", f"mbuti:{settings.APP_ENV}:laju:*"):
+                keys = [key async for key in client.scan_iter(pattern)]
+                if keys:
+                    await client.delete(*keys)
 
     assert key_prefix().startswith("mbuti:testing:")
     await clear()

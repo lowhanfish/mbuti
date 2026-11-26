@@ -7,6 +7,7 @@ from app.api.deps import (
     CurrentMember,
     get_current_member,
     get_db,
+    limited,
     require_access,
 )
 from app.api.v1.common import ApiResponse, Paging, paging
@@ -34,7 +35,12 @@ async def read_tasks(
     return TaskList(total=total, skip=page.skip, limit=page.limit, data=data, summary=summary)
 
 
-@router.post("/create", response_model=ApiResponse[TaskItem], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/create",
+    response_model=ApiResponse[TaskItem],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[limited("tugas", "RATE_TASK_PER_MINUTE")],
+)
 async def create_task(
     body: TaskCreate,
     member: CurrentMember = Depends(require_creator),

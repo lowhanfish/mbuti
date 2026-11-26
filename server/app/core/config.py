@@ -140,6 +140,16 @@ class Settings(BaseSettings):
     MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
 
     # ==========================
+    # BATAS LAJU (per menit, per pengguna)
+    # ==========================
+    RATE_TRIAL_PER_MINUTE: int = 10
+    RATE_UPLOAD_PER_MINUTE: int = 20
+    RATE_TASK_PER_MINUTE: int = 20
+    RATE_SEARCH_PER_MINUTE: int = 60
+    # Per alamat, karena pengguna belum dikenali
+    RATE_REFRESH_PER_MINUTE: int = 60
+
+    # ==========================
     # CORS
     # ==========================
     ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = Field(

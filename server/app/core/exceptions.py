@@ -17,6 +17,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.request_context import current_request_id
+
 logger = logging.getLogger("mbuti.exceptions")
 
 INTERNAL_ERROR_MESSAGE = "Terjadi kesalahan pada server. Coba lagi nanti."
@@ -184,7 +186,11 @@ class UnhandledExceptionMiddleware:
             logger.exception("Galat tidak tertangani pada %s %s", scope["method"], scope["path"])
             if response_started:
                 raise
-            await error_response(500, INTERNAL_ERROR_MESSAGE)(scope, receive, send)
+            code = current_request_id.get()
+            message = INTERNAL_ERROR_MESSAGE
+            if code != "-":
+                message = f"{message} Kode galat: {code}."
+            await error_response(500, message)(scope, receive, send)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

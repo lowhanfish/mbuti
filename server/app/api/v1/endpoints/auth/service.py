@@ -15,6 +15,7 @@ from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import create_access_token, hash_token, random_token, verify_password
 from app.models import Membership, Organization, RefreshSession, User
 from app.models.base import utcnow
+from app.services import audit
 
 logger = logging.getLogger("mbuti.auth")
 
@@ -104,6 +105,22 @@ async def revoke_user_sessions(session: AsyncSession, user_id: uuid.UUID, reason
     )
 
 
+async def _record_failure(
+    session: AsyncSession, email: str, user: User | None, client: ClientInfo
+) -> None:
+    """Percobaan atas akun yang dikenal tampil di jejak audit organisasinya."""
+    membership = await _membership(session, user.id) if user else None
+    audit.add_entry(
+        session,
+        action="auth.gagal",
+        organization_id=membership.organization_id if membership else None,
+        user=user,
+        email=email,
+        ip=client.ip,
+    )
+    await session.commit()
+
+
 async def login(
     session: AsyncSession, email: str, password: str, client: ClientInfo
 ) -> IssuedSession:
@@ -113,13 +130,16 @@ async def login(
     user = await session.scalar(select(User).where(User.email == email))
     if not await verify_password(password, user.password_hash if user else None):
         await rate_limit.record_login_failure(email, client.ip)
+        await _record_failure(session, email, user, client)
         raise UnauthorizedException(WRONG_CREDENTIALS)
 
     # Alasan penolakan hanya diberitahukan kepada yang tahu kata sandinya
     if not user.is_active:
+        await _record_failure(session, email, user, client)
         raise ForbiddenException("Akun dinonaktifkan. Hubungi admin organisasi.")
     membership = await _membership(session, user.id)
     if membership is not None and membership.status == "disabled":
+        await _record_failure(session, email, user, client)
         raise ForbiddenException("Keanggotaan Anda dinonaktifkan. Hubungi admin organisasi.")
 
     await rate_limit.clear_login_failures(email, client.ip)
@@ -127,6 +147,13 @@ async def login(
     refresh_token = _new_refresh(session, user.id, family_id, client)
     if membership is not None:
         membership.last_active_at = utcnow()
+    audit.add_entry(
+        session,
+        action="auth.masuk",
+        organization_id=membership.organization_id if membership else None,
+        user=user,
+        ip=client.ip,
+    )
     await session.commit()
     return IssuedSession(user, create_access_token(user.id, family_id), refresh_token)
 
@@ -181,7 +208,9 @@ async def refresh(session: AsyncSession, token: str, client: ClientInfo) -> Issu
     return IssuedSession(user, create_access_token(user.id, row.family_id), new_token)
 
 
-async def logout(session: AsyncSession, token: str, family_id: uuid.UUID | None) -> None:
+async def logout(
+    session: AsyncSession, token: str, family_id: uuid.UUID | None, client: ClientInfo
+) -> None:
     """Cabut sesi yang dikenali dari cookie refresh atau token akses."""
     if token:
         row = await session.scalar(
@@ -189,6 +218,22 @@ async def logout(session: AsyncSession, token: str, family_id: uuid.UUID | None)
         )
         if row is not None:
             family_id = row.family_id
-    if family_id is not None:
-        await revoke_family(session, family_id, "logout")
-        await session.commit()
+    if family_id is None:
+        return
+    user_id = await session.scalar(
+        select(RefreshSession.user_id)
+        .where(RefreshSession.family_id == family_id, RefreshSession.revoked_at.is_(None))
+        .limit(1)
+    )
+    await revoke_family(session, family_id, "logout")
+    # Sesi yang sudah dicabut tidak dicatat dua kali
+    if user_id is not None:
+        membership = await _membership(session, user_id)
+        audit.add_entry(
+            session,
+            action="auth.keluar",
+            organization_id=membership.organization_id if membership else None,
+            user=await session.get(User, user_id),
+            ip=client.ip,
+        )
+    await session.commit()

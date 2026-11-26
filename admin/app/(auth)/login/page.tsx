@@ -49,7 +49,7 @@ export default function LoginPage() {
     <main className="flex-1 grid lg:grid-cols-[1.1fr_1fr]">
       <BackgroundOrbs />
 
-      <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-[32px] bg-gradient-to-br from-ink via-[#241a45] to-[#3b2580] text-white relative overflow-hidden">
+      <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-4xl bg-linear-to-br from-ink via-[#241a45] to-[#3b2580] text-white relative overflow-hidden">
         <div className="absolute -left-20 top-1/3 w-80 h-80 rounded-full bg-brand/40 blur-3xl" aria-hidden="true" />
         <div className="absolute right-0 -bottom-20 w-96 h-96 rounded-full bg-accent/25 blur-3xl" aria-hidden="true" />
 

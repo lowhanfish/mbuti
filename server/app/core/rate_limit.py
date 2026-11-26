@@ -1,4 +1,4 @@
-"""Batas percobaan masuk, disimpan di Redis agar berlaku untuk semua proses."""
+"""Batas percobaan masuk dan batas laju, disimpan di Redis agar berlaku untuk semua proses."""
 
 import hashlib
 import logging
@@ -63,3 +63,21 @@ async def clear_login_failures(email: str, ip: str) -> None:
             await client.delete(_failure_key(email, ip))
     except RedisError as exc:
         raise _unavailable(exc) from exc
+
+
+async def check_rate(scope: str, identity: str, per_minute: int) -> None:
+    """
+    Batas pemakaian per menit untuk tindakan yang mahal (memanggil model atau menyimpan berkas).
+
+    Bila Redis tidak tersedia, permintaan diteruskan: berbeda dari percobaan masuk, di sini
+    layanan yang tetap jalan lebih penting, dan batas biaya model masih berlaku.
+    """
+    key = f"mbuti:{settings.APP_ENV}:laju:{scope}:{hashlib.sha256(identity.encode()).hexdigest()}"
+    try:
+        async with Redis.from_url(settings.REDIS_URL) as client:
+            total = await _count(client, key, 60)
+    except RedisError as exc:
+        logger.error("Pembatas laju tidak tersedia: %s", type(exc).__name__)
+        return
+    if total > per_minute:
+        raise RateLimitException("Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.")

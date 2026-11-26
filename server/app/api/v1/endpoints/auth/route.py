@@ -7,6 +7,8 @@ from app.api.deps import get_current_user, get_db
 from app.api.v1.common import ApiResponse
 from app.api.v1.endpoints.auth import service
 from app.api.v1.endpoints.auth.schema import AuthData, LoginRequest
+from app.core import rate_limit
+from app.core.config import settings
 from app.core.cookies import (
     ACCESS_COOKIE,
     CSRF_COOKIE,
@@ -65,6 +67,9 @@ async def refresh(
     if not refresh_token:
         raise UnauthorizedException(service.SESSION_ENDED)
     verify_csrf(request)
+    await rate_limit.check_rate(
+        "refresh", client_info(request).ip, settings.RATE_REFRESH_PER_MINUTE
+    )
     issued = await service.refresh(session, refresh_token, client_info(request))
     # Token CSRF dipertahankan agar permintaan yang sedang berjalan di tab lain tetap cocok
     set_session_cookies(
@@ -82,6 +87,8 @@ async def logout(
     claims = read_access_token(request.cookies.get(ACCESS_COOKIE, ""))
     if refresh_token or claims:
         verify_csrf(request)
-        await service.logout(session, refresh_token, claims[1] if claims else None)
+        await service.logout(
+            session, refresh_token, claims[1] if claims else None, client_info(request)
+        )
     clear_session_cookies(response)
     return ApiResponse(message="Berhasil keluar.", data=None)

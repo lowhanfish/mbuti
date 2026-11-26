@@ -7,6 +7,7 @@ from app.api.deps import (
     CurrentMember,
     get_current_member,
     get_db,
+    limited,
     require_access,
     require_manager,
 )
@@ -82,7 +83,11 @@ require_trial = require_access(
 )
 
 
-@router.post("/{role_id}/trial", response_model=ApiResponse[TrialResult])
+@router.post(
+    "/{role_id}/trial",
+    response_model=ApiResponse[TrialResult],
+    dependencies=[limited("uji-coba", "RATE_TRIAL_PER_MINUTE")],
+)
 async def trial(
     role_id: str,
     body: TrialRequest,

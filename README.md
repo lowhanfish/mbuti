@@ -9,7 +9,8 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 | Folder | Isi | Status |
 |---|---|---|
 | [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya. Tersambung ke backend (B6) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B5 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role, tugas lintas role, persetujuan, kantor, dan dashboard |
+| [`deploy/`](deploy/) | Berkas pemasangan di server | `systemd`, Nginx, dan panduan; belum diuji di server |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B5 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role, tugas lintas role, persetujuan, kantor, dashboard, jejak audit, batas laju, dan cadangan |
 
 ## Menjalankan frontend
 
@@ -72,7 +73,7 @@ Google; pada tier gratis, gunakan hanya data contoh atau publik. Berkas asli dis
 Dua worker dan penjadwal Celery, masing-masing di terminal sendiri. Worker pertama mengolah dokumen:
 
 ```bash
-celery -A app.workers.celery_app worker -Q default,ingestion -n umum@%h --loglevel=info
+celery -A app.workers.celery_app worker -Q default,ingestion --concurrency=2 -n umum@%h --loglevel=info
 ```
 
 Worker kedua mengerjakan tugas, satu langkah pada satu waktu agar kuota model tidak cepat habis:
@@ -91,6 +92,36 @@ celery -A app.workers.celery_app beat --loglevel=info
 - Dokumentasi API: http://localhost:8000/docs (hanya saat `APP_DEBUG=true`).
 - Redis memakai basis data 1 (`REDIS_URL`) agar tidak bercampur dengan aplikasi lain.
 
+### Data contoh
+
+Setelah punya akun pemilik, tambahkan alur contoh **Penyusun Surat → Pemeriksa Surat → Persetujuan Kepala** (dua role, relasinya, dan satu SOP karangan di `server/contoh/`). Worker harus menyala agar SOP-nya diolah.
+
+```bash
+python -m scripts.data_contoh --email nama@instansi.go.id
+```
+
+Setelah dokumennya siap, buat tugas untuk **Rani**.
+
+### Perawatan
+
+Cadangan seluruh data dan berkas unggahan, serta pemulihannya ke database kosong:
+
+```bash
+python -m scripts.cadangan buat --tujuan ~/cadangan-mbuti --simpan 14
+```
+
+```bash
+python -m scripts.cadangan pulihkan ~/cadangan-mbuti/NAMA-ARSIP.tar.gz
+```
+
+Pemeriksaan kesehatan (database, Redis, worker, antrean, tugas macet, disk, umur cadangan); kode keluar 1 bila ada yang gagal:
+
+```bash
+python -m scripts.periksa --cadangan ~/cadangan-mbuti
+```
+
+Jejak tindakan ada di aplikasi: **Pengaturan > Jejak Audit**.
+
 ### Menguji
 
 ```bash
@@ -104,3 +135,15 @@ ruff check .
 Bila `server/.env` memakai server jauh (mis. Neon), aplikasi dan tes integrasi butuh koneksi internet. Tiap query menempuh jarak ke server itu, jadi pilih wilayah database yang dekat; dengan database di benua lain, halaman butuh beberapa detik untuk terisi dan seluruh tes butuh lebih dari setengah jam.
 
 `pytest tests/unit` berjalan tanpa database. Tes di `tests/integration` butuh PostgreSQL dan Redis, memakai database `mbuti_test` pada server yang sama, serta memasang dan membatalkan migrasi di sana. Jangan menyimpan data apa pun di database uji.
+
+## Memasang di server
+
+Panduan, layanan `systemd`, dan konfigurasi Nginx ada di [deploy/README.md](deploy/README.md). Berkas itu belum diuji di server sungguhan.
+
+## Membuat modul baru
+
+1. Rancang di frontend dulu dengan data contoh, ikuti [admin/README.md](admin/README.md#menambah-fitur-baru), lalu tulis bentuk datanya di kontrak API.
+2. Model di `server/app/models/<domain>/`, daftarkan di `app/models/__init__.py`, lalu buat migrasi (`alembic revision --autogenerate -m "..."`) dan periksa isinya.
+3. Endpoint di `server/app/api/v1/endpoints/admin/<fitur>/`: `schema.py` (sama dengan `types.ts`), `service.py` (aturan dan query, selalu disaring `organization_id`), `route.py` (hak akses dan jawaban). Daftarkan di `app/api/v1/router.py`.
+4. Rute yang mengubah data wajib didaftarkan di `app/services/audit.py` (tes akan gagal bila terlewat). Beri `limited(...)` bila tindakannya mahal.
+5. Tes di `server/tests/`, termasuk bahwa organisasi lain tidak bisa melihat atau mengubah datanya.

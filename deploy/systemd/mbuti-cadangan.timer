@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal: MBUTI cadangan harian
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

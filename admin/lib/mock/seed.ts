@@ -2,6 +2,7 @@
  * Data contoh untuk mode NEXT_PUBLIC_DATA_SOURCE=mock.
  * Semua data fiktif. Tahap berikutnya menambah role, relasi, dokumen, dan tugas di sini.
  */
+import type { MockAuditLog } from "./audit";
 import type { AccessRole } from "@/types/global";
 import type { UpdateInterface as AgentFields } from "@/app/(admin)/admin/role/types";
 import { SEED_DOC_VERSIONS, SEED_DOCUMENTS, type MockDocVersion, type MockDocument } from "./seed-documents";
@@ -114,6 +115,7 @@ export interface MockDatabase {
   /** Pengaturan model AI dan batas biaya per organisasi */
   settings: MockSettings[];
   llm_calls: MockLlmCall[];
+  audit_logs: MockAuditLog[];
   /** Role dan relasi yang dihapus setelah dipakai tugas */
   archived_agents: MockAgent[];
   archived_relations: MockRelation[];
@@ -121,7 +123,7 @@ export interface MockDatabase {
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 8;
+export const MOCK_DB_VERSION = 9;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -144,6 +146,7 @@ const people: Array<[string, string, AccessRole, string | null, MemberStatus, st
 
 const createBase = (): MockDatabase => ({
   version: MOCK_DB_VERSION,
+  audit_logs: [],
   organizations: [
     {
       id: ORG,

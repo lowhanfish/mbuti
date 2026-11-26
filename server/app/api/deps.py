@@ -12,6 +12,8 @@ from fastapi import Depends, Request
 from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import rate_limit
+from app.core.config import settings
 from app.core.cookies import ACCESS_COOKIE
 from app.core.csrf import verify_csrf
 from app.core.exceptions import ForbiddenException, UnauthorizedException
@@ -95,3 +97,12 @@ def require_access(
 
 
 require_manager = require_access(*MANAGERS)
+
+
+def limited(scope: str, setting: str):
+    """Dependency batas laju per pengguna. `setting` adalah nama pengaturannya."""
+
+    async def dependency(member: CurrentMember = Depends(get_current_member)) -> None:
+        await rate_limit.check_rate(scope, str(member.user.id), getattr(settings, setting))
+
+    return Depends(dependency)

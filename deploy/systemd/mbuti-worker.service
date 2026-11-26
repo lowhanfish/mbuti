@@ -1,0 +1,22 @@
+[Unit]
+Description=MBUTI worker umum dan olah dokumen
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+User=mbuti
+Group=mbuti
+WorkingDirectory=/opt/mbuti/server
+ExecStart=/opt/mbuti/server/.venv/bin/celery -A app.workers.celery_app worker -Q default,ingestion --concurrency=2 -n umum@%%h --loglevel=info
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/mbuti
+# Beri waktu menyelesaikan pekerjaan saat dimulai ulang
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

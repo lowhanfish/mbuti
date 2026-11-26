@@ -23,6 +23,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 11. [Pengaturan](#11-pengaturan)
 12. [Perilaku mesin agen](#12-perilaku-mesin-agen)
 13. [Keputusan](#13-keputusan)
+14. [Jejak audit, batas laju, dan kode permintaan](#14-jejak-audit-batas-laju-dan-kode-permintaan)
 
 ---
 
@@ -1177,3 +1178,56 @@ Disetujui 26 November 2026. Kolom **Data contoh**: apakah perilakunya sudah bisa
 | 19 | Persetujuan berhalaman | Ya |
 | 20 | Konsultasi dijalankan sebelum role penanya bekerja | Ya |
 | 21 | Teks melebihi batas ditolak `422` | Backend |
+
+---
+
+## 14. Jejak audit, batas laju, dan kode permintaan
+
+Ditambahkan pada fase C.
+
+### Jejak audit
+
+| Method | Path | Akses | Query | Jawaban |
+|---|---|---|---|---|
+| GET | `/admin/audit/read` | Admin+ | `search`, `group`, `skip`, `limit` (bawaan 50) | `ResponseListInterface` |
+
+```ts
+export type ResponseInterface = {
+  id: string;
+  action: string; // mis. "role.buat"
+  label: string;
+  target: string; // nama benda yang dikenai; kosong bila tidak ada
+  actor_name: string;
+  actor_email: string;
+  ip: string;
+  request_id: string;
+  created_at: string;
+};
+```
+
+- Urutan terbaru dulu. `search` mencocokkan sasaran, nama, dan email. `group` adalah bagian kode sebelum titik
+  (`auth`, `tugas`, `persetujuan`, `role`, `relasi`, `dokumen`, `anggota`, `unit`, `organisasi`, `pengaturan`).
+- Dicatat: setiap permintaan yang mengubah data dan berhasil (kecuali posisi peta), masuk, gagal masuk, dan keluar.
+  Yang gagal karena validasi atau hak akses tidak dicatat. Isi dokumen, arahan tugas, dan kata sandi tidak dicatat.
+- Gagal masuk dengan email yang tidak dikenal disimpan tanpa organisasi dan tidak tampil di organisasi mana pun.
+- `403` untuk anggota dan pemantau: `Jejak audit hanya untuk pemilik dan admin.`
+
+### Batas laju
+
+Per menit dan per pengguna (perpanjangan sesi: per alamat), diatur di `server/.env`:
+
+| Tindakan | Bawaan |
+|---|---|
+| Uji coba role | 10 |
+| Unggah dokumen dan versi | 20 |
+| Buat tugas | 20 |
+| Pencarian dokumen | 60 |
+| Perpanjang sesi | 60 |
+
+Melampauinya dijawab `429` dengan `Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.`
+
+### Kode permintaan
+
+Setiap jawaban membawa header `X-Request-ID`. Galat tak terduga (`500`) menyebutnya di `message`
+(`… Kode galat: 1a2b3c4d5e6f.`), dan kode yang sama ada di log server.
+

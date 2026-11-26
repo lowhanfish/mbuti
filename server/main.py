@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.exceptions import UnhandledExceptionMiddleware, register_exception_handlers
 from app.core.lifespan import lifespan
 from app.core.limits import BodySizeLimitMiddleware
+from app.core.request_context import RequestIdMiddleware
 
 
 def create_application() -> FastAPI:
@@ -31,7 +32,10 @@ def create_application() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+    # Paling luar, agar semua jawaban dan baris log membawa kode permintaan
+    application.add_middleware(RequestIdMiddleware)
 
     register_exception_handlers(application)
     application.include_router(api_v1_router)

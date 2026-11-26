@@ -1,0 +1,256 @@
+"""
+Jejak audit: tindakan yang mengubah data, beserta masuk dan keluar.
+
+Setiap rute yang mengubah data harus terdaftar di `ACTIONS` (diperiksa oleh tes), sehingga
+rute baru tidak bisa terlewat tanpa disadari. Isi dokumen, arahan tugas, dan kata sandi
+tidak pernah dicatat; hanya nama benda yang dikenai.
+"""
+
+import logging
+import uuid
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+
+from fastapi import Depends, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import CurrentMember, get_current_member, get_db
+from app.core.request_context import current_request_id
+from app.models import (
+    Agent,
+    AgentRelation,
+    Approval,
+    AuditLog,
+    Document,
+    Membership,
+    Task,
+    Unit,
+    User,
+)
+
+logger = logging.getLogger("mbuti.audit")
+
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+# Kolom kiriman yang boleh dipakai sebagai nama sasaran
+NAME_FIELDS = ("name", "title", "full_name")
+DECISIONS = {"approved": "disetujui", "rejected": "ditolak", "revise": "minta revisi"}
+
+
+@dataclass(frozen=True)
+class Action:
+    code: str
+    label: str
+
+
+# Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta).
+ACTIONS: dict[tuple[str, str], Action | None] = {
+    ("PUT", "/organisasi/profil/update"): Action("organisasi.ubah", "Mengubah profil organisasi"),
+    ("POST", "/unit/create"): Action("unit.buat", "Membuat unit"),
+    ("PUT", "/unit/update/{unit_id}"): Action("unit.ubah", "Mengubah unit"),
+    ("DELETE", "/unit/delete/{unit_id}"): Action("unit.hapus", "Menghapus unit"),
+    ("POST", "/pengguna/invite"): Action("anggota.undang", "Mengundang anggota"),
+    ("PUT", "/pengguna/update/{member_id}"): Action("anggota.ubah", "Mengubah anggota"),
+    ("DELETE", "/pengguna/delete/{member_id}"): Action("anggota.keluarkan", "Mengeluarkan anggota"),
+    ("POST", "/role/create"): Action("role.buat", "Membuat role"),
+    ("PUT", "/role/update/{role_id}"): Action("role.ubah", "Mengubah role"),
+    ("DELETE", "/role/delete/{role_id}"): Action("role.hapus", "Menghapus role"),
+    ("POST", "/role/{role_id}/trial"): Action("role.ujicoba", "Menguji coba role"),
+    ("POST", "/relasi/create"): Action("relasi.buat", "Membuat relasi"),
+    ("PUT", "/relasi/update/{relation_id}"): Action("relasi.ubah", "Mengubah relasi"),
+    ("DELETE", "/relasi/delete/{relation_id}"): Action("relasi.hapus", "Menghapus relasi"),
+    ("POST", "/relasi/humans"): Action("relasi.manusia", "Menaruh manusia di peta"),
+    ("DELETE", "/relasi/humans/{member_id}"): Action(
+        "relasi.manusia", "Mengeluarkan manusia dari peta"
+    ),
+    ("PUT", "/relasi/positions"): None,
+    ("DELETE", "/relasi/positions"): None,
+    ("POST", "/pengetahuan/create"): Action("dokumen.unggah", "Mengunggah dokumen"),
+    ("PUT", "/pengetahuan/update/{document_id}"): Action("dokumen.ubah", "Mengubah dokumen"),
+    ("DELETE", "/pengetahuan/delete/{document_id}"): Action("dokumen.hapus", "Menghapus dokumen"),
+    ("POST", "/pengetahuan/{document_id}/versions"): Action(
+        "dokumen.versi", "Mengunggah versi dokumen"
+    ),
+    ("PUT", "/pengetahuan/{document_id}/versions/{version_id}/activate"): Action(
+        "dokumen.versi", "Mengganti versi aktif dokumen"
+    ),
+    ("PUT", "/pengaturan/model-ai/update"): Action("pengaturan.model", "Mengubah model AI"),
+    ("PUT", "/pengaturan/batas-biaya/update"): Action("pengaturan.biaya", "Mengubah batas biaya"),
+    ("POST", "/tugas/create"): Action("tugas.buat", "Membuat tugas"),
+    ("POST", "/tugas/{task_id}/cancel"): Action("tugas.hentikan", "Menghentikan tugas"),
+    ("POST", "/persetujuan/{approval_id}/decide"): Action(
+        "persetujuan.putuskan", "Memutuskan persetujuan"
+    ),
+}
+AUTH_ACTIONS = {
+    "auth.masuk": "Masuk",
+    "auth.gagal": "Gagal masuk",
+    "auth.keluar": "Keluar",
+}
+LABELS = {a.code: a.label for a in ACTIONS.values() if a} | AUTH_ACTIONS
+PREFIX = "/api/v1/admin"
+
+
+def label_for(code: str, method_label: str = "") -> str:
+    return method_label or LABELS.get(code, code)
+
+
+def add_entry(
+    session: AsyncSession,
+    *,
+    action: str,
+    organization_id: uuid.UUID | None,
+    user: User | None,
+    email: str = "",
+    target: str = "",
+    ip: str = "",
+) -> None:
+    session.add(
+        AuditLog(
+            organization_id=organization_id,
+            user_id=user.id if user else None,
+            actor_name=user.full_name if user else "",
+            actor_email=(user.email if user else email)[:255],
+            action=action,
+            target=target[:200],
+            ip=ip[:45],
+            request_id=current_request_id.get()[:36],
+        )
+    )
+
+
+def _uuid(value: object) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(value))
+    except ValueError:
+        return None
+
+
+async def _name_of(
+    session: AsyncSession, organization_id: uuid.UUID, key: str, value: object
+) -> str:
+    """Nama benda di organisasi ini; kosong bila tidak dikenal."""
+    wanted = _uuid(value)
+    if wanted is None:
+        return ""
+    if key == "member_id":
+        query = (
+            select(User.full_name)
+            .join(Membership, Membership.user_id == User.id)
+            .where(Membership.id == wanted, Membership.organization_id == organization_id)
+        )
+    elif key == "approval_id":
+        query = (
+            select(Task.title)
+            .join(Approval, Approval.task_id == Task.id)
+            .where(Approval.id == wanted, Task.organization_id == organization_id)
+        )
+    elif key == "relation_id":
+        relation = await session.scalar(
+            select(AgentRelation).where(
+                AgentRelation.id == wanted, AgentRelation.organization_id == organization_id
+            )
+        )
+        if relation is None:
+            return ""
+        source = await _name_of(session, organization_id, "role_id", relation.source_agent_id)
+        other = "member_id" if relation.target_member_id else "role_id"
+        target = await _name_of(
+            session, organization_id, other, relation.target_member_id or relation.target_agent_id
+        )
+        return f"{source} → {target}"
+    else:
+        model, column = {
+            "unit_id": (Unit, Unit.name),
+            "role_id": (Agent, Agent.name),
+            "document_id": (Document, Document.title),
+            "task_id": (Task, Task.title),
+        }[key]
+        query = select(column).where(model.id == wanted, model.organization_id == organization_id)
+    return await session.scalar(query) or ""
+
+
+async def _payload(request: Request) -> dict:
+    """Isi kiriman yang sudah dibaca FastAPI."""
+    kind = request.headers.get("content-type", "")
+    try:
+        if kind.startswith("application/json"):
+            body = await request.json()
+            return body if isinstance(body, dict) else {}
+        if kind.startswith("multipart/form-data"):
+            form = await request.form()
+            data = {k: v for k, v in form.items() if isinstance(v, str)}
+            upload = form.get("file")
+            if not data.get("title") and hasattr(upload, "filename"):
+                data["title"] = upload.filename or ""
+            return data
+    except ValueError:
+        return {}
+    return {}
+
+
+async def _describe(session: AsyncSession, member: CurrentMember, request: Request) -> str:
+    """Nama sasaran, dibaca sebelum tindakan agar yang dihapus tetap punya nama."""
+    organization_id = member.organization_id
+    params = request.path_params
+    # Parameter pertama menyebut benda utamanya, mis. dokumen sebelum versinya
+    for key in (
+        "approval_id",
+        "task_id",
+        "document_id",
+        "relation_id",
+        "role_id",
+        "unit_id",
+        "member_id",
+    ):
+        if key in params:
+            name = await _name_of(session, organization_id, key, params[key])
+            if key == "approval_id":
+                decision = DECISIONS.get((await _payload(request)).get("decision", ""), "")
+                return f"{name} ({decision})" if decision else name
+            return name
+    body = await _payload(request)
+    if "source_id" in body:
+        source = await _name_of(session, organization_id, "role_id", body.get("source_id"))
+        target = body.get("target_id")
+        other = await _name_of(session, organization_id, "role_id", target) or await _name_of(
+            session, organization_id, "member_id", target
+        )
+        return f"{source} → {other}" if source else ""
+    if "member_id" in body:
+        return await _name_of(session, organization_id, "member_id", body.get("member_id"))
+    return next((str(body[f]).strip() for f in NAME_FIELDS if body.get(f)), "")
+
+
+def action_for(request: Request) -> Action | None:
+    route = request.scope.get("route")
+    path = getattr(route, "path", "")
+    return ACTIONS.get((request.method, path.removeprefix(PREFIX)))
+
+
+async def audit_trail(
+    request: Request,
+    member: CurrentMember = Depends(get_current_member),
+    session: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[None, None]:
+    """Dipasang di router admin: mencatat tindakan yang berhasil."""
+    action = None if request.method in SAFE_METHODS else action_for(request)
+    if action is None:
+        yield
+        return
+    target = await _describe(session, member, request)
+    organization_id, user = member.organization_id, member.user
+    yield
+    # Hanya tercapai bila tindakannya berhasil
+    try:
+        add_entry(
+            session,
+            action=action.code,
+            organization_id=organization_id,
+            user=user,
+            target=target,
+            ip=request.client.host if request.client else "",
+        )
+        await session.commit()
+    except Exception:
+        logger.exception("Jejak audit gagal disimpan untuk %s", action.code)

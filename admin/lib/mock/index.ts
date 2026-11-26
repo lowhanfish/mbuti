@@ -1,7 +1,9 @@
+import { auditTarget, recordAudit } from "./audit";
 import { getDb, saveDb } from "./db";
 import { advanceTasks } from "./engine";
 import { promoteVersions } from "./knowledge";
 import { fail, matchRoute, type MockRoute } from "./router";
+import { auditRoutes } from "./routes/audit";
 import { authRoutes } from "./routes/auth";
 import { dashboardRoutes } from "./routes/dashboard";
 import { kantorRoutes } from "./routes/kantor";
@@ -15,7 +17,7 @@ import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -48,14 +50,22 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const promoted = promoteVersions(db);
   const advanced = advanceTasks(db, Date.now()) || promoted;
 
+  const body = parseBody(init.body);
+  // Pelaku dan sasaran dibaca sebelum tindakan: keluar menghapus sesi, hapus menghilangkan nama
+  const actorBefore = db.session?.user_id ?? "";
+  const target = method === "GET" ? "" : auditTarget(db, parsed.pathname, body);
   const response = found
     ? await found.route.handler({
         db,
         params: found.params,
         query: parsed.searchParams,
-        body: parseBody(init.body),
+        body,
       })
     : fail(404, `Endpoint contoh belum tersedia: ${method} ${parsed.pathname}`);
+
+  if (method !== "GET" && response.status < 300) {
+    recordAudit(db, method, parsed.pathname, parsed.pathname.endsWith("/auth/login") ? "" : target, actorBefore || (db.session?.user_id ?? ""));
+  }
 
   if (method !== "GET" || advanced) saveDb();
 

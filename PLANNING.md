@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai; berikutnya fase C.
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -412,10 +412,13 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 ### Fase C — Pengerasan dan rilis
 
-- [ ] Uji alur ujung ke ujung untuk contoh "Penyusun Surat → Pemeriksa Surat → Persetujuan Kepala".
-- [ ] Batas laju, audit log, cadangan database, pemantauan galat.
+- [x] Uji alur ujung ke ujung untuk contoh "Penyusun Surat → Pemeriksa Surat → Persetujuan Kepala"
+      (`server/tests/integration/test_sample_flow.py`, data contoh lewat `scripts/data_contoh.py`).
+- [x] Batas laju, audit log, cadangan database, pemantauan galat. Cadangan dibuat tanpa `pg_dump` dan pemulihannya
+      diuji di database uji. Pemantauan berupa pemeriksaan berkala dan kode galat; pemberitahuan otomatis belum ada.
 - [ ] Deploy tanpa Docker: `systemd` untuk uvicorn, worker, dan beat; Nginx sebagai reverse proxy; `next build` + `next start`.
-- [ ] README: persiapan lingkungan, migrasi, seed, menjalankan, uji, dan cara membuat modul baru.
+      Berkas dan panduan ada di `deploy/`, tetapi **belum dipasang di server** (menunggu server tujuan).
+- [x] README: persiapan lingkungan, migrasi, seed, menjalankan, uji, dan cara membuat modul baru.
 
 ### Fase D — SaaS (setelah fase C)
 

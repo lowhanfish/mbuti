@@ -5,9 +5,11 @@ Jalankan dari `server/` dengan venv aktif:
 
     python -m scripts.create_account
 
-Kata sandi diketik tersembunyi dan tidak pernah dicetak.
+Isian selain kata sandi boleh diberikan lewat opsi, mis. `--email nama@instansi.go.id`.
+Kata sandi selalu diketik tersembunyi, tidak pernah lewat opsi, dan tidak pernah dicetak.
 """
 
+import argparse
 import asyncio
 import getpass
 import re
@@ -82,11 +84,19 @@ def ask_password() -> str:
     return password
 
 
-async def main() -> int:
+def parse_options(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Buat akun pemilik beserta organisasinya.")
+    parser.add_argument("--organisasi", help="nama organisasi")
+    parser.add_argument("--nama", help="nama lengkap pemilik")
+    parser.add_argument("--email", help="email untuk masuk")
+    return parser.parse_args(argv)
+
+
+async def main(options: argparse.Namespace) -> int:
     try:
-        organization_name = input("Nama organisasi: ")
-        full_name = input("Nama lengkap pemilik: ")
-        email = input("Email: ")
+        organization_name = options.organisasi or input("Nama organisasi: ")
+        full_name = options.nama or input("Nama lengkap pemilik: ")
+        email = options.email or input("Email: ")
         password = ask_password()
         async with session_factory() as session:
             organization, created = await create_owner(
@@ -107,4 +117,4 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(asyncio.run(main(parse_options())))

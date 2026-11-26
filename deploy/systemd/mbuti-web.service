@@ -1,0 +1,21 @@
+[Unit]
+Description=MBUTI frontend
+After=network-online.target mbuti-api.service
+Wants=network-online.target
+
+[Service]
+User=mbuti
+Group=mbuti
+WorkingDirectory=/opt/mbuti/admin
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mbuti/admin/.next
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
