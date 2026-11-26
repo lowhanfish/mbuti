@@ -3,7 +3,7 @@
 import json
 import secrets
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -103,6 +103,28 @@ class Settings(BaseSettings):
     # Percobaan masuk per menit dari satu alamat, dan kegagalan per 5 menit untuk satu email
     LOGIN_LIMIT_PER_MINUTE: int = 20
     LOGIN_FAILURE_LIMIT: int = 5
+
+    # ==========================
+    # MODEL AI
+    # ==========================
+    # Kunci utama; kunci cadangan bernama GEMINI_API_KEY1, GEMINI_API_KEY2, ...
+    GEMINI_API_KEY: SecretStr = Field(default=SecretStr(""))
+    GEMINI_TIMEOUT_SECONDS: int = 30
+    # Lama sebuah kunci diistirahatkan setelah kena batas permintaan
+    GEMINI_KEY_COOLDOWN_SECONDS: int = 60
+    # "mock" menghitung vektor sendiri tanpa memanggil layanan luar (untuk pengujian)
+    EMBEDDING_PROVIDER: Literal["gemini", "mock"] = "gemini"
+    EMBEDDING_MODEL: str = "gemini-embedding-2"
+    EMBEDDING_DIMENSION: Literal[768] = 768
+    # Potongan dengan jarak kosinus di atas ini dianggap tidak berkaitan. Diukur pada
+    # gemini-embedding-2 (26 November 2026, teks Indonesia): relevan 0,19-0,25; topik asing >= 0,45.
+    SEARCH_MAX_DISTANCE: float = 0.42
+
+    # ==========================
+    # UNGGAHAN
+    # ==========================
+    UPLOAD_DIR: Path = SERVER_DIR / "uploads"
+    MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
 
     # ==========================
     # CORS

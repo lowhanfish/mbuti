@@ -8,6 +8,7 @@ from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import UnhandledExceptionMiddleware, register_exception_handlers
 from app.core.lifespan import lifespan
+from app.core.limits import BodySizeLimitMiddleware
 
 
 def create_application() -> FastAPI:
@@ -23,6 +24,7 @@ def create_application() -> FastAPI:
 
     # Middleware yang ditambahkan terakhir berada paling luar: CORS membungkus penangkap galat.
     application.add_middleware(UnhandledExceptionMiddleware)
+    application.add_middleware(BodySizeLimitMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.ALLOWED_ORIGINS,

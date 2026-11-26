@@ -7,6 +7,9 @@ import os
 os.environ["APP_ENV"] = "testing"
 os.environ["APP_DEBUG"] = "true"
 os.environ["ALLOWED_ORIGINS"] = '["http://localhost:3000"]'
+# Tes tidak pernah memanggil Gemini. Vektor tiruan berjarak lebih jauh daripada model asli.
+os.environ["EMBEDDING_PROVIDER"] = "mock"
+os.environ["SEARCH_MAX_DISTANCE"] = "0.95"
 
 from collections.abc import AsyncGenerator  # noqa: E402
 

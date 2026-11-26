@@ -8,7 +8,7 @@ from app.api.v1.common import Option, Paging, like_pattern, parse_id
 from app.api.v1.endpoints.admin.unit.schema import UnitItem, UnitWrite
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
 from app.db.transaction import commit_or_raise_unique_conflict
-from app.models import Agent, Membership, Unit, User
+from app.models import Agent, Document, Membership, Unit, User
 from app.services.organisation import lock_organization, require_membership, require_unit
 
 NOT_FOUND = "Unit tidak ditemukan."
@@ -201,7 +201,14 @@ async def delete_unit(session: AsyncSession, organization_id: uuid.UUID, unit_id
         raise ConflictException(
             "Unit masih punya sub-unit. Pindahkan atau hapus sub-unit terlebih dahulu."
         )
-    # Pemeriksaan dokumen (B3) ditambahkan bersama tabelnya.
+    if await session.scalar(
+        select(Document.id)
+        .where(Document.unit_id == unit.id, Document.deleted_at.is_(None))
+        .limit(1)
+    ):
+        raise ConflictException(
+            "Unit masih punya dokumen. Pindahkan lingkup atau hapus dokumennya terlebih dahulu."
+        )
     # unit_id anggota dikosongkan oleh kunci asing (ON DELETE SET NULL).
     await session.delete(unit)
     await session.commit()

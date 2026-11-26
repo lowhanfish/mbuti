@@ -7,10 +7,11 @@ from sqlalchemy.orm import aliased
 from app.api.deps import CurrentMember
 from app.api.v1.common import Option, Paging, like_pattern, parse_id
 from app.api.v1.endpoints.admin.role.schema import RoleCreate, RoleItem, RoleSummary, RoleUpdate
-from app.core.exceptions import NotFoundException, UnprocessableEntityException
-from app.models import Agent, AgentRelation, FlowPosition, Membership, Unit, User
+from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
+from app.models import Agent, AgentRelation, Document, FlowPosition, Membership, Unit, User
 from app.models.base import utcnow
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
+from app.services.knowledge.scope import visible_to
 from app.services.organisation import lock_organization, require_membership, require_unit
 
 NOT_FOUND = "Role tidak ditemukan."
@@ -36,6 +37,17 @@ def _items_query(organization_id: uuid.UUID):
         .correlate(Agent)
         .scalar_subquery()
     )
+    document_count = (
+        select(func.count())
+        .select_from(Document)
+        .where(
+            Document.organization_id == Agent.organization_id,
+            Document.deleted_at.is_(None),
+            visible_to(Agent.knowledge_scope, Agent.id, Agent.unit_id),
+        )
+        .correlate(Agent)
+        .scalar_subquery()
+    )
     return (
         select(
             Agent,
@@ -43,6 +55,7 @@ def _items_query(organization_id: uuid.UUID):
             Unit.color.label("unit_color"),
             User.full_name.label("owner_name"),
             relation_count.label("relation_count"),
+            document_count.label("document_count"),
         )
         .outerjoin(Unit, Unit.id == Agent.unit_id)
         .outerjoin(owner, owner.id == Agent.owner_member_id)
@@ -72,9 +85,9 @@ def _to_item(row) -> RoleItem:
         unit_name=row.unit_name,
         unit_color=UNIT_COLOR_HEX.get(row.unit_color) if row.unit_color else None,
         owner_name=row.owner_name,
-        # Dokumen dibuat pada tahap B3, tugas pada B5
-        document_count=0,
+        document_count=row.document_count,
         relation_count=row.relation_count,
+        # Tugas dibuat pada tahap B5
         task_count=0,
         created_at=agent.created_at,
         updated_at=agent.updated_at,
@@ -203,7 +216,15 @@ async def update_role(
 async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id: str) -> None:
     await lock_organization(session, organization_id)
     agent = await _get(session, organization_id, role_id)
-    # Penolakan karena tugas berjalan (B5) dan dokumen (B3) ditambahkan bersama tabelnya.
+    if await session.scalar(
+        select(Document.id)
+        .where(Document.agent_id == agent.id, Document.deleted_at.is_(None))
+        .limit(1)
+    ):
+        raise ConflictException(
+            "Role masih punya dokumen. Pindahkan lingkup atau hapus dokumennya terlebih dahulu."
+        )
+    # Penolakan karena tugas berjalan ditambahkan pada B5.
     now = utcnow()
     agent.deleted_at = now
     await session.execute(

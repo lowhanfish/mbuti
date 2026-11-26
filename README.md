@@ -9,7 +9,7 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 | Folder | Isi | Status |
 |---|---|---|
 | [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B2 selesai: kerangka, auth (cookie, CSRF, batas laju), profil organisasi, unit, pengguna, role, peta relasi, tes isolasi. Fitur lain menyusul |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B3 selesai: kerangka, auth, organisasi, unit, pengguna, role, peta relasi, pengetahuan (unggah, olah, pencarian), tes isolasi. Eksekusi tugas menyusul |
 
 ## Menjalankan frontend
 
@@ -62,6 +62,10 @@ python -m scripts.create_account
 ```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+Dokumen yang diunggah baru diolah bila worker menyala. Pengolahan dan pencarian memakai kunci `GEMINI_API_KEY`,
+`GEMINI_API_KEY1`, … di `server/.env` (dipakai bergiliran). Teks dokumen dikirim ke Google; pada tier gratis,
+gunakan hanya dokumen contoh atau publik. Berkas asli disimpan di `server/uploads/`.
 
 Worker dan penjadwal Celery, masing-masing di terminal sendiri:
 

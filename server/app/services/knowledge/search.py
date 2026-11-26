@@ -1,0 +1,186 @@
+"""
+Pencarian gabungan: kata kunci (`tsvector`) dan kemiripan makna (pgvector),
+digabung dengan reciprocal rank fusion. Hanya versi aktif yang sudah siap yang dicari.
+"""
+
+import hashlib
+import json
+import logging
+import re
+import uuid
+from dataclasses import dataclass
+
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
+from sqlalchemy import func, literal, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
+
+from app.core.config import settings
+from app.models import Document, DocumentChunk, DocumentSection, DocumentVersion
+from app.services.llm.embedding import EmbeddingProvider
+
+logger = logging.getLogger("mbuti.search")
+
+CANDIDATES = 24
+RRF_K = 60
+SNIPPET_LENGTH = 230
+QUERY_CACHE_SECONDS = 86_400
+STOPWORDS = frozenset(
+    "yang dan untuk dengan dari pada atau ini itu dalam akan agar kami apa bagaimana berapa "
+    "kapan buat buatkan tolong".split()
+)
+
+
+@dataclass
+class Hit:
+    document_id: uuid.UUID
+    document_title: str
+    version_id: uuid.UUID
+    version_no: int
+    page_no: int
+    heading: str
+    snippet: str
+    score: int
+
+
+def tokenize(query: str) -> list[str]:
+    words = re.findall(r"[a-z0-9à-ÿ]+", query.lower())
+    return list(dict.fromkeys(w for w in words if len(w) >= 3 and w not in STOPWORDS))
+
+
+def snippet_around(body: str, terms: list[str]) -> str:
+    lower = body.lower()
+    found = [position for term in terms if (position := lower.find(term)) >= 0]
+    start = max(0, min(found) - 70) if found else 0
+    piece = body[start : start + SNIPPET_LENGTH].strip()
+    return f"{'…' if start else ''}{piece}{'…' if start + SNIPPET_LENGTH < len(body) else ''}"
+
+
+async def _query_vector(query: str, provider: EmbeddingProvider) -> list[float]:
+    """Vektor pertanyaan disimpan sehari di Redis agar pertanyaan sama tidak memakai kuota lagi."""
+    digest = hashlib.sha256(query.lower().encode()).hexdigest()
+    key = (
+        f"mbuti:{settings.APP_ENV}:embed:{settings.EMBEDDING_PROVIDER}:"
+        f"{settings.EMBEDDING_MODEL}:{digest}"
+    )
+    try:
+        async with Redis.from_url(settings.REDIS_URL) as client:
+            cached = await client.get(key)
+            if cached:
+                return json.loads(cached)
+            vector = await provider.embed_query(query)
+            await client.set(key, json.dumps(vector), ex=QUERY_CACHE_SECONDS)
+            return vector
+    except RedisError as exc:
+        logger.warning("Cache pertanyaan tidak tersedia: %s", type(exc).__name__)
+        return await provider.embed_query(query)
+
+
+async def search_documents(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    query: str,
+    provider: EmbeddingProvider,
+    visibility: ColumnElement[bool] | None = None,
+    limit: int = 8,
+) -> list[Hit]:
+    terms = tokenize(query)
+    if not terms:
+        return []
+
+    filters = [
+        Document.organization_id == organization_id,
+        Document.deleted_at.is_(None),
+        DocumentVersion.is_active.is_(True),
+        DocumentVersion.status == "ready",
+    ]
+    if visibility is not None:
+        filters.append(visibility)
+
+    def candidates(*columns):
+        return (
+            select(DocumentChunk.id, *columns)
+            .join(DocumentVersion, DocumentVersion.id == DocumentChunk.version_id)
+            .join(Document, Document.id == DocumentVersion.document_id)
+            .where(*filters)
+        )
+
+    # Kata kunci: salah satu kata cukup; yang lebih banyak cocok berada di atas
+    tsquery = func.to_tsquery(text("'indonesian'::regconfig"), literal(" | ".join(terms)))
+    rank = func.ts_rank_cd(DocumentChunk.search, tsquery)
+    keyword = (
+        (
+            await session.execute(
+                candidates()
+                .where(DocumentChunk.search.op("@@")(tsquery))
+                .order_by(rank.desc(), DocumentChunk.id)
+                .limit(CANDIDATES)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    semantic: list[uuid.UUID] = []
+    try:
+        vector = await _query_vector(query, provider)
+    except Exception as exc:
+        # Tanpa vektor (mis. kuota habis) pencarian kata kunci tetap berjalan
+        logger.warning("Pencarian makna dilewati: %s", type(exc).__name__)
+    else:
+        distance = DocumentChunk.embedding.cosine_distance(vector)
+        # Indeks HNSW diteruskan sampai cukup hasil yang lolos saringan organisasi
+        await session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+        semantic = list(
+            await session.scalars(
+                candidates()
+                .where(
+                    DocumentChunk.embedding.is_not(None), distance <= settings.SEARCH_MAX_DISTANCE
+                )
+                .order_by(distance)
+                .limit(CANDIDATES)
+            )
+        )
+
+    scores: dict[uuid.UUID, float] = {}
+    for ranking in (keyword, semantic):
+        for position, chunk_id in enumerate(ranking, start=1):
+            scores[chunk_id] = scores.get(chunk_id, 0.0) + 1 / (RRF_K + position)
+    if not scores:
+        return []
+
+    rows = await session.execute(
+        select(
+            DocumentChunk.id,
+            DocumentChunk.text,
+            DocumentSection.page_no,
+            DocumentSection.heading,
+            DocumentVersion.id.label("version_id"),
+            DocumentVersion.version_no,
+            Document.id.label("document_id"),
+            Document.title,
+        )
+        .join(DocumentSection, DocumentSection.id == DocumentChunk.section_id)
+        .join(DocumentVersion, DocumentVersion.id == DocumentChunk.version_id)
+        .join(Document, Document.id == DocumentVersion.document_id)
+        .where(DocumentChunk.id.in_(scores))
+    )
+    # Rujukan per halaman: potongan terbaik mewakili halamannya
+    best = 2 / (RRF_K + 1)
+    hits: dict[tuple[uuid.UUID, int], Hit] = {}
+    for row in sorted(rows, key=lambda r: (-scores[r.id], r.page_no)):
+        hits.setdefault(
+            (row.version_id, row.page_no),
+            Hit(
+                document_id=row.document_id,
+                document_title=row.title,
+                version_id=row.version_id,
+                version_no=row.version_no,
+                page_no=row.page_no,
+                heading=row.heading,
+                snippet=snippet_around(row.text, terms),
+                score=round(scores[row.id] / best * 100),
+            ),
+        )
+    return list(hits.values())[:limit]

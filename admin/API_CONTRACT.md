@@ -562,6 +562,13 @@ export interface SearchHit {
   role, tetapi `GET /{id}` (dengan `archived_at`) dan `/versions/{vid}` tetap bisa dibuka; perubahan dijawab `404`.
   Dokumen yang belum pernah dirujuk dihapus permanen.
 - `sections` berisi halaman versi aktif, kosong selama belum `ready`.
+- Backend: jenis berkas diperiksa dari isinya; kiriman yang jauh melebihi batas dijawab `413`. Teks TXT/MD harus
+  UTF-8; PDF maksimal 500 halaman; sekitar 400 halaman padat per berkas.
+- Berkas yang gagal diolah boleh diunggah ulang. Bila kuota model habis, versi kembali `queued` dan dicoba lagi
+  dengan jeda.
+- Pencarian backend menggabungkan kata kunci dan kemiripan makna (satu hasil per halaman, `score` 0–100). Bila
+  model tidak tersedia, hanya kata kunci yang dipakai. Vektor pertanyaan disimpan sehari agar hemat kuota.
+- Sampai tabel rujukan dibuat (B4), semua dokumen yang dihapus dibuang beserta berkasnya.
 - Pencarian hanya pada versi aktif yang `ready`. Frontend memanggil bila `q` ≥ 3 karakter; `q` ≤ 300.
 - Ubah: `title` ≥ 3. `scope` `unit`/`agent` wajib `scope_id` milik organisasi; `organization` → `scope_id: null`.
 

@@ -5,6 +5,7 @@ Database dibuat sekali secara manual (lihat README); skemanya disiapkan lewat Al
 """
 
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -20,6 +21,7 @@ from app.api.deps import get_db
 from app.core.config import SERVER_DIR, settings
 from app.core.rate_limit import key_prefix
 from app.db.engine import build_async_engine
+from app.workers.ingestion import process_version
 from tests.integration.world import PASSWORD, World, build_world, new_client
 
 
@@ -92,6 +94,21 @@ async def clean_rate_limits() -> AsyncGenerator[None, None]:
     await clear()
     yield
     await clear()
+
+
+@pytest.fixture(autouse=True)
+def queued_versions(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Pekerjaan olah tidak dikirim ke Redis; ID versinya dicatat agar tes bisa menjalankannya."""
+    queued: list[str] = []
+    monkeypatch.setattr(process_version, "apply_async", lambda args, **_: queued.append(args[0]))
+    return queued
+
+
+@pytest.fixture(autouse=True)
+def upload_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    folder = tmp_path / "uploads"
+    monkeypatch.setattr(settings, "UPLOAD_DIR", folder)
+    return folder
 
 
 @pytest_asyncio.fixture
