@@ -2,7 +2,17 @@
 
 import dynamic from "next/dynamic";
 import React, { useState, useSyncExternalStore } from "react";
-import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from "../../_components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FULLSCREEN_CLASSES,
+  FullscreenButton,
+  PageHeader,
+  Skeleton,
+  useFullscreen,
+} from "../../_components/ui";
 import { Icon } from "../../_components/admin-icons";
 import CreateTaskModal from "../tugas/components/CreateTaskModal";
 import { useCreateTask } from "../tugas/hooks/crud";
@@ -33,6 +43,7 @@ export default function KantorPage() {
   const [agentId, setAgentId] = useState<string | null>(null);
   const [assign, setAssign] = useState<{ open: boolean; agentId?: string }>({ open: false });
   const createTask = useCreateTask();
+  const { expanded, toggle } = useFullscreen();
 
   const busy = Office?.agents.filter((a) => ["working", "reviewing", "consulting", "incoming"].includes(a.activity)).length ?? 0;
   const waiting = Office?.agents.filter((a) => a.activity === "waiting").length ?? 0;
@@ -84,8 +95,13 @@ export default function KantorPage() {
           <EmptyState icon={<Icon name="office" size={26} />} title="Kantor masih kosong" description="Susun unit dan buat role agar kantor terisi ruangan dan karakter." />
         </Card>
       ) : mode === "3d" ? (
-        <div className="relative h-[calc(100vh-190px)] min-h-[520px] rounded-[28px] overflow-hidden glass bg-gradient-to-b from-[#f6f2ff] to-[#fff8e8]">
+        <div
+          className={`overflow-hidden bg-gradient-to-b from-[#f6f2ff] to-[#fff8e8] ${
+            expanded ? FULLSCREEN_CLASSES : "relative h-[calc(100vh-190px)] min-h-[520px] rounded-[28px] glass"
+          }`}
+        >
           <OfficeScene
+            extraControls={<FullscreenButton expanded={expanded} onToggle={toggle} />}
             state={Office}
             selectedUnit={unitId}
             selectedAgent={agentId}
@@ -125,7 +141,10 @@ export default function KantorPage() {
           />
         </div>
       ) : (
-        <div className="relative">
+        <div className={expanded ? `${FULLSCREEN_CLASSES} overflow-y-auto p-3 sm:p-5` : "relative"}>
+          <div className="flex justify-end pb-2">
+            <FullscreenButton expanded={expanded} onToggle={toggle} withLabel />
+          </div>
           <Office2D
             state={Office}
             onSelectUnit={(id) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { BlockyCharacter, type CharacterPose } from "../../../_components/agent/blocky-character";
@@ -290,7 +290,12 @@ function Scene({
   );
 }
 
-export default function OfficeScene(props: {
+export default function OfficeScene({
+  extraControls,
+  ...props
+}: {
+  /** Tombol tambahan di atas tombol perbesar/perkecil */
+  extraControls?: ReactNode;
   state: OfficeState;
   selectedUnit: string | null;
   selectedAgent: string | null;
@@ -323,6 +328,7 @@ export default function OfficeScene(props: {
         <Scene {...props} controlsRef={controlsRef} />
       </Canvas>
       <div className="absolute bottom-4 left-4 flex flex-col gap-1.5">
+        {extraControls}
         {[
           ["+", 1.25, "Perbesar"],
           ["−", 0.8, "Perkecil"],

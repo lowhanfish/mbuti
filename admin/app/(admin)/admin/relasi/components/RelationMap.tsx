@@ -16,9 +16,9 @@ import {
   type NodeMouseHandler,
 } from "@xyflow/react";
 import Link from "next/link";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { confirmAlert } from "@/lib/show_swall";
-import { Button, IconButton, Modal } from "../../../_components/ui";
+import { Button, FULLSCREEN_CLASSES, FullscreenButton, IconButton, Modal, useFullscreen } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
 import { useResponseOptionLead } from "../../organisasi/unit/hooks/crud";
@@ -175,12 +175,22 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
   const [pending, setPending] = useState<{ source: string; target: string; form: RelationFields } | null>(null);
   const [humanPicker, setHumanPicker] = useState(false);
 
-  const { getNodes } = useReactFlow<FlowNode, RelationFlowEdge>();
+  const { getNodes, fitView } = useReactFlow<FlowNode, RelationFlowEdge>();
+  const { expanded, toggle } = useFullscreen();
   const savePositions = useSavePositions();
   const resetPositions = useResetPositions();
   const createRelation = useCreateRelation();
   const addHuman = useAddHuman();
   const { List: members } = useResponseOptionLead({ excludeViewers: true });
+
+  // Setelah ukuran wadah berubah, peta disesuaikan agar seluruh node terlihat
+  const wasExpanded = useRef(expanded);
+  useEffect(() => {
+    if (wasExpanded.current === expanded) return;
+    wasExpanded.current = expanded;
+    const timer = setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 250);
+    return () => clearTimeout(timer);
+  }, [expanded, fitView]);
 
   const route = useMemo(() => (selectedNode ? downstream(selectedNode, graph.relations) : null), [selectedNode, graph.relations]);
 
@@ -227,7 +237,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
   const humansOnMap = new Set(graph.nodes.filter((n) => n.kind === "human").map((n) => n.id));
 
   return (
-    <div className="relative h-[calc(100vh-190px)] min-h-[520px] rounded-[28px] overflow-hidden glass">
+    <div className={`overflow-hidden ${expanded ? FULLSCREEN_CLASSES : "relative h-[calc(100vh-190px)] min-h-[520px] rounded-[28px] glass"}`}>
       <ReactFlow<FlowNode, RelationFlowEdge>
         nodes={viewNodes}
         edges={edges}
@@ -274,6 +284,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
                 {s.label}
               </span>
             ))}
+            <FullscreenButton expanded={expanded} onToggle={toggle} withLabel className="!h-8 !bg-white" />
             {canEdit && (
               <>
                 <span className="w-px h-5 bg-line mx-1" />
