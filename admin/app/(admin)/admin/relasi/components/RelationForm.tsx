@@ -21,6 +21,7 @@ export default function RelationForm({
   targetKind,
   sourceName,
   targetName,
+  revisionLimit,
   disabled = false,
 }: {
   value: RelationFields;
@@ -28,6 +29,8 @@ export default function RelationForm({
   targetKind: GraphNodeKind;
   sourceName: string;
   targetName: string;
+  /** Batas revisi organisasi */
+  revisionLimit: number;
   disabled?: boolean;
 }) {
   const set = <K extends keyof RelationFields>(key: K, v: RelationFields[K]) => onChange({ ...value, [key]: v });
@@ -109,8 +112,9 @@ export default function RelationForm({
                 key={n}
                 type="button"
                 aria-pressed={value.max_revisions === n}
+                disabled={n > revisionLimit && value.max_revisions !== n}
                 onClick={() => set("max_revisions", n)}
-                className={`w-10 h-10 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                className={`w-10 h-10 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
                   value.max_revisions === n ? "bg-accent text-ink shadow-md" : "bg-white border border-line text-muted hover:text-ink"
                 }`}
               >
@@ -119,6 +123,14 @@ export default function RelationForm({
             ))}
           </div>
           <p className="text-[11px] text-muted">Setelah batas habis, tugas dieskalasi ke penanggung jawab manusia.</p>
+          {(value.max_revisions > revisionLimit || revisionLimit < 5) && (
+            <p className="text-[11px] text-amber-700">
+              {revisionLimit === 0
+                ? "Organisasi mematikan revisi otomatis: temuan pemeriksa langsung diputuskan manusia."
+                : `Batas organisasi ${revisionLimit}×${value.max_revisions > revisionLimit ? `, jadi relasi ini hanya berjalan sampai ${revisionLimit}×` : ""}.`}{" "}
+              Diatur di Pengaturan &gt; Batas Biaya.
+            </p>
+          )}
         </div>
       )}
 

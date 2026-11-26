@@ -53,6 +53,8 @@ const useInvalidateTasks = () => {
     queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     queryClient.invalidateQueries({ queryKey: ["persetujuan"] });
     queryClient.invalidateQueries({ queryKey: ["role"] });
+    queryClient.invalidateQueries({ queryKey: ["pengaturan", "batas-biaya"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   };
 };
 

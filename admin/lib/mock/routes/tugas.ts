@@ -1,20 +1,23 @@
-import type {
-  AgentRef,
-  ApprovalInterface,
-  DetailInterface,
-  ResponseInterface,
-  TaskPriority,
-  TaskStatus,
+import { LIMITS } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
+import {
+  formatRupiah,
+  type AgentRef,
+  type ApprovalInterface,
+  type DetailInterface,
+  type ResponseInterface,
+  type TaskPriority,
+  type TaskStatus,
 } from "@/app/(admin)/admin/tugas/types";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, requireMember, text } from "../context";
 import { cancelTask, createTask, decideApproval, type MockApproval, type MockTask } from "../engine";
 import { fail, ok, type MockRoute } from "../router";
 import type { MockDatabase, MockMembership } from "../seed";
+import { monthUsage, settingsOf } from "../settings";
 
 const PRIORITIES: TaskPriority[] = ["low", "normal", "high"];
 
-const agentRef = (db: MockDatabase, agentId: string): AgentRef => {
+export const agentRef = (db: MockDatabase, agentId: string): AgentRef => {
   const a = db.agents.find((x) => x.id === agentId);
   const unit = db.units.find((u) => u.id === a?.unit_id);
   return {
@@ -95,6 +98,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
         output: s.output,
         citations: s.citations,
         verdict: s.verdict,
+        model: s.model,
         cost: s.cost,
         tokens: s.tokens,
         started_at: s.started_at,
@@ -107,7 +111,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
   };
 };
 
-const canDecide = (self: MockMembership, a: MockApproval) =>
+export const canDecide = (self: MockMembership, a: MockApproval) =>
   self.access_role === "owner" || self.access_role === "admin" || a.requested_from_member_id === self.id;
 
 const BASE = "/api/v1/admin/tugas";
@@ -174,7 +178,12 @@ export const tugasRoutes: MockRoute[] = [
       const missing = agent.input_spec.filter((f) => f.required && !inputs[f.key]).map((f) => f.label);
       if (missing.length) return fail(422, `Lengkapi isian wajib: ${missing.join(", ")}.`);
       const budget = Math.round(Number(b.budget_limit));
-      if (!Number.isFinite(budget) || budget < 500 || budget > 1_000_000) return fail(422, "Batas biaya antara Rp500 dan Rp1.000.000.");
+      const { min, max } = LIMITS.task_budget;
+      if (!Number.isFinite(budget) || budget < min || budget > max) return fail(422, `Batas biaya antara ${formatRupiah(min)} dan ${formatRupiah(max)}.`);
+      if (budget > settingsOf(ctx.db, self.organization_id).monthly_budget) return fail(422, "Batas biaya tugas melebihi batas bulanan organisasi.");
+      if (monthUsage(ctx.db, self.organization_id, Date.now()).remaining <= 0) {
+        return fail(409, "Anggaran bulan ini sudah habis. Naikkan batas bulanan di Pengaturan > Batas Biaya.");
+      }
       const task = createTask(
         ctx.db,
         {

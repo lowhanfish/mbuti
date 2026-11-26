@@ -57,6 +57,8 @@ export interface GraphInterface {
   nodes: GraphNode[];
   relations: RelationInterface[];
   positions: Record<string, { x: number; y: number }>;
+  /** Batas revisi organisasi (Pengaturan > Batas Biaya); mengalahkan max_revisions yang lebih besar */
+  revision_limit: number;
 }
 
 export const RELATION_STYLE: Record<

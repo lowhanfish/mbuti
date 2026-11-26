@@ -52,6 +52,8 @@ export interface StepInterface {
   output: string;
   citations: SearchHit[];
   verdict: "approved" | "revise" | null;
+  /** Model yang dipakai; kosong selama langkah belum selesai */
+  model: string;
   cost: number;
   tokens: number;
   started_at: string | null;
@@ -133,7 +135,7 @@ export const TASK_STATUS: Record<TaskStatus, { label: string; variant: "success"
   running: { label: "Berjalan", variant: "info", live: true },
   waiting_approval: { label: "Menunggu persetujuan", variant: "accent", live: false },
   completed: { label: "Selesai", variant: "success", live: false },
-  failed: { label: "Ditolak", variant: "danger", live: false },
+  failed: { label: "Gagal / ditolak", variant: "danger", live: false },
   cancelled: { label: "Dihentikan", variant: "neutral", live: false },
   stopped_budget: { label: "Batas biaya", variant: "danger", live: false },
 };

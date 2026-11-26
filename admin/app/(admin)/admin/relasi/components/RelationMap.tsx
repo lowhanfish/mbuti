@@ -78,7 +78,15 @@ function EdgeEditor({
 
   return (
     <div className="space-y-4">
-      <RelationForm value={form} onChange={setForm} targetKind={relation.target_kind} sourceName={name(relation.source_id)} targetName={name(relation.target_id)} disabled={!canEdit} />
+      <RelationForm
+        value={form}
+        onChange={setForm}
+        targetKind={relation.target_kind}
+        sourceName={name(relation.source_id)}
+        targetName={name(relation.target_id)}
+        revisionLimit={graph.revision_limit}
+        disabled={!canEdit}
+      />
       {canEdit && (
         <div className="flex gap-2 pt-1">
           <Button
@@ -195,9 +203,9 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
         type: "relation",
         selected: r.id === selectedEdge,
         markerEnd: { type: MarkerType.ArrowClosed, color: RELATION_STYLE[r.relation_type].color, width: 18, height: 18 },
-        data: { ...r, dimmed: Boolean(route && !route.edges.has(r.id)), highlighted: Boolean(route?.edges.has(r.id)) },
+        data: { ...r, max_revisions: Math.min(r.max_revisions, graph.revision_limit), dimmed: Boolean(route && !route.edges.has(r.id)), highlighted: Boolean(route?.edges.has(r.id)) },
       })),
-    [graph.relations, route, selectedEdge]
+    [graph.relations, graph.revision_limit, route, selectedEdge]
   );
 
   const nodeById = (id: string) => graph.nodes.find((n) => n.id === id);
@@ -205,7 +213,8 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
   const onConnect = (c: Connection) => {
     if (!c.source || !c.target) return;
     const target = nodeById(c.target);
-    setPending({ source: c.source, target: c.target, form: emptyRelation(target?.kind === "human" ? "escalate" : "handoff") });
+    const form = emptyRelation(target?.kind === "human" ? "escalate" : "handoff");
+    setPending({ source: c.source, target: c.target, form: { ...form, max_revisions: Math.max(1, Math.min(form.max_revisions, graph.revision_limit)) } });
   };
 
   const onNodeClick: NodeMouseHandler<FlowNode> = (_, node) => {
@@ -345,6 +354,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
             targetKind={nodeById(pending.target)?.kind ?? "agent"}
             sourceName={nodeById(pending.source)?.name ?? ""}
             targetName={nodeById(pending.target)?.name ?? ""}
+            revisionLimit={graph.revision_limit}
           />
         </Modal>
       )}

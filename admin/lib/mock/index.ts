@@ -2,8 +2,10 @@ import { getDb, saveDb } from "./db";
 import { advanceTasks } from "./engine";
 import { fail, matchRoute, type MockRoute } from "./router";
 import { authRoutes } from "./routes/auth";
+import { dashboardRoutes } from "./routes/dashboard";
 import { kantorRoutes } from "./routes/kantor";
 import { organisasiRoutes } from "./routes/organisasi";
+import { pengaturanRoutes } from "./routes/pengaturan";
 import { penggunaRoutes } from "./routes/pengguna";
 import { pengetahuanRoutes } from "./routes/pengetahuan";
 import { relasiRoutes } from "./routes/relasi";
@@ -12,7 +14,7 @@ import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 

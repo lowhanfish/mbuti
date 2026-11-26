@@ -7,6 +7,7 @@ import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
 import type { ApprovalReason, ApprovalStatus, EventType, StepKind, StepStatus, TaskPriority, TaskStatus } from "@/app/(admin)/admin/tugas/types";
 import { documentsForAgent, searchDocuments } from "./knowledge";
 import type { MockAgent, MockDatabase, MockRelation } from "./seed";
+import { modelOption, monthUsage, settingsOf } from "./settings";
 
 export interface MockTask {
   id: string;
@@ -43,6 +44,8 @@ export interface MockStep {
   output: string;
   citations: SearchHit[];
   verdict: "approved" | "revise" | null;
+  /** Model yang dipakai; kosong selama langkah belum selesai */
+  model: string;
   cost: number;
   tokens: number;
   /** Waktu (ms) langkah mulai berjalan, lalu waktu selesai saat berjalan */
@@ -82,7 +85,6 @@ export interface MockEvent {
 
 const QUEUE_MS = 1200;
 const DURATION_MS: Record<StepKind, number> = { work: 4200, review: 3600, consult: 2400 };
-export const MAX_STEPS = 20;
 
 let seq = 0;
 const id = (prefix: string) => `${prefix}-${Date.now().toString(36)}${(seq++).toString(36)}`;
@@ -109,6 +111,7 @@ const addStep = (
     output: "",
     citations: [],
     verdict: null,
+    model: "",
     cost: 0,
     tokens: 0,
     ready_at: at + QUEUE_MS,
@@ -123,9 +126,11 @@ const addStep = (
 const memberName = (db: MockDatabase, memberId: string) =>
   db.users.find((u) => u.id === db.memberships.find((m) => m.id === memberId)?.user_id)?.full_name ?? "manusia";
 
-/** Biaya simulasi (rupiah) menurut profil model dan banyaknya rujukan. */
-const simulatedCost = (agent: MockAgent, hits: number, attempt: number) =>
-  ({ fast: 120, balanced: 380, thorough: 820 })[agent.model_profile] + attempt * 30 + hits * 15;
+/** Model yang dipakai sebuah role menurut Pengaturan > Model AI. */
+const modelFor = (db: MockDatabase, agent: MockAgent) => modelOption(settingsOf(db, agent.organization_id).models[agent.model_profile]);
+
+/** Biaya simulasi (rupiah) menurut model dan banyaknya rujukan. */
+const simulatedCost = (modelStepCost: number, hits: number, attempt: number) => modelStepCost + attempt * 30 + hits * 15;
 
 const taskQuery = (task: MockTask, step: MockStep) => [task.title, task.brief, ...Object.values(task.inputs), step.input_notes].join(" ");
 
@@ -254,6 +259,21 @@ const settle = (db: MockDatabase, task: MockTask, at: number) => {
   }
 };
 
+/** Hentikan tugas oleh pengaman: langkah yang antre dilewati dan permintaan persetujuan ditutup. */
+const halt = (db: MockDatabase, task: MockTask, status: "failed" | "stopped_budget", message: string, at: number, stepId: string | null = null) => {
+  for (const sid of task.queue) {
+    const s = db.task_steps.find((x) => x.id === sid);
+    if (s) s.status = "skipped";
+  }
+  task.queue = [];
+  for (const a of pendingApprovals(db, task)) {
+    a.status = "rejected";
+    a.comment = "Tugas dihentikan otomatis.";
+  }
+  task.status = status;
+  log(db, task, status, message, at, stepId);
+};
+
 const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number) => {
   const agent = agentOf(db, step.agent_id);
   if (!agent) {
@@ -263,7 +283,9 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
   }
   const hits = searchDocuments(db, documentsForAgent(db, agent), taskQuery(task, step), 4);
   step.citations = hits;
-  step.cost = simulatedCost(agent, hits.length, step.attempt_no);
+  const model = modelFor(db, agent);
+  step.model = model.id;
+  step.cost = simulatedCost(model.estimated_step_cost, hits.length, step.attempt_no);
   step.tokens = Math.round(step.cost * 4.2);
   step.finished_at = iso(at);
   step.status = "done";
@@ -278,9 +300,7 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
   }
 
   if (task.cost_used > task.budget_limit) {
-    task.status = "stopped_budget";
-    task.queue = [];
-    log(db, task, "stopped_budget", `Biaya mencapai batas tugas. Tugas dihentikan otomatis.`, at, step.id);
+    halt(db, task, "stopped_budget", "Biaya mencapai batas tugas. Tugas dihentikan otomatis.", at, step.id);
     return;
   }
 
@@ -295,15 +315,20 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
     if (step.verdict === "revise" && rel && makerStep && maker) {
       task.review_rounds[rel.id] = rounds + 1;
       makerStep.status = "revise_requested";
-      log(db, task, "review_revise", `${agent.name} meminta revisi (putaran ${rounds + 1} dari maks ${rel.max_revisions}).`, at, step.id);
-      if (rounds + 1 > rel.max_revisions) {
+      // Batas organisasi mengalahkan batas relasi bila lebih kecil
+      const limit = Math.min(rel.max_revisions, settingsOf(db, task.organization_id).max_revisions);
+      const round = limit ? `putaran ${rounds + 1} dari maks ${limit}` : "revisi otomatis dimatikan";
+      log(db, task, "review_revise", `${agent.name} meminta revisi (${round}).`, at, step.id);
+      if (rounds + 1 > limit) {
         requestApproval(
           db,
           task,
           {
             step_id: step.id,
             reason: "max_revisions",
-            question: `Batas ${rel.max_revisions}× revisi antara ${maker.name} dan ${agent.name} habis. Terima hasil terakhir?`,
+            question: limit
+              ? `Batas ${limit}× revisi antara ${maker.name} dan ${agent.name} habis. Terima hasil terakhir?`
+              : `${agent.name} meminta revisi, tetapi revisi otomatis dimatikan. Terima hasil ${maker.name}?`,
             requested_from_member_id: ownerOf(db, maker.id, task),
             follow_up: { type: "route_after", step_id: step.id, skip_relation_id: rel.id },
           },
@@ -341,11 +366,15 @@ export const advanceTasks = (db: MockDatabase, now: number) => {
       }
       if (step.status === "queued") {
         if (now < step.ready_at) break;
-        const stepsSoFar = db.task_steps.filter((s) => s.task_id === task.id && s.status !== "queued").length;
-        if (stepsSoFar >= MAX_STEPS) {
-          task.status = "failed";
-          task.queue = [];
-          log(db, task, "failed", `Batas ${MAX_STEPS} langkah tercapai. Tugas dihentikan untuk mencegah putaran tanpa akhir.`, step.ready_at);
+        const settings = settingsOf(db, task.organization_id);
+        const stepsSoFar = db.task_steps.filter((s) => s.task_id === task.id && s.started_at).length;
+        if (stepsSoFar >= settings.max_steps_per_task) {
+          halt(db, task, "failed", `Batas ${settings.max_steps_per_task} langkah tercapai. Tugas dihentikan untuk mencegah putaran tanpa akhir.`, step.ready_at);
+          changed = true;
+          break;
+        }
+        if (monthUsage(db, task.organization_id, step.ready_at).used >= settings.monthly_budget) {
+          halt(db, task, "stopped_budget", "Anggaran bulanan organisasi habis. Tugas dihentikan sebelum langkah berikutnya.", step.ready_at);
           changed = true;
           break;
         }

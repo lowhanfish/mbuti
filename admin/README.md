@@ -29,6 +29,12 @@ Semua permintaan lewat `lib/transport.ts`. Halaman dan hooks tidak tahu apakah d
 jadi pindah ke backend cukup dengan mengganti variabel ini.
 
 Untuk mengembalikan data contoh ke keadaan awal, hapus kunci `mbuti-mock-db` di `localStorage` peramban.
+Bila bentuk data contoh berubah, naikkan `MOCK_DB_VERSION` di `lib/mock/seed.ts`.
+
+Mesin simulasi (`lib/mock/engine.ts`) membaca **Pengaturan > Model AI** (model dan biaya per langkah) serta
+**Pengaturan > Batas Biaya** (anggaran bulanan, batas langkah, batas revisi). Daftar model, biaya, dan status
+kunci API adalah data contoh (`lib/mock/settings.ts`, `lib/mock/routes/pengaturan.ts`); nilai kunci tidak pernah
+ada di frontend.
 
 ## Pemeriksaan
 
@@ -53,7 +59,7 @@ lib/
   api.ts                permintaan tanpa sesi
   api_secure.ts         permintaan ber-sesi (CSRF, refresh otomatis)
   transport.ts          pengalih mock / api
-  mock/                 data contoh: seed.ts, db.ts, router.ts, routes/
+  mock/                 data contoh: seed.ts, db.ts, router.ts, engine.ts, settings.ts, routes/
 store/                  Zustand: useAuthStore, useUrlStore
 types/                  tipe bersama dan bentuk respons API
 ```

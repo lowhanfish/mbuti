@@ -16,6 +16,7 @@ import {
   type ResponseInterface,
   type UpdateInterface,
 } from "../../types";
+import { useResponseModelSettings } from "../../../pengaturan/model-ai/hooks/crud";
 
 type InstruksiFields = Pick<
   UpdateInterface,
@@ -77,6 +78,15 @@ export default function TabInstruksi({
 }) {
   const [form, setForm] = useState<InstruksiFields>(() => pick(role));
   const [criterion, setCriterion] = useState("");
+  const { Settings } = useResponseModelSettings();
+  // Keterangan tiap profil ikut menyebut model yang dipilih di Pengaturan > Model AI
+  const profileOptions = Object.fromEntries(
+    (Object.keys(MODEL_PROFILE_LABEL) as ModelProfile[]).map((key) => {
+      const model = Settings?.profiles.find((p) => p.slot === key)?.model;
+      const { label, hint } = MODEL_PROFILE_LABEL[key];
+      return [key, { label, hint: model ? `${hint} Model: ${model}` : hint }];
+    })
+  ) as typeof MODEL_PROFILE_LABEL;
   const dirty = JSON.stringify(form) !== JSON.stringify(pick(role));
   const set = <K extends keyof InstruksiFields>(key: K, value: InstruksiFields[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -248,7 +258,7 @@ export default function TabInstruksi({
                 </Button>
               </div>
             )}
-            <p className="text-[11px] text-muted">Role pemeriksa (tahap A4) menilai hasil dengan kriteria ini.</p>
+            <p className="text-[11px] text-muted">Role pemeriksa menilai hasil dengan kriteria ini.</p>
           </div>
         </CardContent>
       </Card>
@@ -266,7 +276,7 @@ export default function TabInstruksi({
           />
           <OptionCards<ModelProfile>
             label="Profil model Gemini"
-            options={MODEL_PROFILE_LABEL}
+            options={profileOptions}
             value={form.model_profile}
             onChange={(v) => set("model_profile", v)}
           />

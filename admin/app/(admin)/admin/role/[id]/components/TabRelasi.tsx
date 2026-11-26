@@ -9,7 +9,17 @@ import { useResponseGraph } from "../../../relasi/hooks/crud";
 import { PAYLOAD_LABEL, RELATION_STYLE, TRIGGER_LABEL, type RelationInterface } from "../../../relasi/types";
 import type { ResponseInterface } from "../../types";
 
-function RelationCard({ r, otherName, direction }: { r: RelationInterface; otherName: string; direction: "in" | "out" }) {
+function RelationCard({
+  r,
+  otherName,
+  direction,
+  revisionLimit,
+}: {
+  r: RelationInterface;
+  otherName: string;
+  direction: "in" | "out";
+  revisionLimit: number;
+}) {
   const style = RELATION_STYLE[r.relation_type];
   return (
     <li className="relative rounded-2xl bg-white border border-line p-4 pl-5 overflow-hidden">
@@ -30,7 +40,7 @@ function RelationCard({ r, otherName, direction }: { r: RelationInterface; other
         <Badge size="sm">{PAYLOAD_LABEL[r.payload_spec]}</Badge>
         {r.relation_type === "review" && (
           <Badge size="sm" variant="accent">
-            Maks {r.max_revisions}× revisi
+            Maks {Math.min(r.max_revisions, revisionLimit)}× revisi
           </Badge>
         )}
         {r.requires_approval && (
@@ -86,7 +96,7 @@ export default function TabRelasi({ role }: { role: ResponseInterface }) {
             {list.length ? (
               <ul className="space-y-2.5 stagger">
                 {list.map((r) => (
-                  <RelationCard key={r.id} r={r} direction={dir} otherName={name(dir === "out" ? r.target_id : r.source_id)} />
+                  <RelationCard key={r.id} r={r} revisionLimit={Graph.revision_limit} direction={dir} otherName={name(dir === "out" ? r.target_id : r.source_id)} />
                 ))}
               </ul>
             ) : (

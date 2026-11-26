@@ -8,6 +8,7 @@ import { SEED_DOC_VERSIONS, SEED_DOCUMENTS, type MockDocVersion, type MockDocume
 import type { RelationFields } from "@/app/(admin)/admin/relasi/types";
 import type { MockApproval, MockEvent, MockStep, MockTask } from "./engine";
 import { seedTasks } from "./seed-tasks";
+import { defaultSettings, type MockSettings } from "./settings";
 
 export type { MockDocVersion, MockDocument };
 
@@ -100,11 +101,13 @@ export interface MockDatabase {
   task_steps: MockStep[];
   approvals: MockApproval[];
   task_events: MockEvent[];
+  /** Pengaturan model AI dan batas biaya per organisasi */
+  settings: MockSettings[];
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 6;
+export const MOCK_DB_VERSION = 7;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -203,6 +206,7 @@ const createBase = (): MockDatabase => ({
   task_steps: [],
   approvals: [],
   task_events: [],
+  settings: [defaultSettings(ORG, T0)],
   session: null,
 });
 

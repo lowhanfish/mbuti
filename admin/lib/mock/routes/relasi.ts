@@ -11,6 +11,7 @@ import { ACCESS_ROLE_LABEL } from "@/utilities/labels";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
 import { fail, ok, type MockRoute } from "../router";
 import type { MockDatabase, MockRelation } from "../seed";
+import { settingsOf } from "../settings";
 
 const TYPES: RelationType[] = ["handoff", "review", "consult", "escalate"];
 const TRIGGERS: RelationTrigger[] = ["on_complete", "on_rejected", "on_condition"];
@@ -52,6 +53,7 @@ const buildGraph = (db: MockDatabase, orgId: string): GraphInterface => {
     nodes: [...agents, ...humans],
     relations: db.relations.filter((r) => r.organization_id === orgId).map(toRelation),
     positions: db.flow_positions,
+    revision_limit: settingsOf(db, orgId).max_revisions,
   };
 };
 

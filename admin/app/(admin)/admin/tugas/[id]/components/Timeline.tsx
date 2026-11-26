@@ -63,7 +63,12 @@ function StepCard({ step }: { step: StepInterface }) {
             {step.status === "skipped" && <Badge size="sm">Dilewati</Badge>}
           </div>
         </div>
-        {step.cost > 0 && <span className="text-[11px] text-faint shrink-0">{formatRupiah(step.cost)}</span>}
+        {step.cost > 0 && (
+          <span className="text-[11px] text-faint shrink-0 text-right">
+            <span className="block">{formatRupiah(step.cost)}</span>
+            <span className="hidden sm:block font-mono text-[10px]">{step.model}</span>
+          </span>
+        )}
       </div>
       {running && (
         <div className="h-1 bg-brand-soft overflow-hidden">

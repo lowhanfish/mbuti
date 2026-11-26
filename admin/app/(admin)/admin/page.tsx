@@ -3,24 +3,17 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, StatCard } from "../_components/ui";
+import { Badge, Button, Card, CardHeader, CardTitle, EmptyState, StatCard } from "../_components/ui";
 import { buttonClasses } from "../_components/ui/button-classes";
 import { Icon } from "../_components/admin-icons";
 import { BrandMascot } from "../_components/brand-mark";
-import { useResponseListRole } from "./role/hooks/crud";
+import BudgetCard from "./dashboard/components/BudgetCard";
+import BusyAgents from "./dashboard/components/BusyAgents";
+import DailyCostChart from "./dashboard/components/DailyCostChart";
+import { useResponseDashboard } from "./dashboard/hooks/crud";
 import { AgentStack, TaskStatusBadge } from "./tugas/components/TaskParts";
 import { useResponseListTask } from "./tugas/hooks/crud";
 import { formatRupiah } from "./tugas/types";
-
-const FIRST_STEPS = [
-  { title: "Susun unit / divisi", href: "/admin/organisasi/unit", stage: "A1", ready: true },
-  { title: "Undang anggota tim", href: "/admin/organisasi/pengguna", stage: "A1", ready: true },
-  { title: "Buat role pertama", href: "/admin/role", stage: "A2", ready: true },
-  { title: "Unggah SOP untuk role", href: "/admin/pengetahuan", stage: "A3", ready: true },
-  { title: "Hubungkan role di peta relasi", href: "/admin/relasi", stage: "A4", ready: true },
-  { title: "Beri tugas pertama", href: "/admin/tugas", stage: "A5", ready: true },
-  { title: "Lihat kantor 3D", href: "/admin/kantor", stage: "A6", ready: false },
-];
 
 const noop = () => () => {};
 
@@ -36,18 +29,30 @@ export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   // Sapaan dihitung di peramban (jam lokal), "Halo" saat prerender agar tidak terjadi hydration mismatch
   const hello = useSyncExternalStore(noop, greeting, () => "Halo");
+  const { Summary, isError, error, refetch } = useResponseDashboard();
   const { List: Tasks } = useResponseListTask({});
-  const { List: Roles } = useResponseListRole({ search: "", unit_id: "", status: "" });
-  const s = Tasks?.summary;
+  const s = Summary?.tasks;
   const running = s ? s.queued + s.running : 0;
-  const waiting = s?.waiting_approval ?? 0;
-  const cost = (Tasks?.data ?? []).reduce((sum, t) => sum + t.cost_used, 0);
+  const waiting = Summary?.pending_approval_count ?? 0;
+  const budget = Summary?.budget;
   const recent = (Tasks?.data ?? []).slice(0, 5);
   const STATS = [
     { label: "Tugas berjalan", value: running, icon: "task", hint: `${s?.completed ?? 0} selesai`, tone: "brand" },
-    { label: "Menunggu persetujuan", value: waiting, icon: "approval", hint: waiting ? "Perlu keputusan Anda" : "Tidak ada antrean", tone: "accent" },
-    { label: "Role aktif", value: Roles?.summary.active ?? 0, icon: "agent", hint: `${Roles?.summary.draft ?? 0} draf · ${Roles?.summary.paused ?? 0} dijeda`, tone: "pink" },
-    { label: "Biaya tugas", value: formatRupiah(cost), icon: "wallet", hint: "Simulasi data contoh", tone: "teal" },
+    { label: "Menunggu keputusan Anda", value: waiting, icon: "approval", hint: waiting ? "Buka Persetujuan" : "Tidak ada antrean", tone: "accent" },
+    {
+      label: "Role aktif",
+      value: Summary?.agents.active ?? 0,
+      icon: "agent",
+      hint: `${Summary?.agents.draft ?? 0} draf · ${Summary?.agents.paused ?? 0} dijeda`,
+      tone: "pink",
+    },
+    {
+      label: "Biaya bulan ini",
+      value: formatRupiah(budget?.used ?? 0),
+      icon: "wallet",
+      hint: budget ? `dari batas ${formatRupiah(budget.limit)}` : "Memuat…",
+      tone: "teal",
+    },
   ] as const;
 
   return (
@@ -101,10 +106,24 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {isError && (
+        <Card>
+          <EmptyState
+            icon={<Icon name="dashboard" size={26} />}
+            title="Ringkasan gagal dimuat"
+            description={error instanceof Error ? error.message : undefined}
+            action={<Button variant="outline" onClick={() => refetch()}>Coba lagi</Button>}
+          />
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Aktivitas terbaru</CardTitle>
+            <Link href="/admin/tugas" className="text-xs font-semibold text-brand hover:underline">
+              Semua tugas →
+            </Link>
           </CardHeader>
           {recent.length === 0 ? (
             <EmptyState
@@ -131,36 +150,12 @@ export default function DashboardPage() {
             </ul>
           )}
         </Card>
+        <BudgetCard budget={budget} />
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Langkah awal</CardTitle>
-            <Badge variant="info" size="sm">
-              {FIRST_STEPS.filter((x) => x.ready).length} / {FIRST_STEPS.length} siap
-            </Badge>
-          </CardHeader>
-          <CardContent className="space-y-1.5">
-            {FIRST_STEPS.map((step, index) => (
-              <Link
-                key={step.href}
-                href={step.href}
-                className="group flex items-center gap-3 rounded-2xl px-3 py-2.5 hover:bg-white transition-all"
-              >
-                <span
-                  className={`w-7 h-7 rounded-xl text-xs font-bold flex items-center justify-center transition-transform group-hover:scale-110 ${
-                    step.ready ? "bg-gradient-to-br from-brand to-[#9b6bff] text-white" : "bg-white text-faint border border-line"
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className={`flex-1 text-sm ${step.ready ? "text-ink font-medium" : "text-muted"}`}>{step.title}</span>
-                <Badge size="sm" variant={step.ready ? "success" : "neutral"}>
-                  {step.ready ? "Siap" : step.stage}
-                </Badge>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+        <BusyAgents items={Summary?.busiest_agents} />
+        <DailyCostChart days={Summary?.daily_costs} />
       </div>
     </div>
   );
