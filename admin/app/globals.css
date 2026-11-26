@@ -242,3 +242,138 @@ body {
 .swal2-container {
   z-index: 2000 !important;
 }
+
+/* ── Halaman depan ─────────────────────────────────────────────── */
+html:has(.lp-root) {
+  scroll-behavior: smooth;
+}
+
+/* Latar malam: ungu gelap dengan cahaya madu */
+.lp-night {
+  background:
+    radial-gradient(60rem 40rem at 85% 8%, rgba(124, 77, 255, 0.35), transparent 60%),
+    radial-gradient(45rem 32rem at 8% 92%, rgba(255, 184, 28, 0.16), transparent 60%),
+    linear-gradient(165deg, #130e24 0%, #1c1338 48%, #24184a 100%);
+}
+/* Adegan 3D melebur ke latar di tepinya: pudar atas-bawah, lalu (di layar lebar) pudar kiri */
+.lp-stage {
+  mask-image: linear-gradient(to bottom, #000 84%, transparent);
+}
+.lp-fade {
+  background: radial-gradient(ellipse 60% 48% at 52% 52%, rgba(72, 48, 140, 0.75), transparent 100%);
+}
+@media (min-width: 1024px) {
+  .lp-stage {
+    mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 82%, transparent);
+  }
+  .lp-fade {
+    mask-image: linear-gradient(to right, transparent, #000 26%);
+  }
+}
+/* Pada layar sempit adegan menempel di atas, jadi perlu latar sendiri agar teks tidak tembus */
+@media (max-width: 1023px) {
+  .lp-dock {
+    background: linear-gradient(to bottom, #171129 0%, #1c1338 95%, rgba(28, 19, 56, 0));
+  }
+}
+
+.lp-hex {
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.lp-shimmer {
+  background: linear-gradient(100deg, #ffd25c 0%, #ff9ad5 25%, #a98bff 50%, #ff9ad5 75%, #ffd25c 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lp-slide 7s linear infinite;
+}
+@keyframes lp-slide {
+  to {
+    background-position: -200% 0;
+  }
+}
+/* Kilau yang menyapu tombol */
+.lp-shine {
+  overflow: hidden;
+}
+.lp-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 40%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: lp-sweep 3.6s ease-in-out infinite;
+}
+@keyframes lp-sweep {
+  55%,
+  100% {
+    left: 130%;
+  }
+}
+.lp-track {
+  animation: lp-marquee 32s linear infinite;
+}
+.lp-marquee:hover .lp-track {
+  animation-play-state: paused;
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.lp-dash {
+  animation: relation-dash 1.4s linear infinite;
+}
+.lp-pulse {
+  animation: lp-pulse 2.4s ease-in-out infinite;
+}
+@keyframes lp-pulse {
+  40% {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 6px rgba(124, 77, 255, 0.14);
+  }
+}
+.lp-fill {
+  transform-origin: left;
+  animation: lp-fill 3.8s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+@keyframes lp-fill {
+  from {
+    transform: scaleX(0.2);
+  }
+}
+.lp-bob {
+  animation: lp-bob 3.2s ease-in-out infinite;
+}
+@keyframes lp-bob {
+  50% {
+    transform: translateY(-12px);
+  }
+}
+/* Muncul saat digulir ke dalam layar; peramban tanpa dukungan menampilkannya biasa */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-reveal {
+      animation: lp-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+  }
+}
+@keyframes lp-reveal {
+  from {
+    opacity: 0;
+    translate: 0 48px;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+

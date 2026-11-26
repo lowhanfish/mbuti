@@ -51,6 +51,7 @@ npm run build
 ```text
 app/
   (publish)/            halaman depan
+    _landing/           bagian halaman depan, termasuk adegan 3D (HiveScene, RobotBee)
   (auth)/login/         masuk
   (admin)/
     _components/ui/     komponen bersama (Button, Card, Modal, Table, ...)
