@@ -88,9 +88,12 @@ body {
 
 /*
  * Tema gelap (bawaan). Atribut data-theme dipasang di <html> sebelum halaman tampil
- * (app/layout.tsx). Halaman depan (.lp-root) selalu bertema malamnya sendiri.
+ * (app/layout.tsx). Halaman depan (.lp-root) mengunci token terangnya sendiri di bawah.
+ *
+ * Jangan memakai html:has(.lp-root) untuk memilih tema: Next.js menyimpan halaman yang
+ * baru ditinggalkan di DOM (tersembunyi), sehingga .lp-root masih ada saat admin dibuka.
  */
-html[data-theme="dark"]:not(:has(.lp-root)) {
+html[data-theme="dark"] {
   color-scheme: dark;
   --color-canvas: #0f0a1f;
   --color-surface: #1a1330;
@@ -335,6 +338,22 @@ html:has(.lp-root) {
   --lp-night: #0f0a1f;
   background: var(--lp-night);
   color: #fff;
+  color-scheme: dark;
+  /* Halaman depan dirancang dengan token tema terang; tidak ikut tombol tema */
+  --color-canvas: #faf8ff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f2ff;
+  --color-rim: #ffffff;
+  --color-ink: #18122b;
+  --color-muted: #5f5873;
+  --color-faint: #a19ab3;
+  --color-line: #ebe5f5;
+  --color-brand: #7c4dff;
+  --color-brand-strong: #5b2ee0;
+  --color-brand-soft: #efe8ff;
+  --color-accent: #ffb81c;
+  --color-accent-strong: #f59e0b;
+  --color-accent-soft: #fff3d1;
 }
 html:has(.lp-root),
 body:has(.lp-root) {
@@ -559,7 +578,7 @@ html[data-theme="dark"] .react-flow__minimap {
 html {
   --rf-mask: rgb(239 232 255 / 0.6);
 }
-html[data-theme="dark"]:not(:has(.lp-root)) {
+html[data-theme="dark"] {
   --rf-mask: rgb(15 10 31 / 0.6);
 }
 html[data-theme="dark"] .react-flow__controls-button {
