@@ -2,14 +2,14 @@
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform organisasi virtual berbasis AI. Organisasi menyusun **role AI** yang bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu mengatur hubungan antar-role: siapa menyerahkan ke siapa, siapa memeriksa, dan kapan manusia harus memutuskan.
 
-Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (draf, menunggu tinjauan): [admin/API_CONTRACT.md](admin/API_CONTRACT.md).
+Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API_CONTRACT.md](admin/API_CONTRACT.md).
 
 ## Struktur
 
 | Folder | Isi | Status |
 |---|---|---|
-| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A7 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| `server/` | Backend FastAPI (venv + uvicorn) | Belum dibuat; dikerjakan setelah kontrak API ditinjau |
+| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
+| `server/` | Backend FastAPI (venv + uvicorn) | Belum dibuat; tahap B0 berikutnya |
 
 ## Menjalankan frontend
 

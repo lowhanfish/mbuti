@@ -28,7 +28,7 @@ export default function ApiKeyPanel({ settings, canSee }: { settings: ResponseIn
         </CardHeader>
         <CardContent>
           {!canSee ? (
-            <p className="text-sm text-muted">Status kunci hanya terlihat oleh pemilik dan admin.</p>
+            <p className="text-sm text-muted">Status kunci hanya terlihat oleh pemilik.</p>
           ) : (
             <ul className="space-y-2.5 stagger">
               {settings.api_keys.map((k) => {

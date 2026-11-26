@@ -69,10 +69,14 @@ export const stepsInMonth = (db: MockDatabase, orgId: string, at: number) => {
 
 export const monthUsage = (db: MockDatabase, orgId: string, at: number): MonthUsage => {
   const steps = stepsInMonth(db, orgId, at);
-  const used = steps.reduce((sum, s) => sum + s.cost, 0);
+  const trial_cost = db.llm_calls
+    .filter((c) => c.organization_id === orgId && monthKey(c.created_at) === monthKey(at))
+    .reduce((sum, c) => sum + c.cost, 0);
+  const used = steps.reduce((sum, s) => sum + s.cost, 0) + trial_cost;
   return {
     month: monthKey(at),
     used,
+    trial_cost,
     remaining: Math.max(0, settingsOf(db, orgId).monthly_budget - used),
     task_count: new Set(steps.map((s) => s.task_id)).size,
   };

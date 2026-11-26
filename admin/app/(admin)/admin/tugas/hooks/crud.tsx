@@ -5,9 +5,11 @@ import { fetchData } from "@/lib/api_secure";
 import { swallAlert } from "@/lib/show_swall";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
+import { toSkip } from "@/utilities/pagination";
 import {
   isActiveTask,
   type ApprovalInterface,
+  type ApprovalListInterface,
   type CreateInterface,
   type DecideInterface,
   type DetailInterface,
@@ -85,15 +87,17 @@ export const useCancelTask = () => {
   });
 };
 
-export const useResponseApprovals = (status: "pending" | "decided") => {
+export const useResponseApprovals = (status: "pending" | "decided", page = 1, limit = 200) => {
   const url = useUrlStore((state) => state.URL.APP);
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryFn: () =>
-      fetchData<{ data: ApprovalInterface[]; total: number; pending_count: number }>(`${url}/api/v1/admin/persetujuan/read?status=${status}`),
-    queryKey: ["persetujuan", status],
+      fetchData<ApprovalListInterface>(`${url}/api/v1/admin/persetujuan/read?status=${status}&skip=${toSkip(page, limit)}&limit=${limit}`),
+    queryKey: ["persetujuan", status, page, limit],
+    // Halaman lama tetap tampil saat berpindah halaman, tetapi tidak saat berpindah tab
+    placeholderData: (previous, query) => (query?.queryKey[1] === status ? previous : undefined),
     refetchInterval: 5000,
   });
-  return { List: data?.data ?? [], pendingCount: data?.pending_count ?? 0, isLoading, isError, error, refetch };
+  return { List: data?.data ?? [], total: data?.total ?? 0, pendingCount: data?.pending_count ?? 0, isLoading, isError, error, refetch };
 };
 
 export const useDecideApproval = () => {

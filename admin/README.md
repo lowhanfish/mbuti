@@ -31,6 +31,7 @@ jadi pindah ke backend cukup dengan mengganti variabel ini.
 
 Untuk mengembalikan data contoh ke keadaan awal, hapus kunci `mbuti-mock-db` di `localStorage` peramban.
 Bila bentuk data contoh berubah, naikkan `MOCK_DB_VERSION` di `lib/mock/seed.ts`.
+Role dan relasi yang dihapus setelah dipakai tugas dipindah ke arsip (`lib/mock/lookup.ts`).
 
 Mesin simulasi (`lib/mock/engine.ts`) membaca **Pengaturan > Model AI** (model dan biaya per langkah) serta
 **Pengaturan > Batas Biaya** (anggaran bulanan, batas langkah, batas revisi). Daftar model, biaya, dan status

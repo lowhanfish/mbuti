@@ -1,5 +1,6 @@
 import { getDb, saveDb } from "./db";
 import { advanceTasks } from "./engine";
+import { promoteVersions } from "./knowledge";
 import { fail, matchRoute, type MockRoute } from "./router";
 import { authRoutes } from "./routes/auth";
 import { dashboardRoutes } from "./routes/dashboard";
@@ -44,7 +45,8 @@ export const mockRequest = async (url: string, init: RequestInit) => {
 
   // Majukan simulasi eksekusi tugas sampai waktu sekarang sebelum menjawab
   const db = getDb();
-  const advanced = advanceTasks(db, Date.now());
+  const promoted = promoteVersions(db);
+  const advanced = advanceTasks(db, Date.now()) || promoted;
 
   const response = found
     ? await found.route.handler({

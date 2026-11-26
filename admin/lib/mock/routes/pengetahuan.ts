@@ -7,11 +7,12 @@ import {
   type DocumentType,
   type IngestionStatus,
   type ResponseInterface,
+  type VersionDetailInterface,
 } from "@/app/(admin)/admin/pengetahuan/types";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
-import { documentsForAgent, searchDocuments, toVersion, versionStatus } from "../knowledge";
-import { fail, ok, type MockRoute } from "../router";
+import { documentsForAgent, liveDocuments, searchDocuments, toVersion, versionStatus } from "../knowledge";
+import { fail, ok, paging, type MockRoute } from "../router";
 import type { MockDatabase, MockDocVersion, MockDocument } from "../seed";
 
 const TYPES: DocumentType[] = ["sop", "manual", "pedoman", "templat", "regulasi", "lainnya"];
@@ -60,8 +61,20 @@ const toDetail = (db: MockDatabase, d: MockDocument): DetailInterface => {
       .map((v) => toVersion(db, v)),
     // Halaman baru bisa dibaca setelah versi aktif selesai diolah
     sections: active && versionStatus(active).status === "ready" ? active.sections : [],
+    archived_at: d.deleted_at ?? null,
   };
 };
+
+const toVersionDetail = (db: MockDatabase, v: MockDocVersion): VersionDetailInterface => ({
+  ...toVersion(db, v),
+  sections: versionStatus(v).status === "ready" ? v.sections : [],
+});
+
+/** Pernah menjadi rujukan hasil sebuah tugas, sehingga isinya harus tetap bisa dibuka. */
+const isCited = (db: MockDatabase, documentId: string) => db.task_steps.some((s) => s.citations.some((c) => c.document_id === documentId));
+
+/** Dokumen yang masih bisa diubah (belum dihapus). */
+const findLive = (db: MockDatabase, orgId: string, id: string) => liveDocuments(db, orgId).find((d) => d.id === id);
 
 const validateScope = (db: MockDatabase, orgId: string, scope: unknown, scopeId: unknown): string | { scope: DocumentScope; scope_id: string | null } => {
   if (!SCOPES.includes(scope as DocumentScope)) return "Lingkup dokumen tidak valid.";
@@ -159,10 +172,9 @@ export const pengetahuanRoutes: MockRoute[] = [
       const docType = ctx.query.get("doc_type") ?? "";
       const status = ctx.query.get("status") ?? "";
       const agentId = ctx.query.get("agent_id") ?? "";
-      const skip = Number(ctx.query.get("skip") ?? 0);
-      const limit = Number(ctx.query.get("limit") ?? 50);
+      const { skip, limit } = paging(ctx.query, 50);
 
-      let docs = ctx.db.documents.filter((d) => d.organization_id === self.organization_id);
+      let docs = liveDocuments(ctx.db, self.organization_id);
       if (agentId) {
         const agent = ctx.db.agents.find((a) => a.id === agentId && a.organization_id === self.organization_id);
         if (!agent) return fail(404, "Role tidak ditemukan.");
@@ -193,7 +205,7 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const q = text(ctx.query.get("q"), 300);
       const agentId = ctx.query.get("agent_id") ?? "";
-      let docs = ctx.db.documents.filter((d) => d.organization_id === self.organization_id);
+      let docs = liveDocuments(ctx.db, self.organization_id);
       if (agentId) {
         const agent = ctx.db.agents.find((a) => a.id === agentId && a.organization_id === self.organization_id);
         if (!agent) return fail(404, "Role tidak ditemukan.");
@@ -210,6 +222,18 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const d = ctx.db.documents.find((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
       return d ? ok(toDetail(ctx.db, d)) : fail(404, "Dokumen tidak ditemukan.");
+    },
+  },
+  {
+    method: "GET",
+    path: `${BASE}/:id/versions/:vid`,
+    handler: (ctx) => {
+      const self = requireMember(ctx);
+      if (isFailure(self)) return self;
+      // Termasuk dokumen yang sudah dihapus, agar rujukan lama tetap bisa dibuka
+      const d = ctx.db.documents.find((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
+      const v = d && ctx.db.doc_versions.find((x) => x.id === ctx.params.vid && x.document_id === d.id);
+      return v ? ok(toVersionDetail(ctx.db, v)) : fail(404, "Versi tidak ditemukan.");
     },
   },
   {
@@ -248,7 +272,7 @@ export const pengetahuanRoutes: MockRoute[] = [
     handler: (ctx) => {
       const self = requireManager(ctx);
       if (isFailure(self)) return self;
-      const d = ctx.db.documents.find((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
+      const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
       const b = (ctx.body ?? {}) as Record<string, unknown>;
       const title = text(b.title, 200);
@@ -271,14 +295,21 @@ export const pengetahuanRoutes: MockRoute[] = [
     handler: async (ctx) => {
       const self = requireManager(ctx);
       if (isFailure(self)) return self;
-      const d = ctx.db.documents.find((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
+      const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
       const file = formValue(ctx.body, "file");
       if (!(file instanceof File)) return fail(422, "Pilih berkas versi baru.");
       const versions = ctx.db.doc_versions.filter((v) => v.document_id === d.id);
       const ver = await readUpload(ctx.db, file, d.id, Math.max(0, ...versions.map((v) => v.version_no)) + 1, self.id);
       if (typeof ver === "string") return fail(422, ver);
-      for (const v of versions) v.is_active = false;
+      // Selama versi aktif masih bisa dipakai, versi baru menunggu sampai selesai diolah
+      const current = versions.find((v) => v.is_active);
+      if (current && versionStatus(current).status === "ready") {
+        ver.is_active = false;
+        ver.activate_when_ready = true;
+      } else {
+        for (const v of versions) v.is_active = false;
+      }
       ctx.db.doc_versions.push(ver);
       d.updated_at = nowIso();
       return ok(toDetail(ctx.db, d), `Versi ${ver.version_no} diterima dan sedang diolah.`, 201);
@@ -290,7 +321,7 @@ export const pengetahuanRoutes: MockRoute[] = [
     handler: (ctx) => {
       const self = requireManager(ctx);
       if (isFailure(self)) return self;
-      const d = ctx.db.documents.find((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
+      const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
       const target = ctx.db.doc_versions.find((v) => v.id === ctx.params.vid && v.document_id === d.id);
       if (!target) return fail(404, "Versi tidak ditemukan.");
@@ -306,10 +337,14 @@ export const pengetahuanRoutes: MockRoute[] = [
     handler: (ctx) => {
       const self = requireManager(ctx);
       if (isFailure(self)) return self;
-      const index = ctx.db.documents.findIndex((x) => x.id === ctx.params.id && x.organization_id === self.organization_id);
-      if (index < 0) return fail(404, "Dokumen tidak ditemukan.");
-      const [removed] = ctx.db.documents.splice(index, 1);
-      ctx.db.doc_versions = ctx.db.doc_versions.filter((v) => v.document_id !== removed.id);
+      const d = findLive(ctx.db, self.organization_id, ctx.params.id);
+      if (!d) return fail(404, "Dokumen tidak ditemukan.");
+      if (isCited(ctx.db, d.id)) {
+        d.deleted_at = nowIso();
+        return ok(null, "Dokumen dihapus. Isinya tetap bisa dibuka dari rujukan tugas.");
+      }
+      ctx.db.documents = ctx.db.documents.filter((x) => x.id !== d.id);
+      ctx.db.doc_versions = ctx.db.doc_versions.filter((v) => v.document_id !== d.id);
       return ok(null, "Dokumen dihapus.");
     },
   },

@@ -35,17 +35,40 @@ export const toVersion = (db: MockDatabase, v: MockDocVersion): DocumentVersion 
   };
 };
 
-/** Dokumen yang boleh dibaca sebuah role, mengikuti lingkup pengetahuannya. */
+/** Dokumen organisasi yang belum dihapus. */
+export const liveDocuments = (db: MockDatabase, orgId: string) => db.documents.filter((d) => d.organization_id === orgId && !d.deleted_at);
+
+/** Versi baru menggantikan versi aktif hanya setelah selesai diolah; versi yang gagal tidak pernah aktif sendiri. */
+export const promoteVersions = (db: MockDatabase) => {
+  let changed = false;
+  const pending = db.doc_versions.filter((v) => v.activate_when_ready).sort((a, b) => a.version_no - b.version_no);
+  for (const v of pending) {
+    const { status } = versionStatus(v);
+    if (status === "queued" || status === "processing") continue;
+    v.activate_when_ready = false;
+    changed = true;
+    if (status !== "ready") continue;
+    const siblings = db.doc_versions.filter((x) => x.document_id === v.document_id);
+    if (siblings.some((x) => x.is_active && x.version_no > v.version_no)) continue;
+    for (const x of siblings) x.is_active = x.id === v.id;
+  }
+  return changed;
+};
+
+/** Dokumen yang boleh dibaca sebuah role: dokumen seluruh organisasi selalu ikut, sisanya menurut lingkup pengetahuannya. */
 export const documentsForAgent = (db: MockDatabase, agent: MockAgent): MockDocument[] => {
-  const orgDocs = db.documents.filter((d) => d.organization_id === agent.organization_id);
+  const orgDocs = liveDocuments(db, agent.organization_id);
   if (agent.knowledge_scope === "organization") return orgDocs;
   if (agent.knowledge_scope === "unit" && agent.unit_id) {
     const unitAgents = new Set(db.agents.filter((a) => a.unit_id === agent.unit_id).map((a) => a.id));
     return orgDocs.filter(
-      (d) => (d.scope === "unit" && d.scope_id === agent.unit_id) || (d.scope === "agent" && d.scope_id && unitAgents.has(d.scope_id))
+      (d) =>
+        d.scope === "organization" ||
+        (d.scope === "unit" && d.scope_id === agent.unit_id) ||
+        (d.scope === "agent" && d.scope_id && unitAgents.has(d.scope_id))
     );
   }
-  return orgDocs.filter((d) => d.scope === "agent" && d.scope_id === agent.id);
+  return orgDocs.filter((d) => d.scope === "organization" || (d.scope === "agent" && d.scope_id === agent.id));
 };
 
 const STOPWORDS = new Set(["yang", "dan", "untuk", "dengan", "dari", "pada", "atau", "ini", "itu", "dalam", "akan", "agar", "kami", "apa", "bagaimana", "berapa", "kapan", "buat", "buatkan", "tolong"]);
@@ -80,6 +103,7 @@ export const searchDocuments = (db: MockDatabase, docs: MockDocument[], query: s
       hits.push({
         document_id: d.id,
         document_title: d.title,
+        version_id: v.id,
         version_no: v.version_no,
         page_no: s.page_no,
         heading: s.heading,

@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Badge } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Avatar2D } from "../../../../_components/agent/avatar-2d";
-import { citationText } from "../../../pengetahuan/types";
+import { citationHref, citationText } from "../../../pengetahuan/types";
 import { RELATION_STYLE } from "../../../relasi/types";
 import { STEP_KIND_LABEL, formatRupiah, type DetailInterface, type EventType, type StepInterface } from "../../types";
 
@@ -85,7 +85,7 @@ function StepCard({ step }: { step: StepInterface }) {
               {step.citations.map((c, i) => (
                 <Link
                   key={`${c.document_id}-${c.page_no}`}
-                  href={`/admin/pengetahuan/${c.document_id}?hlm=${c.page_no}`}
+                  href={citationHref(c)}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-soft/70 px-2 py-1 text-[11px] text-brand-strong hover:bg-brand-soft"
                 >
                   <span className="font-bold">[{i + 1}]</span> {citationText(c.document_title, c.version_no, c.page_no)}

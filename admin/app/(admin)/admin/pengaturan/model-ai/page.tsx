@@ -45,7 +45,7 @@ export default function PengaturanModelAiPage() {
             saving={update.isPending}
             onSubmit={(body) => update.mutate(body)}
           />
-          <ApiKeyPanel settings={Settings} canSee={canEdit} />
+          <ApiKeyPanel settings={Settings} canSee={accessRole === "owner"} />
         </>
       )}
     </div>

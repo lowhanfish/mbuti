@@ -12,6 +12,8 @@ export interface MonthUsage {
   /** Bulan berjalan, format YYYY-MM */
   month: string;
   used: number;
+  /** Bagian dari `used` yang berasal dari uji coba role */
+  trial_cost: number;
   /** Sisa anggaran bulan ini, tidak pernah negatif */
   remaining: number;
   task_count: number;

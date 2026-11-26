@@ -1,7 +1,8 @@
 import type { ResponseInterface } from "@/app/(admin)/admin/organisasi/pengguna/types";
 import type { AccessRole } from "@/types/global";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
-import { fail, ok, type MockRoute } from "../router";
+import { removeRelations } from "../lookup";
+import { fail, ok, paging, type MockRoute } from "../router";
 import type { MemberStatus, MockDatabase, MockMembership } from "../seed";
 
 const ROLES: AccessRole[] = ["owner", "admin", "member", "viewer"];
@@ -39,8 +40,7 @@ export const penggunaRoutes: MockRoute[] = [
       const search = (ctx.query.get("search") ?? "").trim().toLowerCase();
       const role = ctx.query.get("access_role") ?? "";
       const status = ctx.query.get("status") ?? "";
-      const skip = Number(ctx.query.get("skip") ?? 0);
-      const limit = Number(ctx.query.get("limit") ?? 10);
+      const { skip, limit } = paging(ctx.query, 10);
 
       const all = ctx.db.memberships
         .filter((m) => m.organization_id === self.organization_id)
@@ -128,6 +128,9 @@ export const penggunaRoutes: MockRoute[] = [
       if (losesOwner && activeOwners(ctx.db, self.organization_id).length <= 1) {
         return fail(409, "Organisasi harus punya minimal satu pemilik aktif.");
       }
+      if (role === "viewer" && ctx.db.relations.some((r) => r.target_id === target.id)) {
+        return fail(409, "Orang ini masih menjadi tujuan eskalasi. Ubah relasinya di Peta Relasi terlebih dahulu.");
+      }
       if (target.id === self.id && status === "disabled") return fail(409, "Anda tidak dapat menonaktifkan akun sendiri.");
 
       const unitId = typeof b.unit_id === "string" && b.unit_id ? b.unit_id : null;
@@ -155,7 +158,7 @@ export const penggunaRoutes: MockRoute[] = [
       ctx.db.memberships.splice(index, 1);
       for (const u of ctx.db.units) if (u.lead_member_id === target.id) u.lead_member_id = null;
       for (const a of ctx.db.agents) if (a.owner_member_id === target.id) a.owner_member_id = null;
-      ctx.db.relations = ctx.db.relations.filter((r) => r.target_id !== target.id);
+      removeRelations(ctx.db, (r) => r.target_id === target.id);
       ctx.db.flow_humans = ctx.db.flow_humans.filter((id) => id !== target.id);
       return ok(null, "Pengguna dikeluarkan dari organisasi.");
     },

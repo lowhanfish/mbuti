@@ -1,15 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { Badge, Button, Card, EmptyState, PageHeader, SkeletonCard } from "../../_components/ui";
+import { Badge, Button, Card, EmptyState, PageHeader, Pagination, SkeletonCard } from "../../_components/ui";
 import { Icon } from "../../_components/admin-icons";
 import { BrandMascot } from "../../_components/brand-mark";
 import ApprovalCard from "../tugas/components/ApprovalCard";
 import { useResponseApprovals } from "../tugas/hooks/crud";
 
+const HISTORY_PAGE_SIZE = 10;
+
 export default function PersetujuanPage() {
   const [tab, setTab] = useState<"pending" | "decided">("pending");
-  const { List, pendingCount, isLoading, isError, error, refetch } = useResponseApprovals(tab);
+  const [page, setPage] = useState(1);
+  // Antrean tampil seluruhnya; riwayat berhalaman
+  const pageSize = tab === "decided" ? HISTORY_PAGE_SIZE : 200;
+  const { List, total, pendingCount, isLoading, isError, error, refetch } = useResponseApprovals(tab, tab === "decided" ? page : 1, pageSize);
 
   return (
     <div className="space-y-6">
@@ -31,7 +36,10 @@ export default function PersetujuanPage() {
             type="button"
             role="tab"
             aria-selected={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              setTab(key);
+              setPage(1);
+            }}
             className={`h-10 px-4 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer ${
               tab === key ? "bg-gradient-to-r from-brand to-[#9b6bff] text-white shadow-md" : "text-muted hover:text-ink hover:bg-white/80"
             }`}
@@ -71,6 +79,9 @@ export default function PersetujuanPage() {
           {List.map((a) => (
             <ApprovalCard key={a.id} approval={a} showTask />
           ))}
+          {tab === "decided" && total > HISTORY_PAGE_SIZE && (
+            <Pagination page={page} onPageChange={setPage} pageSize={HISTORY_PAGE_SIZE} total={total} />
+          )}
         </div>
       )}
     </div>

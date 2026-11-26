@@ -21,7 +21,6 @@ const sampleKeys = (now: number): ApiKeyInfo[] => {
 const toModels = (db: MockDatabase, self: MockMembership): ModelResponse => {
   const s = settingsOf(db, self.organization_id);
   const agents = db.agents.filter((a) => a.organization_id === self.organization_id);
-  const isManager = self.access_role === "owner" || self.access_role === "admin";
   return {
     provider: "gemini",
     profiles: SLOTS.map((slot) => ({
@@ -31,7 +30,8 @@ const toModels = (db: MockDatabase, self: MockMembership): ModelResponse => {
       agent_count: agents.filter((a) => a.model_profile === slot).length,
     })),
     available_models: MODEL_CATALOG,
-    api_keys: isManager ? sampleKeys(Date.now()) : [],
+    // Kunci milik server, jadi statusnya hanya untuk pemilik
+    api_keys: self.access_role === "owner" ? sampleKeys(Date.now()) : [],
     embedding: { model: "gemini-embedding-2", dimension: 768 },
     updated_at: s.updated_at,
   };

@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, Textarea } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Avatar2D } from "../../../../_components/agent/avatar-2d";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useTrialRole } from "../../hooks/crud";
+import { formatRupiah } from "../../../tugas/types";
 import Link from "next/link";
-import { citationText } from "../../../pengetahuan/types";
+import { citationHref, citationText } from "../../../pengetahuan/types";
 import type { InputField, ResponseInterface, TrialResult } from "../../types";
 
 const RESULT_STYLE: Record<TrialResult["status"], { label: string; variant: "success" | "warning" | "info" }> = {
@@ -45,6 +47,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [showPrompt, setShowPrompt] = useState(false);
   const trial = useTrialRole(role.id);
+  const canRun = useAuthStore((state) => state.user?.access_role) !== "viewer";
   const result = trial.data?.data;
 
   return (
@@ -53,7 +56,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
         <CardHeader>
           <div>
             <CardTitle>Beri tugas percobaan</CardTitle>
-            <p className="text-xs text-muted mt-0.5">Tidak memicu relasi dan tidak dicatat sebagai tugas.</p>
+            <p className="text-xs text-muted mt-0.5">Tidak memicu relasi dan tidak dicatat sebagai tugas. Biayanya masuk anggaran bulan ini.</p>
           </div>
         </CardHeader>
         <CardContent>
@@ -63,7 +66,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              trial.mutate({ brief, inputs });
+              if (canRun) trial.mutate({ brief, inputs });
             }}
           >
             <Textarea
@@ -81,9 +84,10 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                 onChange={(v) => setInputs((prev) => ({ ...prev, [field.key]: v }))}
               />
             ))}
-            <Button type="submit" loading={trial.isPending} icon={<Icon name="sparkles" size={16} />} className="w-full">
+            <Button type="submit" loading={trial.isPending} disabled={!canRun} icon={<Icon name="sparkles" size={16} />} className="w-full">
               Jalankan uji coba
             </Button>
+            {!canRun && <p className="text-xs text-muted text-center">Pemantau hanya dapat melihat.</p>}
           </form>
         </CardContent>
       </Card>
@@ -116,13 +120,16 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                   {result.output}
                 </div>
                 {result.notes && <p className="text-xs text-muted">{result.notes}</p>}
+                <p className="text-[11px] text-faint">
+                  {result.cost > 0 ? `Biaya uji coba ${formatRupiah(result.cost)} · ${result.model}` : "Model tidak dipanggil, tanpa biaya."}
+                </p>
                 {result.citations.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">Rujukan</p>
                     {result.citations.map((c, i) => (
                       <Link
                         key={`${c.document_id}-${c.page_no}`}
-                        href={`/admin/pengetahuan/${c.document_id}?hlm=${c.page_no}`}
+                        href={citationHref(c)}
                         className="flex items-center gap-2 rounded-xl bg-brand-soft/60 px-3 py-1.5 text-xs text-brand-strong hover:bg-brand-soft transition-colors"
                       >
                         <span className="w-5 h-5 rounded-md bg-white text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>

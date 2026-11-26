@@ -9,6 +9,7 @@ import type {
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { ACCESS_ROLE_LABEL } from "@/utilities/labels";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
+import { removeRelations } from "../lookup";
 import { fail, ok, type MockRoute } from "../router";
 import type { MockDatabase, MockRelation } from "../seed";
 import { settingsOf } from "../settings";
@@ -102,7 +103,9 @@ const parseRelation = (db: MockDatabase, orgId: string, body: unknown, selfId: s
 
   const targetIsHuman = kindOf(target) === "human";
   if (targetIsHuman) {
-    if (!db.memberships.some((m) => m.id === target && m.organization_id === orgId)) return "Manusia tujuan tidak ditemukan.";
+    const human = db.memberships.find((m) => m.id === target && m.organization_id === orgId);
+    if (!human) return "Manusia tujuan tidak ditemukan.";
+    if (human.access_role === "viewer") return "Pemantau tidak bisa menjadi tujuan eskalasi.";
     if (type !== "escalate") return "Ke manusia hanya bisa memakai relasi Eskalasi.";
   } else {
     if (!db.agents.some((a) => a.id === target && a.organization_id === orgId)) return "Role tujuan tidak ditemukan.";
@@ -192,7 +195,7 @@ export const relasiRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const index = ctx.db.relations.findIndex((r) => r.id === ctx.params.id && r.organization_id === self.organization_id);
       if (index < 0) return fail(404, "Relasi tidak ditemukan.");
-      ctx.db.relations.splice(index, 1);
+      removeRelations(ctx.db, (r) => r.id === ctx.params.id);
       return ok(null, "Relasi dihapus.");
     },
   },
@@ -228,9 +231,9 @@ export const relasiRoutes: MockRoute[] = [
       const self = requireManager(ctx);
       if (isFailure(self)) return self;
       const memberId = String((ctx.body as { member_id?: unknown })?.member_id ?? "");
-      if (!ctx.db.memberships.some((m) => m.id === memberId && m.organization_id === self.organization_id)) {
-        return fail(422, "Pengguna tidak ditemukan.");
-      }
+      const member = ctx.db.memberships.find((m) => m.id === memberId && m.organization_id === self.organization_id);
+      if (!member) return fail(422, "Pengguna tidak ditemukan.");
+      if (member.access_role === "viewer") return fail(422, "Pemantau tidak bisa menjadi tujuan eskalasi.");
       if (!ctx.db.flow_humans.includes(memberId)) ctx.db.flow_humans.push(memberId);
       return ok(null, "Manusia ditambahkan ke peta.");
     },

@@ -9,7 +9,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, In
 import { Icon } from "../../../_components/admin-icons";
 import { FileGlyph, IngestionStatusView } from "../components/DocumentParts";
 import { ScopeChip } from "../components/DocumentList";
-import { useDeleteDocument, useResponseDetailDocument, useUpdateDocument } from "../hooks/crud";
+import { useDeleteDocument, useResponseDetailDocument, useResponseVersion, useUpdateDocument } from "../hooks/crud";
 import { DOC_TYPE_LABEL, type DetailInterface, type DocumentType, type UpdateInterface } from "../types";
 import PageReader from "./components/PageReader";
 import VersionPanel from "./components/VersionPanel";
@@ -57,8 +57,12 @@ function DocumentDetail() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const accessRole = useAuthStore((state) => state.user?.access_role);
-  const canEdit = accessRole === "owner" || accessRole === "admin";
+  const isManager = accessRole === "owner" || accessRole === "admin";
   const { Document, isLoading, isError, error } = useResponseDetailDocument(id);
+  // Rujukan bisa menunjuk versi yang bukan versi aktif
+  const requested = searchParams.get("versi") ?? "";
+  const otherId = Document && requested !== Document.active_version?.id ? requested : "";
+  const other = useResponseVersion(id, otherId);
   const deleteMutation = useDeleteDocument();
 
   if (isError) {
@@ -78,11 +82,15 @@ function DocumentDetail() {
     );
   }
   if (isLoading || !Document) return <DetailFallback />;
+  const archived = Boolean(Document.archived_at);
+  const canEdit = isManager && !archived;
+  const shown = otherId ? other.Version : Document.active_version;
+  const sections = otherId ? other.Version?.sections ?? [] : Document.sections;
 
   const handleDelete = async () => {
     const ok = await confirmAlert(
       `Hapus "${Document.title}"?`,
-      `Semua versi (${Document.versions.length}) ikut terhapus. Tindakan ini tidak bisa dibatalkan.`,
+      `Role tidak bisa lagi memakai dokumen ini. Bila pernah dirujuk tugas, isinya tetap bisa dibuka dari rujukan itu; bila belum, semua versi (${Document.versions.length}) terhapus permanen.`,
       "Ya, hapus"
     );
     if (ok) deleteMutation.mutate(Document.id, { onSuccess: () => router.push("/admin/pengetahuan") });
@@ -94,6 +102,12 @@ function DocumentDetail() {
         <Icon name="chevron" size={14} className="rotate-90" />
         Semua dokumen
       </Link>
+
+      {archived && (
+        <p className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800" role="status">
+          Dokumen ini sudah dihapus. Isinya disimpan karena pernah dirujuk tugas; role tidak memakainya lagi.
+        </p>
+      )}
 
       <Card glow>
         <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -118,12 +132,34 @@ function DocumentDetail() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_340px] items-start">
-        <PageReader
-          key={`${Document.active_version?.id}-${Document.active_version?.status}`}
-          doc={Document}
-          initialPage={Number(searchParams.get("hlm") ?? 1)}
-          query={searchParams.get("q") ?? ""}
-        />
+        <div className="space-y-3 min-w-0">
+          {otherId && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-brand-soft px-4 py-3 text-sm text-brand-strong rise" role="status">
+              <span>
+                {other.isError
+                  ? "Versi yang dirujuk tidak ditemukan."
+                  : `Anda melihat ${other.Version ? `v${other.Version.version_no}` : "versi lain"}, bukan versi aktif${
+                      Document.active_version ? ` (v${Document.active_version.version_no})` : ""
+                    }.`}
+              </span>
+              <Link href={`/admin/pengetahuan/${Document.id}`} className="font-bold underline">
+                Buka versi aktif
+              </Link>
+            </div>
+          )}
+          {otherId && other.isLoading ? (
+            <Skeleton className="h-[480px] rounded-3xl" />
+          ) : (
+            <PageReader
+              key={`${shown?.id}-${shown?.status}`}
+              title={Document.title}
+              version={shown ?? null}
+              sections={sections}
+              initialPage={Number(searchParams.get("hlm") ?? 1)}
+              query={searchParams.get("q") ?? ""}
+            />
+          )}
+        </div>
         <div className="space-y-4">
           <VersionPanel doc={Document} canEdit={canEdit} />
           <MetadataForm key={Document.updated_at} doc={Document} canEdit={canEdit} />

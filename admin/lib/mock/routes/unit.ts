@@ -1,5 +1,6 @@
 import type { ResponseInterface, UnitColor } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
+import { liveDocuments } from "../knowledge";
 import { fail, list, ok, type MockRoute } from "../router";
 import type { MockDatabase, MockUnit } from "../seed";
 
@@ -154,6 +155,9 @@ export const unitRoutes: MockRoute[] = [
       }
       if (ctx.db.units.some((u) => u.parent_id === unit.id)) {
         return fail(409, "Unit masih punya sub-unit. Pindahkan atau hapus sub-unit terlebih dahulu.");
+      }
+      if (liveDocuments(ctx.db, member.organization_id).some((d) => d.scope === "unit" && d.scope_id === unit.id)) {
+        return fail(409, "Unit masih punya dokumen. Pindahkan lingkup atau hapus dokumennya terlebih dahulu.");
       }
       ctx.db.units.splice(index, 1);
       for (const m of ctx.db.memberships) if (m.unit_id === unit.id) m.unit_id = null;

@@ -11,9 +11,11 @@ import type {
 import { avatarFromSeed, type AvatarConfig } from "@/app/(admin)/_components/agent/avatar-config";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
-import { documentsForAgent, searchDocuments } from "../knowledge";
-import { fail, ok, type MockRoute } from "../router";
+import { documentsForAgent, liveDocuments, searchDocuments } from "../knowledge";
+import { removeRelations } from "../lookup";
+import { fail, ok, paging, type MockRoute } from "../router";
 import type { MockAgent, MockDatabase } from "../seed";
+import { modelOption, monthUsage, settingsOf } from "../settings";
 
 const STATUSES: AgentStatus[] = ["draft", "active", "paused"];
 const FORMATS: OutputFormat[] = ["text", "template", "table", "json"];
@@ -163,8 +165,7 @@ export const roleRoutes: MockRoute[] = [
       const search = (ctx.query.get("search") ?? "").trim().toLowerCase();
       const unitId = ctx.query.get("unit_id") ?? "";
       const status = ctx.query.get("status") ?? "";
-      const skip = Number(ctx.query.get("skip") ?? 0);
-      const limit = Number(ctx.query.get("limit") ?? 50);
+      const { skip, limit } = paging(ctx.query, 50);
 
       const all = ctx.db.agents.filter((a) => a.organization_id === self.organization_id).map((a) => toItem(ctx.db, a));
       const summary: Record<AgentStatus, number> = { draft: 0, active: 0, paused: 0 };
@@ -259,12 +260,16 @@ export const roleRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const index = ctx.db.agents.findIndex((a) => a.id === ctx.params.id && a.organization_id === self.organization_id);
       if (index < 0) return fail(404, "Role tidak ditemukan.");
+      if (liveDocuments(ctx.db, self.organization_id).some((d) => d.scope === "agent" && d.scope_id === ctx.params.id)) {
+        return fail(409, "Role masih punya dokumen. Pindahkan lingkup atau hapus dokumennya terlebih dahulu.");
+      }
       const busy = ctx.db.tasks.some(
         (t) => ["queued", "running", "waiting_approval"].includes(t.status) && ctx.db.task_steps.some((s) => s.task_id === t.id && s.agent_id === ctx.params.id)
       );
       if (busy) return fail(409, "Role masih terlibat dalam tugas yang berjalan. Selesaikan atau hentikan tugasnya terlebih dahulu.");
       const [removed] = ctx.db.agents.splice(index, 1);
-      ctx.db.relations = ctx.db.relations.filter((r) => r.source_id !== removed.id && r.target_id !== removed.id);
+      if (ctx.db.task_steps.some((s) => s.agent_id === removed.id)) ctx.db.archived_agents.push(removed);
+      removeRelations(ctx.db, (r) => r.source_id === removed.id || r.target_id === removed.id);
       delete ctx.db.flow_positions[removed.id];
       return ok(null, "Role dihapus.");
     },
@@ -275,6 +280,7 @@ export const roleRoutes: MockRoute[] = [
     handler: (ctx) => {
       const self = requireMember(ctx);
       if (isFailure(self)) return self;
+      if (self.access_role === "viewer") return fail(403, "Pemantau tidak dapat menjalankan uji coba.");
       const agent = ctx.db.agents.find((a) => a.id === ctx.params.id && a.organization_id === self.organization_id);
       if (!agent) return fail(404, "Role tidak ditemukan.");
       const b = (ctx.body ?? {}) as { brief?: unknown; inputs?: Record<string, unknown> };
@@ -286,6 +292,11 @@ export const roleRoutes: MockRoute[] = [
       const query = [brief, agent.title, ...Object.values(inputs)].join(" ");
       const hits = searchDocuments(ctx.db, documentsForAgent(ctx.db, agent), query, 4);
       const prompt_preview = composePrompt(ctx.db, agent, brief, inputs, hits);
+      // Model hanya dipanggil bila isian lengkap dan ada dokumen yang bisa dirujuk
+      const callsModel = !missing.length && hits.length > 0;
+      if (callsModel && monthUsage(ctx.db, self.organization_id, Date.now()).remaining <= 0) {
+        return fail(409, "Anggaran bulan ini sudah habis, uji coba tidak bisa dijalankan.");
+      }
       let result: TrialResult;
       if (missing.length) {
         result = {
@@ -296,6 +307,8 @@ export const roleRoutes: MockRoute[] = [
           prompt_preview,
           missing_inputs: missing,
           citations: [],
+          cost: 0,
+          model: "",
         };
       } else if (!hits.length) {
         result = {
@@ -307,8 +320,13 @@ export const roleRoutes: MockRoute[] = [
           prompt_preview,
           missing_inputs: [],
           citations: [],
+          cost: 0,
+          model: "",
         };
       } else {
+        const model = modelOption(settingsOf(ctx.db, self.organization_id).models[agent.model_profile]);
+        const cost = model.estimated_step_cost + hits.length * 15;
+        ctx.db.llm_calls.push({ id: newId("call"), organization_id: self.organization_id, agent_id: agent.id, model: model.id, cost, created_at: nowIso() });
         result = {
           simulated: true,
           status: "done",
@@ -323,6 +341,8 @@ export const roleRoutes: MockRoute[] = [
           prompt_preview,
           missing_inputs: [],
           citations: hits,
+          cost,
+          model: model.id,
         };
       }
       return ok(result, "Uji coba selesai (simulasi).");

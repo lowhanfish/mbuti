@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState } from "react";
+import { isMockMode } from "@/lib/transport";
+import { useUrlStore } from "@/store/useUrlStore";
 import { formatDate } from "@/utilities/labels";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "../../../../_components/ui";
 import { FileDropzone, IngestionStatusView } from "../../components/DocumentParts";
@@ -13,6 +16,8 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
   const [dropKey, setDropKey] = useState(0);
   const upload = useUploadVersion(doc.id);
   const activate = useActivateVersion(doc.id);
+  const url = useUrlStore((state) => state.URL.APP);
+  const activeNo = doc.active_version?.version_no ?? 0;
 
   return (
     <Card>
@@ -41,6 +46,11 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
                       Aktif
                     </Badge>
                   )}
+                  {v.version_no > activeNo && (v.status === "queued" || v.status === "processing") && (
+                    <Badge size="sm" variant="accent">
+                      Aktif setelah siap
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-[11px] text-faint">
                   {formatBytes(v.size_bytes)} · {formatDate(v.created_at)}
@@ -55,6 +65,22 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
                   )}
                 </div>
                 {v.status === "failed" && v.error_message && <p className="text-[11px] text-rose-600">{v.error_message}</p>}
+                <div className="flex items-center gap-3 text-[11px] font-semibold">
+                  {!v.is_active && v.status === "ready" && (
+                    <Link href={`/admin/pengetahuan/${doc.id}?versi=${v.id}`} className="text-brand hover:underline">
+                      Lihat isi
+                    </Link>
+                  )}
+                  {isMockMode() ? (
+                    <span className="text-faint" title="Berkas asli baru tersimpan setelah ada backend">
+                      Unduh (butuh backend)
+                    </span>
+                  ) : (
+                    <a href={`${url}/api/v1/admin/pengetahuan/${doc.id}/versions/${v.id}/file`} className="text-brand hover:underline">
+                      Unduh berkas
+                    </a>
+                  )}
+                </div>
               </div>
             </li>
           ))}
@@ -90,7 +116,7 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
                 Unggah sebagai v{Math.max(...doc.versions.map((v) => v.version_no), 0) + 1}
               </Button>
             )}
-            <p className="text-[11px] text-muted">Versi baru langsung menjadi aktif setelah diunggah. Versi lama tetap tersimpan dan bisa diaktifkan kembali.</p>
+            <p className="text-[11px] text-muted">Versi baru menjadi aktif setelah selesai diolah; sampai saat itu role memakai versi lama. Versi lama tetap tersimpan dan bisa diaktifkan kembali.</p>
           </div>
         )}
       </CardContent>

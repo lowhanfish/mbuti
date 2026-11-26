@@ -37,7 +37,7 @@ export default function PengetahuanPage() {
   const handleDelete = async (doc: ResponseInterface) => {
     const ok = await confirmAlert(
       `Hapus "${doc.title}"?`,
-      `Semua versi (${doc.version_count}) ikut terhapus dan role tidak bisa lagi merujuk dokumen ini. Tindakan ini tidak bisa dibatalkan.`,
+      `Role tidak bisa lagi memakai dokumen ini. Bila pernah dirujuk tugas, isinya tetap bisa dibuka dari rujukan itu; bila belum, semua versi (${doc.version_count}) terhapus permanen.`,
       "Ya, hapus"
     );
     if (ok) deleteMutation.mutate(doc.id);

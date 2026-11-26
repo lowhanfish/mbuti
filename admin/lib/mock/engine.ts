@@ -6,6 +6,7 @@
 import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
 import type { ApprovalReason, ApprovalStatus, EventType, StepKind, StepStatus, TaskPriority, TaskStatus } from "@/app/(admin)/admin/tugas/types";
 import { documentsForAgent, searchDocuments } from "./knowledge";
+import { findRelation } from "./lookup";
 import type { MockAgent, MockDatabase, MockRelation } from "./seed";
 import { modelOption, monthUsage, settingsOf } from "./settings";
 
@@ -57,6 +58,8 @@ export interface MockStep {
 export type ApprovalFollowUp =
   | { type: "run_relation"; relation_id: string; from_step_id: string }
   | { type: "route_after"; step_id: string; skip_relation_id: string }
+  /** Izin berkonsultasi; langkah `step_id` ditahan sampai semua izinnya diputuskan */
+  | { type: "run_consult"; relation_id: string; step_id: string }
   | { type: "none" };
 
 export interface MockApproval {
@@ -134,12 +137,21 @@ const simulatedCost = (modelStepCost: number, hits: number, attempt: number) => 
 
 const taskQuery = (task: MockTask, step: MockStep) => [task.title, task.brief, ...Object.values(task.inputs), step.input_notes].join(" ");
 
-const workOutput = (agent: MockAgent, task: MockTask, step: MockStep, hits: SearchHit[]) => {
+/** Masukan konsultasi yang pernah diterima role ini dalam tugas yang sama. */
+const adviceFor = (db: MockDatabase, step: MockStep) => {
+  const own = new Set(db.task_steps.filter((s) => s.task_id === step.task_id && s.agent_id === step.agent_id).map((s) => s.id));
+  return db.task_steps
+    .filter((s) => s.kind === "consult" && s.status === "done" && s.parent_step_id && own.has(s.parent_step_id))
+    .map((s) => s.output);
+};
+
+const workOutput = (agent: MockAgent, task: MockTask, step: MockStep, hits: SearchHit[], advice: string[]) => {
   const lines = [`${agent.title} — hasil simulasi${step.attempt_no > 1 ? ` (perbaikan ke-${step.attempt_no - 1})` : ""}`, ""];
   for (const f of agent.input_spec) if (task.inputs[f.key]) lines.push(`${f.label}: ${task.inputs[f.key]}`);
   if (agent.input_spec.length) lines.push("");
   lines.push(task.brief || task.title);
   if (step.input_notes) lines.push("", `Catatan yang diperhatikan: ${step.input_notes}`);
+  if (advice.length) lines.push("", "Masukan konsultasi yang dipakai:", ...advice.map((a) => `- ${a}`));
   if (hits.length) {
     lines.push("", "Aturan yang dipakai:");
     hits.forEach((h, i) => lines.push(`[${i + 1}] ${h.heading} — ${h.snippet.slice(0, 140)}`));
@@ -182,7 +194,11 @@ const conditionMet = (rel: MockRelation, task: MockTask) => {
     .some((w) => hay.includes(w));
 };
 
-const ownerOf = (db: MockDatabase, agentId: string, task: MockTask) => agentOf(db, agentId)?.owner_member_id ?? task.created_by_member_id;
+/** Penanggung jawab role; pembuat tugas bila kosong, nonaktif, atau pemantau (tidak boleh memutuskan). */
+const ownerOf = (db: MockDatabase, agentId: string, task: MockTask) => {
+  const owner = db.memberships.find((m) => m.id === agentOf(db, agentId)?.owner_member_id);
+  return owner && owner.status === "active" && owner.access_role !== "viewer" ? owner.id : task.created_by_member_id;
+};
 
 const requestApproval = (
   db: MockDatabase,
@@ -194,19 +210,57 @@ const requestApproval = (
   log(db, task, "approval_requested", `Menunggu keputusan ${memberName(db, fields.requested_from_member_id)}: ${fields.question}`, at, fields.step_id);
 };
 
+const runConsult = (db: MockDatabase, task: MockTask, rel: MockRelation, asker: MockStep, at: number) =>
+  addStep(db, task, { agent_id: rel.target_id, kind: "consult", via_relation_id: rel.id, parent_step_id: asker.id, attempt_no: 1, input_notes: rel.expected_output }, at);
+
+/**
+ * Antrekan langkah kerja atau periksa. Konsultasi milik role itu dijalankan lebih dulu agar masukannya terpakai.
+ * Bila ada konsultasi yang perlu izin, langkahnya ditahan di luar antrean sampai semua izin diputuskan.
+ */
+const queueStep = (db: MockDatabase, task: MockTask, fields: Parameters<typeof addStep>[2], at: number) => {
+  const step = addStep(db, task, fields, at);
+  const consults = db.relations.filter(
+    (r) => r.organization_id === task.organization_id && r.source_id === step.agent_id && r.relation_type === "consult" && r.trigger !== "on_rejected"
+  );
+  const applicable = consults.filter((rel) => {
+    if (rel.trigger !== "on_condition" || conditionMet(rel, task)) return true;
+    log(db, task, "relation_skipped", `Kondisi tidak terpenuhi, relasi "${rel.label || rel.relation_type}" dilewati: ${rel.condition}`, at, step.id);
+    return false;
+  });
+  if (!applicable.length) return;
+
+  task.queue.splice(task.queue.indexOf(step.id), 1);
+  for (const rel of applicable.filter((r) => !r.requires_approval)) runConsult(db, task, rel, step, at);
+  const gated = applicable.filter((r) => r.requires_approval);
+  for (const rel of gated) {
+    requestApproval(
+      db,
+      task,
+      {
+        step_id: step.id,
+        reason: "requires_approval",
+        question: `Boleh ${agentOf(db, rel.source_id)?.name} berkonsultasi dengan ${agentOf(db, rel.target_id)?.name} sebelum bekerja?`,
+        requested_from_member_id: ownerOf(db, rel.source_id, task),
+        follow_up: { type: "run_consult", relation_id: rel.id, step_id: step.id },
+      },
+      at
+    );
+  }
+  if (!gated.length) task.queue.push(step.id);
+};
+
+/** Jalankan relasi Periksa atau Serahkan setelah langkah `from`. */
 const runRelation = (db: MockDatabase, task: MockTask, rel: MockRelation, from: MockStep, at: number) => {
   const source = agentOf(db, rel.source_id);
   if (rel.relation_type === "review") {
-    addStep(db, task, { agent_id: rel.target_id, kind: "review", via_relation_id: rel.id, parent_step_id: from.id, attempt_no: 1, input_notes: rel.expected_output }, at);
+    queueStep(db, task, { agent_id: rel.target_id, kind: "review", via_relation_id: rel.id, parent_step_id: from.id, attempt_no: 1, input_notes: rel.expected_output }, at);
   } else if (rel.relation_type === "handoff") {
-    addStep(
+    queueStep(
       db,
       task,
       { agent_id: rel.target_id, kind: "work", via_relation_id: rel.id, parent_step_id: from.id, attempt_no: 1, input_notes: `Diserahkan oleh ${source?.name}: ${rel.expected_output}` },
       at
     );
-  } else if (rel.relation_type === "consult") {
-    addStep(db, task, { agent_id: rel.target_id, kind: "consult", via_relation_id: rel.id, parent_step_id: from.id, attempt_no: 1, input_notes: rel.expected_output }, at);
   }
 };
 
@@ -214,7 +268,8 @@ const runRelation = (db: MockDatabase, task: MockTask, rel: MockRelation, from: 
 const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, skipRelationId: string | null = null) => {
   const rels = db.relations.filter((r) => r.organization_id === task.organization_id && r.source_id === from.agent_id && r.id !== skipRelationId);
   for (const rel of rels) {
-    if (rel.trigger === "on_rejected") continue;
+    // Konsultasi sudah dijalankan sebelum role ini bekerja (lihat queueStep)
+    if (rel.relation_type === "consult" || rel.trigger === "on_rejected") continue;
     if (rel.trigger === "on_condition" && !conditionMet(rel, task)) {
       log(db, task, "relation_skipped", `Kondisi tidak terpenuhi, relasi "${rel.label || rel.relation_type}" dilewati: ${rel.condition}`, at, from.id);
       continue;
@@ -259,13 +314,15 @@ const settle = (db: MockDatabase, task: MockTask, at: number) => {
   }
 };
 
+/** Lewati semua langkah yang belum selesai, termasuk yang ditahan menunggu izin. */
+const skipPendingSteps = (db: MockDatabase, task: MockTask) => {
+  for (const s of db.task_steps) if (s.task_id === task.id && (s.status === "queued" || s.status === "running")) s.status = "skipped";
+  task.queue = [];
+};
+
 /** Hentikan tugas oleh pengaman: langkah yang antre dilewati dan permintaan persetujuan ditutup. */
 const halt = (db: MockDatabase, task: MockTask, status: "failed" | "stopped_budget", message: string, at: number, stepId: string | null = null) => {
-  for (const sid of task.queue) {
-    const s = db.task_steps.find((x) => x.id === sid);
-    if (s) s.status = "skipped";
-  }
-  task.queue = [];
+  skipPendingSteps(db, task);
   for (const a of pendingApprovals(db, task)) {
     a.status = "rejected";
     a.comment = "Tugas dihentikan otomatis.";
@@ -292,7 +349,7 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
   task.cost_used += step.cost;
 
   if (step.kind === "work") {
-    step.output = workOutput(agent, task, step, hits);
+    step.output = workOutput(agent, task, step, hits, adviceFor(db, step));
     log(db, task, "step_done", `${agent.name} menyelesaikan pekerjaan.`, at, step.id);
   } else if (step.kind === "consult") {
     step.output = `Masukan dari ${agent.name}: ${hits[0] ? `${hits[0].heading} — ${hits[0].snippet.slice(0, 160)}` : "tidak ada aturan khusus di dokumen saya untuk hal ini."}`;
@@ -305,13 +362,17 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
   }
 
   if (step.kind === "review") {
-    const rel = db.relations.find((r) => r.id === step.via_relation_id);
+    const rel = findRelation(db, step.via_relation_id);
     const makerStep = db.task_steps.find((s) => s.id === step.parent_step_id);
     const maker = makerStep ? agentOf(db, makerStep.agent_id) : undefined;
     const rounds = rel ? (task.review_rounds[rel.id] ?? 0) : 0;
     // Simulasi: pemeriksaan pertama selalu meminta revisi, berikutnya diterima
     step.verdict = rounds === 0 ? "revise" : "approved";
-    step.output = reviewOutput(agent, maker ?? agent, step.verdict, hits);
+    const advice = adviceFor(db, step);
+    step.output = [
+      reviewOutput(agent, maker ?? agent, step.verdict, hits),
+      ...(advice.length ? ["", "Masukan konsultasi yang dipakai:", ...advice.map((a) => `- ${a}`)] : []),
+    ].join("\n");
     if (step.verdict === "revise" && rel && makerStep && maker) {
       task.review_rounds[rel.id] = rounds + 1;
       makerStep.status = "revise_requested";
@@ -432,7 +493,7 @@ export const createTask = (
   };
   db.tasks.push(task);
   log(db, task, "created", `Tugas dibuat oleh ${memberName(db, fields.created_by_member_id)} untuk ${agentOf(db, fields.entry_agent_id)?.name}.`, at);
-  addStep(db, task, { agent_id: fields.entry_agent_id, kind: "work", via_relation_id: null, parent_step_id: null, attempt_no: 1, input_notes: "" }, at);
+  queueStep(db, task, { agent_id: fields.entry_agent_id, kind: "work", via_relation_id: null, parent_step_id: null, attempt_no: 1, input_notes: "" }, at);
   return task;
 };
 
@@ -456,7 +517,7 @@ export const decideApproval = (
 
   if (decision === "rejected") {
     task.status = "failed";
-    task.queue = [];
+    skipPendingSteps(db, task);
     for (const a of pendingApprovals(db, task)) {
       a.status = "rejected";
       a.comment = "Tugas ditolak pada persetujuan lain.";
@@ -466,7 +527,18 @@ export const decideApproval = (
   }
 
   const step = db.task_steps.find((s) => s.id === approval.step_id);
-  if (decision === "revise" && step) {
+  const follow = approval.follow_up;
+  if (follow.type === "run_consult") {
+    // "Minta revisi" berarti: kerjakan tanpa konsultasi ini, dengan catatan
+    const rel = db.relations.find((r) => r.id === follow.relation_id);
+    if (step && decision === "approved" && rel) runConsult(db, task, rel, step, at);
+    if (step && decision === "revise") step.input_notes = [step.input_notes, `Catatan ${who}: ${comment}`].filter(Boolean).join(" ");
+    const stillGated = pendingApprovals(db, task).some((a) => a.follow_up.type === "run_consult" && a.follow_up.step_id === follow.step_id);
+    if (step && !stillGated) {
+      step.ready_at = at + QUEUE_MS;
+      task.queue.push(step.id);
+    }
+  } else if (decision === "revise" && step) {
     // Revisi dikerjakan ulang oleh role pembuat hasil terakhir
     const makerStep = step.kind === "review" ? db.task_steps.find((s) => s.id === step.parent_step_id) ?? step : step;
     addStep(
@@ -490,11 +562,7 @@ export const decideApproval = (
 };
 
 export const cancelTask = (db: MockDatabase, task: MockTask, memberId: string, at: number) => {
-  for (const sid of task.queue) {
-    const s = db.task_steps.find((x) => x.id === sid);
-    if (s) s.status = "skipped";
-  }
-  task.queue = [];
+  skipPendingSteps(db, task);
   for (const a of pendingApprovals(db, task)) {
     a.status = "rejected";
     a.comment = "Tugas dihentikan.";

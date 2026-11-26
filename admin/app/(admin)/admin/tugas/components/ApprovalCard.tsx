@@ -46,7 +46,7 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
               <Avatar2D avatar={approval.last_agent.avatar} size={34} />
               <span className="text-xs">
                 <span className="block font-semibold text-ink">{approval.last_agent.name}</span>
-                <span className="block text-faint">hasil terakhir</span>
+                <span className="block text-faint">{approval.last_output ? "hasil terakhir" : "belum bekerja"}</span>
               </span>
             </div>
           )}

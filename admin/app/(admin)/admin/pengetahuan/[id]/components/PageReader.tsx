@@ -4,29 +4,41 @@ import React, { useState } from "react";
 import { Card, EmptyState } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Highlight } from "../../components/DocumentParts";
-import { citationText, type DetailInterface } from "../../types";
+import { citationText, type DocumentSection, type DocumentVersion } from "../../types";
 
-export default function PageReader({ doc, initialPage, query }: { doc: DetailInterface; initialPage: number; query: string }) {
+export default function PageReader({
+  title,
+  version,
+  sections,
+  initialPage,
+  query,
+}: {
+  title: string;
+  version: DocumentVersion | null;
+  sections: DocumentSection[];
+  initialPage: number;
+  query: string;
+}) {
   const [page, setPage] = useState(initialPage);
   const [copied, setCopied] = useState(false);
-  const sections = doc.sections;
   const current = sections.find((s) => s.page_no === page) ?? sections[0];
   const terms = query
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3);
-  const version = doc.active_version;
 
   if (!version || version.status !== "ready" || !current) {
     return (
       <Card>
         <EmptyState
           icon={<Icon name="book" size={26} />}
-          title={version?.status === "failed" ? "Versi aktif gagal diolah" : "Halaman belum bisa dibaca"}
+          title={version?.status === "failed" ? "Versi ini gagal diolah" : "Halaman belum bisa dibaca"}
           description={
             version?.status === "failed"
               ? version.error_message ?? "Unggah ulang berkas yang berisi teks."
-              : "Dokumen masih diolah. Halaman tampil otomatis setelah selesai."
+              : version?.status === "ready"
+                ? "Tidak ada isi yang tersimpan untuk versi ini."
+                : "Dokumen masih diolah. Halaman tampil otomatis setelah selesai."
           }
         />
       </Card>
@@ -35,7 +47,7 @@ export default function PageReader({ doc, initialPage, query }: { doc: DetailInt
 
   const copyCitation = async () => {
     try {
-      await navigator.clipboard.writeText(citationText(doc.title, version.version_no, current.page_no));
+      await navigator.clipboard.writeText(citationText(title, version.version_no, current.page_no));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -89,7 +101,7 @@ export default function PageReader({ doc, initialPage, query }: { doc: DetailInt
         <div className="rounded-2xl bg-white border border-line p-5 text-sm text-ink leading-7 whitespace-pre-wrap shadow-inner">
           <Highlight text={current.text} terms={terms} />
         </div>
-        <p className="text-[11px] text-faint mt-3">Rujukan: {citationText(doc.title, version.version_no, current.page_no)}</p>
+        <p className="text-[11px] text-faint mt-3">Rujukan: {citationText(title, version.version_no, current.page_no)}</p>
       </article>
     </Card>
   );

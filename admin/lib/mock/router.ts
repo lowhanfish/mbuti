@@ -39,9 +39,20 @@ export const ok = <T>(data: T, message = "Berhasil.", status = 200): MockRespons
   body: { success: true, statusCode: status, message, data },
 });
 
+export const MAX_LIMIT = 200;
+
+/** skip/limit dari query; limit dibatasi MAX_LIMIT. */
+export const paging = (query: URLSearchParams, defaultLimit: number) => {
+  const skip = Math.trunc(Number(query.get("skip") ?? 0));
+  const limit = Math.trunc(Number(query.get("limit") ?? defaultLimit));
+  return {
+    skip: skip > 0 ? skip : 0,
+    limit: limit > 0 ? Math.min(limit, MAX_LIMIT) : defaultLimit,
+  };
+};
+
 export const list = <T>(items: T[], query: URLSearchParams): MockResponse => {
-  const skip = Number(query.get("skip") ?? 0);
-  const limit = Number(query.get("limit") ?? 10);
+  const { skip, limit } = paging(query, 10);
   return {
     status: 200,
     body: {

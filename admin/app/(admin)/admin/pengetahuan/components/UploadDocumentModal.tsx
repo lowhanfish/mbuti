@@ -9,7 +9,7 @@ import { DOC_TYPE_LABEL, SCOPE_LABEL, type DocumentScope, type DocumentType } fr
 import { FileDropzone } from "./DocumentParts";
 
 const SCOPE_HINT: Record<DocumentScope, string> = {
-  organization: "Bisa dibaca role yang lingkup pengetahuannya seluruh organisasi.",
+  organization: "Bisa dibaca semua role.",
   unit: "Bisa dibaca role di unit ini yang lingkupnya unit atau organisasi.",
   agent: "Khusus satu role; juga terbaca role lain di unitnya yang lingkupnya unit.",
 };

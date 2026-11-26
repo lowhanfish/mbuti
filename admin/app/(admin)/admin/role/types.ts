@@ -72,6 +72,10 @@ export interface TrialResult {
   missing_inputs: string[];
   /** Potongan dokumen yang dipakai sebagai dasar (kosong bila tidak ada) */
   citations: SearchHit[];
+  /** Biaya dalam rupiah; 0 bila model tidak dipanggil */
+  cost: number;
+  /** Kosong bila model tidak dipanggil */
+  model: string;
 }
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
@@ -88,9 +92,9 @@ export const OUTPUT_FORMAT_LABEL: Record<OutputFormat, string> = {
 };
 
 export const KNOWLEDGE_SCOPE_LABEL: Record<KnowledgeScope, { label: string; hint: string }> = {
-  own: { label: "Dokumen role ini saja", hint: "Paling ketat. Cocok untuk role dengan SOP khusus." },
-  unit: { label: "Dokumen satu unit", hint: "Ikut membaca dokumen unit dan role lain di unit yang sama." },
-  organization: { label: "Seluruh organisasi", hint: "Membaca semua dokumen organisasi. Paling luas." },
+  own: { label: "Dokumen role ini", hint: "Paling ketat: dokumen role ini dan dokumen seluruh organisasi." },
+  unit: { label: "Dokumen satu unit", hint: "Ditambah dokumen unit dan role lain di unit yang sama." },
+  organization: { label: "Semua dokumen", hint: "Paling luas, termasuk milik unit dan role lain." },
 };
 
 export const MODEL_PROFILE_LABEL: Record<ModelProfile, { label: string; hint: string }> = {

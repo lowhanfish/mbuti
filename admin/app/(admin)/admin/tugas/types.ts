@@ -125,6 +125,17 @@ export interface ResponseListInterface {
   summary: Record<TaskStatus, number>;
 }
 
+export interface ApprovalListInterface {
+  success: boolean;
+  statusCode: number;
+  total: number;
+  skip: number;
+  limit: number;
+  data: ApprovalInterface[];
+  /** Jumlah yang menunggu keputusan pengguna ini, apa pun saringannya */
+  pending_count: number;
+}
+
 export interface DecideInterface {
   decision: "approved" | "rejected" | "revise";
   comment: string;

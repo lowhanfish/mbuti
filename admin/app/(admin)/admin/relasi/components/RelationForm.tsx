@@ -6,7 +6,8 @@ import { Icon } from "../../../_components/admin-icons";
 import {
   PAYLOAD_LABEL,
   RELATION_STYLE,
-  TRIGGER_LABEL,
+  SELECTABLE_TRIGGERS,
+  triggerLabel,
   type GraphNodeKind,
   type PayloadSpec,
   type RelationFields,
@@ -75,7 +76,10 @@ export default function RelationForm({
           label="Kapan dijalankan"
           value={value.trigger}
           onChange={(e) => set("trigger", e.target.value as RelationTrigger)}
-          options={Object.entries(TRIGGER_LABEL).map(([v, label]) => ({ value: v, label }))}
+          options={(SELECTABLE_TRIGGERS.includes(value.trigger) ? SELECTABLE_TRIGGERS : [...SELECTABLE_TRIGGERS, value.trigger]).map((v) => ({
+            value: v,
+            label: triggerLabel(value.relation_type, v),
+          }))}
         />
         <Select
           label="Yang dikirim"
@@ -91,7 +95,11 @@ export default function RelationForm({
           value={value.condition}
           onChange={(e) => set("condition", e.target.value)}
           placeholder="mis. Nilai pembayaran di atas Rp50 juta"
-          helperText="Dinilai model profil cepat dari hasil kerja role sumber."
+          helperText={
+            value.relation_type === "consult"
+              ? "Dinilai model profil cepat dari isi tugas, sebelum role sumber bekerja."
+              : "Dinilai model profil cepat dari hasil kerja role sumber."
+          }
           maxLength={500}
         />
       )}

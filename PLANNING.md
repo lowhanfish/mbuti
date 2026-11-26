@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). A8: kontrak API sudah ditulis, **menunggu tinjauan**; backend belum dimulai.
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai; berikutnya B0 (backend belum dimulai).
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -205,7 +205,9 @@ Aturan saat menyimpan peta relasi:
 
 - `handoff` tidak boleh membentuk lingkaran. Lingkaran hanya diizinkan lewat `review` karena dibatasi `max_revisions`.
 - Satu role boleh punya beberapa relasi keluar. Jika lebih dari satu cocok, semuanya dijalankan paralel, lalu tugas menunggu semuanya selesai.
-- Role dan relasi tidak dihapus permanen bila sudah dipakai tugas; status diubah menjadi nonaktif.
+- Role dan relasi tidak dihapus permanen bila sudah dipakai tugas; ditandai terhapus (`deleted_at`).
+- `consult` dijalankan sebelum role sumber bekerja agar masukannya terpakai.
+- Pemantau tidak bisa menjadi tujuan eskalasi.
 
 ### 6.3 Pengetahuan
 
@@ -216,6 +218,8 @@ Aturan saat menyimpan peta relasi:
 | `document_sections` | version_id, page_no, heading_path, order_no, text |
 | `document_chunks` | section_id, text, tsvector, embedding `vector(768)` |
 | `ingestion_jobs` | version_id, status, error_code, attempts, started_at, finished_at |
+
+Versi baru menjadi aktif hanya setelah selesai diolah. Rujukan menyimpan versi yang dipakai; dokumen yang pernah dirujuk hanya ditandai terhapus. Dokumen berlingkup organisasi terbaca semua role.
 
 Format versi pertama: PDF berteks, DOCX, TXT, MD. Rujukan memakai halaman (PDF) atau judul bagian (DOCX/MD). Hasil scan dan OCR ditunda.
 
@@ -232,7 +236,7 @@ Pencarian memakai gabungan kata kunci (`tsvector`) dan kemiripan makna (pgvector
 | `reviews` | step_id (langkah pemeriksa), target_artifact_id, verdict (`approved`, `revise`), notes, criteria_results (JSON) |
 | `approvals` | task_id, step_id, requested_from (user/akses), decision (`approved`, `rejected`, `revise`), comment, decided_by, decided_at |
 | `task_events` | task_id, step_id, type, message, data (JSON) untuk linimasa |
-| `llm_calls` | step_id, provider, model, input_tokens, output_tokens, cost, latency_ms, status |
+| `llm_calls` | organization_id, agent_id, step_id (kosong untuk uji coba), provider, model, input_tokens, output_tokens, cost, latency_ms, status |
 
 Status tugas: `draft` → `queued` → `running` → `waiting_review` / `waiting_approval` → `completed`, atau `failed` / `cancelled` / `stopped_budget`.
 
@@ -254,6 +258,8 @@ Status langkah: `queued` → `running` → `done` / `revise_requested` / `failed
    - Tidak ada relasi keluar: tugas selesai.
 4. Pengaman (`engine/guards.py`): batas langkah per tugas (bawaan 20), batas biaya per tugas dan per bulan per organisasi, batas waktu per panggilan model, percobaan ulang dengan jeda untuk galat sementara, dan idempoten per langkah agar langkah tidak diproses dua kali.
 5. Versi pertama tidak memberi agen alat lain (internet, email, berkas di luar sistem).
+
+Biaya dalam rupiah dihitung dari token memakai tabel harga per model dan kurs di konfigurasi server. Rincian perilaku mesin ada di `admin/API_CONTRACT.md` bagian 12.
 
 **Penyedia model.** Gemini lewat antarmuka `LLMProvider` (implementasi `gemini` dan `mock` untuk uji), sehingga penyedia lain bisa ditambah tanpa mengubah mesin.
 
@@ -299,7 +305,7 @@ Membaca dokumen (PDF berteks, DOCX) dilakukan tanpa model AI. Model Gemini multi
 
 **Peta Relasi**: node = role (dikelompokkan per unit), garis berwarna per jenis relasi. Klik garis membuka panel aturan relasi. Validasi lingkaran `handoff` dilakukan sebelum simpan. Posisi node disimpan.
 
-**Buat tugas**: pilih role atau unit, isi judul dan arahan, isian sesuai `input_spec` role, lampiran, batas biaya, tenggat. Pratinjau rute: role mana saja yang kemungkinan terlibat menurut peta.
+**Buat tugas**: pilih role, isi judul dan arahan, isian sesuai `input_spec` role, batas biaya, tenggat (tugas ke unit dan lampiran ditunda). Pratinjau rute: role mana saja yang kemungkinan terlibat menurut peta.
 
 **Detail tugas**: linimasa langkah (siapa, kapan, status, biaya), hasil tiap langkah dengan rujukan yang bisa diklik ke halaman dokumen, catatan pemeriksaan, tombol setujui / minta revisi / tolak, dan tombol hentikan tugas. Data diperbarui berkala (polling TanStack Query) selama tugas berjalan.
 
@@ -338,7 +344,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - `deps.py`: `get_db`, `get_current_user`, `get_current_membership(org_id)`, `require_access("admin", ...)`.
 - `CRUDBase` hanya untuk tabel sederhana (unit, pengaturan). Role, relasi, tugas, dan dokumen memakai service sendiri.
 - Unggahan disimpan di `server/uploads/<organization_id>/...`, dilayani lewat endpoint yang memeriksa hak akses, bukan folder statis publik.
-- Kunci API penyedia model disimpan terenkripsi.
+- Kunci API penyedia model hanya ada di `server/.env`, tidak disimpan di database.
 - Celery: antrean `ingestion` dan `execution` terpisah agar olah dokumen besar tidak menahan tugas.
 - Uji: database `mbuti_test`, penyedia model `mock`, uji isolasi antar-organisasi untuk setiap endpoint.
 
@@ -384,21 +390,21 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 **A8. Kontrak API**
 - [x] Tulis [`admin/API_CONTRACT.md`](admin/API_CONTRACT.md) dari `types.ts` dan pengendali mock.
-- [ ] **Ditinjau bersama sebelum backend dimulai**, termasuk keputusan di bagian 13 kontrak.
+- [x] Ditinjau bersama; seluruh usulan disetujui (26 November 2026, kontrak bagian 13) dan diterapkan ke data contoh.
 
 ### Fase B — Backend
 
 **B0. Kerangka backend**: `server/` dengan venv, FastAPI, config, exceptions, logging, Alembic, koneksi PostgreSQL, Celery, health check, pytest.
 
-**B1. Auth dan organisasi**: register, login, refresh, logout, CSRF, keanggotaan, unit, uji isolasi.
+**B1. Auth dan organisasi**: login, refresh, logout, CSRF, skrip akun pertama, keanggotaan, unit, uji isolasi. Undangan dan pendaftaran menyusul.
 
-**B2. Role dan relasi**: CRUD, validasi graf, nonaktif alih-alih hapus.
+**B2. Role dan relasi**: CRUD, validasi graf, tandai terhapus alih-alih hapus.
 
-**B3. Pengetahuan**: unggah, worker ekstraksi, potong, embedding, pencarian gabungan, endpoint uji pencarian.
+**B3. Pengetahuan**: unggah, worker ekstraksi, potong, embedding, pencarian gabungan, endpoint uji pencarian, baca versi lama, unduh berkas.
 
 **B4. Eksekusi satu role**: provider model, runner, rujukan, biaya, uji coba role dari tab "Uji coba".
 
-**B5. Relasi dalam eksekusi**: handoff, review dengan batas revisi, eskalasi, persetujuan, hentikan tugas, pengaman biaya dan langkah.
+**B5. Relasi dalam eksekusi**: handoff, review dengan batas revisi, eskalasi, persetujuan, hentikan tugas, pengaman biaya dan langkah, konsultasi sebelum bekerja, pemicu `on_rejected` (lalu tampilkan kembali pilihannya di peta).
 
 **B6. Penyambungan**: frontend beralih `NEXT_PUBLIC_DATA_SOURCE=api`, perbaiki selisih kontrak, kantor 3D membaca status nyata.
 
@@ -428,10 +434,14 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 | # | Pertanyaan | Usulan |
 |---|---|---|
 | 1 | Versi Gemini untuk tiap profil (cepat, seimbang, teliti) | Isi di `.env` saat B4, setelah cek model yang aktif di akun |
-| 2 | Satu organisasi atau banyak organisasi (SaaS) di versi pertama | Struktur multi-organisasi sejak awal, pendaftaran terbuka belakangan |
 | 3 | Contoh role untuk data contoh dan uji | Penyusun Surat Dinas dan Pemeriksa Surat |
 | 4 | Bahasa antarmuka | Bahasa Indonesia, teks dikumpulkan agar mudah diterjemahkan |
 | 5 | Server tujuan deploy | Perlu masukan sebelum fase C |
+
+Sudah diputuskan (26 November 2026):
+
+- Satu organisasi per pengguna di versi pertama; tabel tetap multi-organisasi, pendaftaran terbuka belakangan.
+- Keputusan lain tentang API dan perilaku ada di `admin/API_CONTRACT.md` bagian 13.
 
 Sudah diputuskan (25 November 2026):
 

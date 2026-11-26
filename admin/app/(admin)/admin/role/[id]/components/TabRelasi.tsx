@@ -6,7 +6,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton }
 import { Icon } from "../../../../_components/admin-icons";
 import { buttonClasses } from "../../../../_components/ui/button-classes";
 import { useResponseGraph } from "../../../relasi/hooks/crud";
-import { PAYLOAD_LABEL, RELATION_STYLE, TRIGGER_LABEL, type RelationInterface } from "../../../relasi/types";
+import { PAYLOAD_LABEL, RELATION_STYLE, triggerLabel, type RelationInterface } from "../../../relasi/types";
 import type { ResponseInterface } from "../../types";
 
 function RelationCard({
@@ -36,7 +36,7 @@ function RelationCard({
       </div>
       {r.expected_output && <p className="text-xs text-muted mt-2 leading-relaxed">{r.expected_output}</p>}
       <div className="flex flex-wrap gap-1.5 mt-2.5">
-        <Badge size="sm">{TRIGGER_LABEL[r.trigger]}</Badge>
+        <Badge size="sm">{triggerLabel(r.relation_type, r.trigger)}</Badge>
         <Badge size="sm">{PAYLOAD_LABEL[r.payload_spec]}</Badge>
         {r.relation_type === "review" && (
           <Badge size="sm" variant="accent">
@@ -83,7 +83,7 @@ export default function TabRelasi({ role }: { role: ResponseInterface }) {
     <div className="grid gap-4 lg:grid-cols-2">
       {(
         [
-          ["Setelah bekerja, " + role.name + "…", outgoing, "out"],
+          ["Relasi keluar dari " + role.name, outgoing, "out"],
           ["Menerima pekerjaan dari", incoming, "in"],
         ] as const
       ).map(([title, list, dir]) => (

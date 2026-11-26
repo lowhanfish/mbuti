@@ -13,6 +13,8 @@ export interface MockDocument {
   scope_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Terisi bila dihapus setelah pernah dirujuk (soft delete) */
+  deleted_at?: string;
 }
 
 export interface MockDocVersion {
@@ -28,6 +30,8 @@ export interface MockDocVersion {
   processing_started_at: string;
   fail_reason: string | null;
   uploaded_by_member_id: string | null;
+  /** Menggantikan versi aktif begitu selesai diolah */
+  activate_when_ready?: boolean;
   sections: DocumentSection[];
   created_at: string;
 }

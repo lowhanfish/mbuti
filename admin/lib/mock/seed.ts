@@ -83,6 +83,16 @@ export interface MockRelation extends RelationFields {
   updated_at: string;
 }
 
+/** Panggilan model di luar langkah tugas (uji coba role); biayanya ikut anggaran bulanan. */
+export interface MockLlmCall {
+  id: string;
+  organization_id: string;
+  agent_id: string;
+  model: string;
+  cost: number;
+  created_at: string;
+}
+
 export interface MockDatabase {
   version: number;
   organizations: MockOrganization[];
@@ -103,11 +113,15 @@ export interface MockDatabase {
   task_events: MockEvent[];
   /** Pengaturan model AI dan batas biaya per organisasi */
   settings: MockSettings[];
+  llm_calls: MockLlmCall[];
+  /** Role dan relasi yang dihapus setelah dipakai tugas */
+  archived_agents: MockAgent[];
+  archived_relations: MockRelation[];
   session: { user_id: string } | null;
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 7;
+export const MOCK_DB_VERSION = 8;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -207,6 +221,9 @@ const createBase = (): MockDatabase => ({
   approvals: [],
   task_events: [],
   settings: [defaultSettings(ORG, T0)],
+  llm_calls: [],
+  archived_agents: [],
+  archived_relations: [],
   session: null,
 });
 

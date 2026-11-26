@@ -11,14 +11,15 @@ import {
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, requireMember, text } from "../context";
 import { cancelTask, createTask, decideApproval, type MockApproval, type MockTask } from "../engine";
-import { fail, ok, type MockRoute } from "../router";
+import { findAgent, findRelation } from "../lookup";
+import { fail, ok, paging, type MockRoute } from "../router";
 import type { MockDatabase, MockMembership } from "../seed";
 import { monthUsage, settingsOf } from "../settings";
 
 const PRIORITIES: TaskPriority[] = ["low", "normal", "high"];
 
 export const agentRef = (db: MockDatabase, agentId: string): AgentRef => {
-  const a = db.agents.find((x) => x.id === agentId);
+  const a = findAgent(db, agentId);
   const unit = db.units.find((u) => u.id === a?.unit_id);
   return {
     id: agentId,
@@ -79,7 +80,7 @@ const toApproval = (db: MockDatabase, a: MockApproval): ApprovalInterface => {
 };
 
 const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
-  const entry = db.agents.find((a) => a.id === t.entry_agent_id);
+  const entry = findAgent(db, t.entry_agent_id);
   return {
     ...toItem(db, t),
     inputs: Object.entries(t.inputs)
@@ -91,7 +92,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
         id: s.id,
         agent: agentRef(db, s.agent_id),
         kind: s.kind,
-        via_relation_type: db.relations.find((r) => r.id === s.via_relation_id)?.relation_type ?? null,
+        via_relation_type: findRelation(db, s.via_relation_id)?.relation_type ?? null,
         attempt_no: s.attempt_no,
         status: s.status,
         input_notes: s.input_notes,
@@ -112,7 +113,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
 };
 
 export const canDecide = (self: MockMembership, a: MockApproval) =>
-  self.access_role === "owner" || self.access_role === "admin" || a.requested_from_member_id === self.id;
+  self.access_role === "owner" || self.access_role === "admin" || (self.access_role !== "viewer" && a.requested_from_member_id === self.id);
 
 const BASE = "/api/v1/admin/tugas";
 
@@ -126,8 +127,7 @@ export const tugasRoutes: MockRoute[] = [
       const search = (ctx.query.get("search") ?? "").trim().toLowerCase();
       const status = ctx.query.get("status") ?? "";
       const agentId = ctx.query.get("agent_id") ?? "";
-      const skip = Number(ctx.query.get("skip") ?? 0);
-      const limit = Number(ctx.query.get("limit") ?? 50);
+      const { skip, limit } = paging(ctx.query, 50);
 
       const all = ctx.db.tasks.filter((t) => t.organization_id === self.organization_id).map((t) => toItem(ctx.db, t));
       const summary = { queued: 0, running: 0, waiting_approval: 0, completed: 0, failed: 0, cancelled: 0, stopped_budget: 0 } as Record<TaskStatus, number>;
@@ -193,7 +193,8 @@ export const tugasRoutes: MockRoute[] = [
           inputs,
           entry_agent_id: agent.id,
           priority: PRIORITIES.includes(b.priority as TaskPriority) ? (b.priority as TaskPriority) : "normal",
-          due_at: typeof b.due_at === "string" && b.due_at ? new Date(b.due_at).toISOString() : null,
+          // Tanggal tanpa jam berarti sampai akhir hari itu
+          due_at: typeof b.due_at === "string" && b.due_at ? new Date(b.due_at.length === 10 ? `${b.due_at}T23:59:59` : b.due_at).toISOString() : null,
           budget_limit: budget,
           created_by_member_id: self.id,
         },
@@ -224,6 +225,7 @@ export const tugasRoutes: MockRoute[] = [
       const self = requireMember(ctx);
       if (isFailure(self)) return self;
       const status = ctx.query.get("status") ?? "pending";
+      const { skip, limit } = paging(ctx.query, 50);
       const orgTasks = new Set(ctx.db.tasks.filter((t) => t.organization_id === self.organization_id).map((t) => t.id));
       const visible = ctx.db.approvals.filter((a) => orgTasks.has(a.task_id) && canDecide(self, a));
       const list = visible
@@ -236,9 +238,9 @@ export const tugasRoutes: MockRoute[] = [
           success: true,
           statusCode: 200,
           total: list.length,
-          skip: 0,
-          limit: list.length,
-          data: list,
+          skip,
+          limit,
+          data: list.slice(skip, skip + limit),
           pending_count: visible.filter((a) => a.status === "pending").length,
         },
       };

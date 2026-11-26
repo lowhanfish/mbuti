@@ -31,14 +31,16 @@ export const useResponseOptionUnit = () => {
   return { List: data?.data ?? [], isLoading };
 };
 
-/** Anggota aktif untuk pilihan penanggung jawab unit. */
-export const useResponseOptionLead = () => {
+/** Anggota aktif untuk pilihan orang; `excludeViewers` untuk tujuan eskalasi. */
+export const useResponseOptionLead = ({ excludeViewers = false } = {}) => {
   const url = useUrlStore((state) => state.URL.APP);
   const { data, isLoading } = useQuery({
     queryFn: () => fetchData<MemberListInterface>(`${url}/api/v1/admin/pengguna/read?skip=0&limit=200&status=active`),
     queryKey: ["organisasi-pengguna", "lead-option"],
   });
-  const List: ListOptionSchema = (data?.data ?? []).map((m) => ({ id: m.id, value: m.full_name, sub_value: m.email }));
+  const List: ListOptionSchema = (data?.data ?? [])
+    .filter((m) => !excludeViewers || m.access_role !== "viewer")
+    .map((m) => ({ id: m.id, value: m.full_name, sub_value: m.email }));
   return { List, isLoading };
 };
 

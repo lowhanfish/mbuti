@@ -35,7 +35,7 @@ export interface ResponseInterface {
   provider: "gemini";
   profiles: ModelProfileSetting[];
   available_models: ModelOption[];
-  /** Kosong untuk anggota dan pemantau */
+  /** Hanya terisi untuk pemilik */
   api_keys: ApiKeyInfo[];
   embedding: { model: string; dimension: number };
   updated_at: string;

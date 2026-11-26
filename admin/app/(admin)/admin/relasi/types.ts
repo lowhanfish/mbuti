@@ -84,7 +84,7 @@ export const RELATION_STYLE: Record<
   consult: {
     label: "Konsultasi",
     verb: "bertanya ke",
-    hint: "Meminta masukan tanpa memindahkan pekerjaan.",
+    hint: "Meminta masukan sebelum bekerja; pekerjaan tidak berpindah.",
     color: "#14b8a6",
     dashed: true,
     icon: "users",
@@ -104,6 +104,13 @@ export const TRIGGER_LABEL: Record<RelationTrigger, string> = {
   on_rejected: "Bila ditolak / gagal",
   on_condition: "Bila kondisi terpenuhi",
 };
+
+/** Pemicu yang ditawarkan. `on_rejected` belum dijalankan mesin, jadi disembunyikan sampai ada. */
+export const SELECTABLE_TRIGGERS: RelationTrigger[] = ["on_complete", "on_condition"];
+
+/** Konsultasi dijalankan sebelum role sumber bekerja, bukan sesudahnya. */
+export const triggerLabel = (type: RelationType, trigger: RelationTrigger) =>
+  type === "consult" && trigger === "on_complete" ? "Sebelum bekerja" : TRIGGER_LABEL[trigger];
 
 export const PAYLOAD_LABEL: Record<PayloadSpec, string> = {
   result_only: "Hasil saja",

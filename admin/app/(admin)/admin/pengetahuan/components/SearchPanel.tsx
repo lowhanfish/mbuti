@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Input } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { useSearchDocuments } from "../hooks/crud";
-import { citationText } from "../types";
+import { citationHref, citationText } from "../types";
 import { Highlight } from "./DocumentParts";
 
 /** Uji pencarian: memperlihatkan potongan dokumen yang akan ditemukan role untuk sebuah pertanyaan. */
@@ -46,7 +46,7 @@ export default function SearchPanel({ agentId = "", title = "Uji pencarian" }: {
               Hits.map((h, i) => (
                 <Link
                   key={`${h.document_id}-${h.page_no}`}
-                  href={`/admin/pengetahuan/${h.document_id}?hlm=${h.page_no}&q=${encodeURIComponent(debounced)}`}
+                  href={citationHref(h, debounced)}
                   className="block rounded-2xl border border-line bg-white p-3 hover:border-brand/40 hover:shadow-md transition-all rise"
                   style={{ animationDelay: `${i * 50}ms` }}
                 >

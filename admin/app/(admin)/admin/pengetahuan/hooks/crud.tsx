@@ -5,7 +5,14 @@ import { fetchData } from "@/lib/api_secure";
 import { swallAlert } from "@/lib/show_swall";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
-import type { DetailInterface, ResponseInterface, ResponseListInterface, SearchHit, UpdateInterface } from "../types";
+import type {
+  DetailInterface,
+  ResponseInterface,
+  ResponseListInterface,
+  SearchHit,
+  UpdateInterface,
+  VersionDetailInterface,
+} from "../types";
 
 const BASE = "/api/v1/admin/pengetahuan";
 const QUERY_KEY = "pengetahuan";
@@ -48,6 +55,21 @@ export const useResponseDetailDocument = (id: string) => {
       pollWhileProcessing(Boolean(query.state.data?.data.versions.some((v) => v.status === "queued" || v.status === "processing"))),
   });
   return { Document: data?.data, isLoading, isError, error };
+};
+
+/** Isi satu versi tertentu; dipakai saat membuka rujukan ke versi lama. */
+export const useResponseVersion = (id: string, versionId: string) => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const { data, isLoading, isError, error } = useQuery({
+    queryFn: () => fetchData<ApiResponse<VersionDetailInterface>>(`${url}${BASE}/${id}/versions/${versionId}`),
+    queryKey: [QUERY_KEY, "version", id, versionId],
+    enabled: Boolean(id && versionId),
+    refetchInterval: (query) => {
+      const s = query.state.data?.data.status;
+      return pollWhileProcessing(s === "queued" || s === "processing");
+    },
+  });
+  return { Version: data?.data, isLoading, isError, error };
 };
 
 export const useSearchDocuments = (q: string, agentId: string = "") => {

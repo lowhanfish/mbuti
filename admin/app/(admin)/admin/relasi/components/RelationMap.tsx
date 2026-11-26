@@ -180,7 +180,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
   const resetPositions = useResetPositions();
   const createRelation = useCreateRelation();
   const addHuman = useAddHuman();
-  const { List: members } = useResponseOptionLead();
+  const { List: members } = useResponseOptionLead({ excludeViewers: true });
 
   const route = useMemo(() => (selectedNode ? downstream(selectedNode, graph.relations) : null), [selectedNode, graph.relations]);
 
@@ -360,7 +360,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
       )}
 
       {humanPicker && (
-        <Modal isOpen onClose={() => setHumanPicker(false)} title="Tambah manusia ke peta" description="Manusia menjadi tujuan relasi Eskalasi." maxWidth="sm">
+        <Modal isOpen onClose={() => setHumanPicker(false)} title="Tambah manusia ke peta" description="Manusia menjadi tujuan relasi Eskalasi. Pemantau tidak bisa dipilih." maxWidth="sm">
           <ul className="space-y-1.5">
             {members
               .filter((m) => !humansOnMap.has(m.id))
@@ -379,7 +379,7 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
                   </button>
                 </li>
               ))}
-            {members.every((m) => humansOnMap.has(m.id)) && <li className="text-sm text-faint text-center py-4">Semua anggota aktif sudah ada di peta.</li>}
+            {members.every((m) => humansOnMap.has(m.id)) && <li className="text-sm text-faint text-center py-4">Semua anggota yang bisa memutuskan sudah ada di peta.</li>}
           </ul>
         </Modal>
       )}

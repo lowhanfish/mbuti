@@ -66,6 +66,7 @@ function RoutePreview({ agentId, limits }: { agentId: string; limits?: BudgetSet
               {r.relation_type === "review" && (
                 <span className="text-white/50"> · maks {Math.min(r.max_revisions, Graph.revision_limit)}× revisi</span>
               )}
+              {r.relation_type === "consult" && <span className="text-white/50"> · sebelum {name(r.source_id)} bekerja</span>}
               {r.trigger === "on_condition" && <span className="block text-white/50 mt-0.5">bila: {r.condition}</span>}
             </li>
           ))}

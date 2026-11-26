@@ -1,6 +1,8 @@
 import type { AgentActivity, OfficeAgent, OfficeState, OfficeTransfer, OfficeUnit } from "@/app/(admin)/admin/kantor/types";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, requireMember } from "../context";
+import { liveDocuments } from "../knowledge";
+import { findRelation } from "../lookup";
 import { ok, type MockRoute } from "../router";
 import type { MockDatabase } from "../seed";
 
@@ -64,7 +66,7 @@ const buildState = (db: MockDatabase, orgId: string): OfficeState => {
         parent_id: u.parent_id,
         lead_name: lead ? db.users.find((x) => x.id === lead.user_id)?.full_name ?? null : null,
         member_count: db.memberships.filter((m) => m.unit_id === u.id && m.status === "active").length,
-        document_count: db.documents.filter((d) => d.scope === "unit" && d.scope_id === u.id).length,
+        document_count: liveDocuments(db, orgId).filter((d) => d.scope === "unit" && d.scope_id === u.id).length,
         active_task_count: activeTasks.filter((t) => db.task_steps.some((s) => s.task_id === t.id && unitAgentIds.has(s.agent_id))).length,
       };
     });
@@ -79,7 +81,7 @@ const buildState = (db: MockDatabase, orgId: string): OfficeState => {
         task_id: t.id,
         from_agent_id: parent.agent_id,
         to_agent_id: head.agent_id,
-        relation_type: db.relations.find((r) => r.id === head.via_relation_id)?.relation_type ?? null,
+        relation_type: findRelation(db, head.via_relation_id)?.relation_type ?? null,
       },
     ];
   });

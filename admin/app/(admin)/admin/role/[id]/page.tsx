@@ -65,7 +65,7 @@ function RoleDetail() {
   const handleDelete = async () => {
     const ok = await confirmAlert(
       `Hapus role "${Role.name}"?`,
-      "Instruksi dan pengaturan role ini akan hilang. Tindakan ini tidak bisa dibatalkan.",
+      "Role dan relasinya dihapus dari daftar. Riwayat tugas yang pernah dikerjakannya tetap tersimpan.",
       "Ya, hapus"
     );
     if (ok) deleteMutation.mutate(Role.id, { onSuccess: () => router.push("/admin/role") });

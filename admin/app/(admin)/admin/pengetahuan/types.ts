@@ -44,6 +44,14 @@ export interface ResponseInterface {
 export interface DetailInterface extends ResponseInterface {
   versions: DocumentVersion[];
   sections: DocumentSection[];
+  /** Terisi bila dokumen sudah dihapus tetapi disimpan karena pernah dirujuk tugas */
+  archived_at: string | null;
+}
+
+/** Satu versi beserta isinya; dipakai saat membuka rujukan ke versi yang bukan versi aktif. */
+export interface VersionDetailInterface extends DocumentVersion {
+  /** Kosong selama versi belum selesai diolah */
+  sections: DocumentSection[];
 }
 
 export interface ResponseListInterface {
@@ -68,6 +76,8 @@ export interface UpdateInterface {
 export interface SearchHit {
   document_id: string;
   document_title: string;
+  /** Versi yang dirujuk; rujukan tetap menunjuk versi ini walau versi aktif sudah diganti */
+  version_id: string;
   version_no: number;
   page_no: number;
   heading: string;
@@ -113,6 +123,10 @@ export const formatBytes = (bytes: number) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 };
+
+/** Tautan ke halaman yang dirujuk, pada versi yang dirujuk. */
+export const citationHref = (hit: Pick<SearchHit, "document_id" | "version_id" | "page_no">, query = "") =>
+  `/admin/pengetahuan/${hit.document_id}?versi=${hit.version_id}&hlm=${hit.page_no}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
 
 /** Rujukan siap salin, mis. "Pedoman Tata Naskah Dinas (v1), hlm. 3". */
 export const citationText = (title: string, versionNo: number, pageNo: number) => `${title} (v${versionNo}), hlm. ${pageNo}`;

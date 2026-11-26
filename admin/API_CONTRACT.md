@@ -1,12 +1,12 @@
 # Kontrak API MBUTI (v1)
 
-Status: **draf untuk ditinjau** (tahap A8, 26 November 2026). Backend (fase B) belum dimulai sampai kontrak ini disetujui.
+Status: **disetujui** pada 26 November 2026 (tahap A8), termasuk seluruh usulan yang sekarang tercatat sebagai keputusan di
+[bagian 13](#13-keputusan). Backend (fase B) belum dimulai.
 
 Sumber dokumen ini: `types.ts` tiap fitur dan route data contoh di `lib/mock/`. Blok TypeScript di bawah disalin
 dari `types.ts`. Bila kontrak berubah, ubah `types.ts`, route data contoh, dan dokumen ini bersamaan.
 
-**Baca [bagian 13](#13-yang-perlu-diputuskan) lebih dulu.** Di sana ada hal yang belum diputuskan atau yang perilaku
-data contohnya sebaiknya tidak ditiru backend.
+Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh ditandai di bagian 13.
 
 ## Daftar isi
 
@@ -22,7 +22,7 @@ data contohnya sebaiknya tidak ditiru backend.
 10. [Dashboard](#10-dashboard)
 11. [Pengaturan](#11-pengaturan)
 12. [Perilaku mesin agen](#12-perilaku-mesin-agen)
-13. [Yang perlu diputuskan](#13-yang-perlu-diputuskan)
+13. [Keputusan](#13-keputusan)
 
 ---
 
@@ -31,6 +31,10 @@ data contohnya sebaiknya tidak ditiru backend.
 ### 1.1 Dasar
 
 - Prefix: `/api/v1`. Fitur aplikasi di `/api/v1/admin/<fitur>`.
+- Alamat saat pengembangan: `http://localhost:8000`. Aplikasi dan API harus satu situs (nama host sama) agar cookie
+  sesi dan `csrf_token` berfungsi. Di produksi satu domain lewat Nginx.
+- Versi pertama: satu organisasi per pengguna. Tabel tetap multi-organisasi.
+- Teks yang melebihi batas panjang ditolak `422` (data contoh memotongnya).
 - JSON UTF-8, kecuali unggah dokumen (`multipart/form-data`).
 - ID berupa string. Frontend tidak menafsirkan isinya, jadi UUID aman dipakai.
 - Waktu: ISO 8601 UTC (`2026-11-26T08:00:00Z`). Tanggal tanpa jam: `YYYY-MM-DD`. Bulan: `YYYY-MM`.
@@ -91,7 +95,7 @@ termasuk untuk galat validasi Pydantic.
 
 ### 1.3 Daftar
 
-Parameter: `skip` (bawaan 0), `limit`, dan saringan per endpoint. Parameter kosong berarti tanpa saringan.
+Parameter: `skip` (bawaan 0), `limit` (maksimal 200), dan saringan per endpoint. Parameter kosong berarti tanpa saringan.
 `total` adalah jumlah setelah saringan. Beberapa daftar menambah `summary` (jumlah per status).
 
 ### 1.4 Sesi dan hak akses
@@ -149,7 +153,8 @@ export interface AuthDataResponse {
 
 - Login salah: `401` "Email atau kata sandi salah." (sama untuk email tidak terdaftar). Akun nonaktif: `403`.
 - Backend menambah batas laju pada login (PLANNING bagian 10).
-- Pendaftaran dan penerimaan undangan belum ada di frontend; lihat 13.1 nomor 3.
+- B1 hanya login dan skrip pembuat akun pertama. Penerimaan undangan (`POST /auth/accept-invite`, tautan sekali pakai)
+  ditambah bersama halamannya; pendaftaran terbuka menyusul.
 
 ---
 
@@ -231,8 +236,7 @@ export interface ResponseInterface extends CreateInterface {
 - `name` 2–120, unik tanpa membedakan huruf besar. `code` ≤ 12, disimpan huruf besar, unik bila diisi.
 - `parent_id` tidak boleh unit itu sendiri atau turunannya. `color` bawaan `violet`. `sort_order` ≥ 0.
 - Urutan: `sort_order`, lalu nama. Halaman unit meminta `limit=200` untuk menyusun pohon.
-- Hapus: `409` bila masih ada role atau sub-unit. Anggota di unit itu menjadi tanpa unit. Dokumen berlingkup unit:
-  lihat 13.2 nomor 4.
+- Hapus: `409` bila masih ada role, sub-unit, atau dokumen berlingkup unit itu. Anggota di unit itu menjadi tanpa unit.
 
 ### 3.3 Pengguna
 
@@ -290,6 +294,7 @@ export interface ResponseListInterface {
 - Hanya pemilik yang boleh mengundang, mengubah, atau mengeluarkan pemilik (`403`).
 - Selalu minimal satu pemilik aktif; tidak bisa menonaktifkan atau mengeluarkan diri sendiri (`409`).
 - Ubah dengan `status: "active"` pada anggota yang masih `invited` tidak mengubah statusnya.
+- Menjadikan pemantau orang yang masih menjadi tujuan eskalasi ditolak (`409`).
 - Keluarkan: penanggung jawab unit dan role dikosongkan; relasi eskalasi ke orang itu dihapus.
 - Halaman unit dan peta relasi memakai daftar ini (`status=active&limit=200`) sebagai pilihan orang.
 
@@ -305,7 +310,7 @@ export interface ResponseListInterface {
 | POST | `/admin/role/create` | Admin+ | `CreateInterface` | `ResponseInterface` (201) |
 | PUT | `/admin/role/update/{id}` | Admin+ | `Partial<UpdateInterface>` | `ResponseInterface` |
 | DELETE | `/admin/role/delete/{id}` | Admin+ | | `null` |
-| POST | `/admin/role/{id}/trial` | Semua | `TrialRequest` | `TrialResult` |
+| POST | `/admin/role/{id}/trial` | Anggota+ | `TrialRequest` | `TrialResult` |
 
 ```ts
 export type AgentStatus = "draft" | "active" | "paused";
@@ -383,6 +388,10 @@ export interface TrialResult {
   missing_inputs: string[];
   /** Potongan dokumen yang dipakai sebagai dasar (kosong bila tidak ada) */
   citations: SearchHit[];
+  /** Biaya dalam rupiah; 0 bila model tidak dipanggil */
+  cost: number;
+  /** Kosong bila model tidak dipanggil */
+  model: string;
 }
 /**
  * Bentuk karakter blok untuk role AI. Dipakai oleh avatar 2D (kartu), 3D (pratinjau), dan kantor 3D (tahap A6).
@@ -410,10 +419,13 @@ export interface AvatarConfig {
   `output_template` ≤ 4000; `input_spec` ≤ 20 isian (`label` ≤ 80, `key` ≤ 40, dibuat dari label bila kosong, unik;
   `options` ≤ 12 × 60); `acceptance_criteria` ≤ 15 × 200; warna avatar `#rrggbb`.
 - `document_count` = dokumen yang boleh dibaca role menurut lingkupnya. `task_count` = tugas yang pernah ia kerjakan.
-- Hapus: `409` bila masih terlibat tugas `queued`/`running`/`waiting_approval`. Relasi role itu ikut dihapus.
-  Perilaku hapus: lihat 13.1 nomor 6.
+- Hapus: `409` bila masih terlibat tugas `queued`/`running`/`waiting_approval` atau masih punya dokumen berlingkup
+  role itu. Relasinya ikut dihapus. Role dan relasi yang pernah dipakai tugas hanya ditandai terhapus
+  (`deleted_at`): hilang dari daftar dan pilihan, tetapi namanya tetap tampil di riwayat tugas.
 - Uji coba tidak membuat tugas dan tidak menjalankan relasi. Isian wajib kosong menghasilkan `need_info`; tidak ada
-  potongan dokumen yang cocok menghasilkan `not_in_documents`. `simulated` bernilai `false` di backend.
+  potongan dokumen yang cocok menghasilkan `not_in_documents`. Keduanya tidak memanggil model (`cost: 0`,
+  `model: ""`). `simulated` bernilai `false` di backend.
+- Uji coba yang memanggil model dicatat di `llm_calls`, ikut anggaran bulanan, dan ditolak `409` bila anggaran habis.
 
 ---
 
@@ -424,6 +436,8 @@ export interface AvatarConfig {
 | GET | `/admin/pengetahuan/read` | Semua | `search, scope, scope_id, doc_type, status, agent_id, skip, limit` (bawaan 50) | daftar + `summary` |
 | GET | `/admin/pengetahuan/search` | Semua | `q, agent_id` | `SearchHit[]` (maks 8) |
 | GET | `/admin/pengetahuan/{id}` | Semua | | `DetailInterface` |
+| GET | `/admin/pengetahuan/{id}/versions/{vid}` | Semua | | `VersionDetailInterface` |
+| GET | `/admin/pengetahuan/{id}/versions/{vid}/file` | Semua | | berkas asli (biner, `Content-Disposition: attachment`) |
 | POST | `/admin/pengetahuan/create` | Admin+ | multipart: `file, title, description, doc_type, scope, scope_id` | `ResponseInterface` (201) |
 | PUT | `/admin/pengetahuan/update/{id}` | Admin+ | `UpdateInterface` | `DetailInterface` |
 | POST | `/admin/pengetahuan/{id}/versions` | Admin+ | multipart: `file` | `DetailInterface` (201) |
@@ -479,6 +493,14 @@ export interface ResponseInterface {
 export interface DetailInterface extends ResponseInterface {
   versions: DocumentVersion[];
   sections: DocumentSection[];
+  /** Terisi bila dokumen sudah dihapus tetapi disimpan karena pernah dirujuk tugas */
+  archived_at: string | null;
+}
+
+/** Satu versi beserta isinya; dipakai saat membuka rujukan ke versi yang bukan versi aktif. */
+export interface VersionDetailInterface extends DocumentVersion {
+  /** Kosong selama versi belum selesai diolah */
+  sections: DocumentSection[];
 }
 
 export interface ResponseListInterface {
@@ -503,6 +525,8 @@ export interface UpdateInterface {
 export interface SearchHit {
   document_id: string;
   document_title: string;
+  /** Versi yang dirujuk; rujukan tetap menunjuk versi ini walau versi aktif sudah diganti */
+  version_id: string;
   version_no: number;
   page_no: number;
   heading: string;
@@ -511,15 +535,21 @@ export interface SearchHit {
 }
 ```
 
-- `agent_id` membatasi ke dokumen dalam lingkup role: `own` = dokumen role itu; `unit` = dokumen unitnya dan role
-  seunit; `organization` = semua. Catatan: lingkup `own` dan `unit` tidak mencakup dokumen berlingkup organisasi
-  (lihat 13.2 nomor 5).
+- `agent_id` membatasi ke dokumen dalam lingkup role. Dokumen berlingkup organisasi **selalu** ikut. Selain itu:
+  `own` = dokumen role itu; `unit` = dokumen unitnya dan role seunit; `organization` = semua dokumen.
 - `summary` dihitung setelah `agent_id`, sebelum saringan lain, menurut status versi aktif.
 - Unggah: PDF, DOCX, TXT, MD; maks 20 MB; tidak kosong. Berkas yang sama persis (SHA-256) dengan versi dokumen itu
   ditolak (`422`). `title` bawaan = nama berkas; `doc_type` bawaan `lainnya`.
 - Olah berjalan di latar: `queued` → `processing` (`progress` 0–100) → `ready` / `failed` (`error_message`).
   Frontend memuat ulang tiap 1,5 detik selama ada yang belum selesai.
-- Versi baru langsung menjadi aktif (lihat 13.1 nomor 7). Hanya versi `ready` yang bisa diaktifkan manual (`409`).
+- Versi baru menjadi aktif hanya setelah `ready`; versi lama dipakai sampai saat itu, dan versi yang gagal tidak
+  menggantikannya. Bila versi aktif sendiri belum `ready`, versi baru langsung aktif. Hanya versi `ready` yang bisa
+  diaktifkan manual (`409`).
+- Rujukan menyimpan `version_id`. Frontend membuka rujukan ke versi bukan aktif lewat
+  `/versions/{vid}`; `sections` di sana kosong selama versi belum `ready`.
+- Hapus: dokumen yang pernah dirujuk tugas hanya ditandai terhapus. Ia hilang dari daftar, pencarian, dan lingkup
+  role, tetapi `GET /{id}` (dengan `archived_at`) dan `/versions/{vid}` tetap bisa dibuka; perubahan dijawab `404`.
+  Dokumen yang belum pernah dirujuk dihapus permanen.
 - `sections` berisi halaman versi aktif, kosong selama belum `ready`.
 - Pencarian hanya pada versi aktif yang `ready`. Frontend memanggil bila `q` ≥ 3 karakter; `q` ≤ 300.
 - Ubah: `title` ≥ 3. `scope` `unit`/`agent` wajib `scope_id` milik organisasi; `organization` → `scope_id: null`.
@@ -608,6 +638,9 @@ Aturan simpan (`422`):
 
 - Sumber harus role. Tujuan role atau manusia (ID keanggotaan), tidak boleh sama dengan sumber.
 - Ke manusia hanya `escalate`; `escalate` hanya ke manusia, dan `requires_approval` selalu `true`.
+- Pemantau tidak bisa menjadi tujuan eskalasi atau ditambahkan ke peta.
+- `on_rejected` diterima, tetapi frontend menyembunyikannya sampai mesin menjalankannya.
+- Pada `consult`, `on_complete` berarti selalu, sebelum role sumber bekerja; `on_condition` dinilai dari isi tugas.
 - Pasangan sumber, tujuan, dan jenis harus unik.
 - `handoff` tidak boleh membentuk lingkaran; pesan galat menyebut jalurnya (`A → B → A`).
 - `on_condition` wajib `condition` ≥ 5. `max_revisions` 1–5 (bawaan 2). `expected_output` dan `condition` ≤ 500,
@@ -746,7 +779,8 @@ export interface ResponseListInterface {
   - role tidak ada atau tidak `active`; `title` bukan 5–150; isian wajib `input_spec` kosong (`422`);
   - `budget_limit` di luar Rp500–Rp1.000.000 atau melebihi batas bulanan (`422`);
   - anggaran bulan ini sudah habis (`409`).
-- `brief` ≤ 4000, tiap isian ≤ 2000. `priority` bawaan `normal`. `due_at` dikirim `YYYY-MM-DD` atau `null`.
+- `brief` ≤ 4000, tiap isian ≤ 2000. `priority` bawaan `normal`. `due_at` dikirim `YYYY-MM-DD` atau `null`, disimpan
+  sebagai akhir hari itu di zona waktu organisasi.
 - Hentikan: `409` bila tugas sudah berakhir.
 - `inputs` pada detail memakai label isian role; yang kosong tidak dikirim.
 - `steps[].model` kosong (`""`) selama langkah belum selesai.
@@ -758,10 +792,11 @@ export interface ResponseListInterface {
 
 | Method | Path | Akses | Body / query | `data` |
 |---|---|---|---|---|
-| GET | `/admin/persetujuan/read` | Semua | `status=pending` (bawaan) atau `decided` | daftar `ApprovalInterface` + `pending_count` |
+| GET | `/admin/persetujuan/read` | Semua | `status=pending` (bawaan) atau `decided`, `skip, limit` | `ApprovalListInterface` |
 | POST | `/admin/persetujuan/{id}/decide` | Khusus | `DecideInterface` | `ApprovalInterface` |
 
-**Khusus**: Admin+ atau orang yang diminta. Daftar hanya berisi permintaan yang boleh diputuskan pengguna itu.
+**Khusus**: Admin+ atau orang yang diminta (kecuali pemantau). Daftar hanya berisi permintaan yang boleh diputuskan
+pengguna itu. Bila penanggung jawab role kosong, nonaktif, atau pemantau, permintaan ditujukan ke pembuat tugas.
 
 ```ts
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revise";
@@ -787,13 +822,25 @@ export interface ApprovalInterface {
   last_agent: AgentRef | null;
 }
 
+export interface ApprovalListInterface {
+  success: boolean;
+  statusCode: number;
+  total: number;
+  skip: number;
+  limit: number;
+  data: ApprovalInterface[];
+  /** Jumlah yang menunggu keputusan pengguna ini, apa pun saringannya */
+  pending_count: number;
+}
+
 export interface DecideInterface {
   decision: "approved" | "rejected" | "revise";
   comment: string;
 }
 ```
 
-- Daftar belum berhalaman (`skip` 0, `limit` = `total`), urut dari yang terbaru. Frontend memuat ulang tiap 5 detik.
+- `skip`/`limit` (bawaan 50), urut dari yang terbaru. Halaman Persetujuan meminta 200 untuk antrean dan 10 per
+  halaman untuk riwayat, memuat ulang tiap 5 detik.
 - `comment` wajib ≥ 5 karakter untuk `rejected` dan `revise`; ≤ 1000.
 - `403` bila ditujukan ke orang lain; `409` bila sudah diputuskan. Backend harus mengunci baris agar dua keputusan
   bersamaan tidak sama-sama diterima.
@@ -948,7 +995,7 @@ export interface ResponseInterface {
   provider: "gemini";
   profiles: ModelProfileSetting[];
   available_models: ModelOption[];
-  /** Kosong untuk anggota dan pemantau */
+  /** Hanya terisi untuk pemilik */
   api_keys: ApiKeyInfo[];
   embedding: { model: string; dimension: number };
   updated_at: string;
@@ -960,9 +1007,12 @@ export interface UpdateInterface {
 ```
 
 - Update mengirim keempat slot sekaligus; tiap nilai harus ada di `available_models` (`422`).
-- `api_keys` kosong untuk anggota dan pemantau.
+- `api_keys` hanya terisi untuk **pemilik**, karena kunci milik server (selama satu server melayani satu organisasi).
+- `server/.env` memberi nilai bawaan tiap slot; pilihan organisasi disimpan di database. Kunci API hanya ada di
+  `server/.env`, tidak disimpan di database.
 - **Nilai kunci API tidak boleh ada di respons mana pun**, termasuk potongan atau empat huruf terakhir.
-- `available_models` dan `estimated_step_cost` di data contoh adalah angka rekaan (lihat 13.1 nomor 2).
+- Biaya dihitung dari token dengan tabel harga per model dan kurs di konfigurasi server, juga pada tier gratis,
+  agar batas tetap berfungsi. `available_models` dan `estimated_step_cost` di data contoh adalah angka rekaan.
 
 ### 11.2 Batas biaya
 
@@ -981,6 +1031,8 @@ export interface MonthUsage {
   /** Bulan berjalan, format YYYY-MM */
   month: string;
   used: number;
+  /** Bagian dari `used` yang berasal dari uji coba role */
+  trial_cost: number;
   /** Sisa anggaran bulan ini, tidak pernah negatif */
   remaining: number;
   task_count: number;
@@ -999,7 +1051,8 @@ export interface ResponseInterface extends UpdateInterface {
 | `max_steps_per_task` | 1 – 50 | 20 |
 | `max_revisions` | 0 – 5 | 3 |
 
-Semua bilangan bulat. Dibaca semua anggota karena form Buat tugas memakai batas bawaan dan sisa anggaran.
+Semua bilangan bulat. Dibaca semua anggota karena form Buat tugas memakai batas bawaan dan sisa anggaran. Bulan
+dihitung menurut zona waktu organisasi.
 
 ---
 
@@ -1010,24 +1063,28 @@ Ini kontrak perilaku untuk B4–B5, diambil dari `lib/mock/engine.ts`.
 **Alur**
 
 1. Tugas dibuat `queued` dengan satu langkah `work` untuk `entry_agent_id`.
-2. Langkah dikerjakan satu per satu menurut antrean.
-3. Setelah langkah `work` selesai, relasi keluar dinilai:
+2. Setiap kali langkah `work` atau `review` hasil relasi (atau langkah pertama) dibuat, relasi `consult` milik
+   role itu dijalankan **lebih dulu**; masukannya dipakai langkah tersebut dan ulangannya. Konsultasi tidak memicu
+   relasi lanjutan. Bila ada konsultasi `requires_approval`, langkah ditahan (`queued`) sampai semua izinnya diputuskan.
+3. Langkah dikerjakan satu per satu menurut antrean.
+4. Setelah langkah `work` selesai, relasi keluar selain `consult` dinilai:
    - `on_condition` yang tidak terpenuhi dilewati dan dicatat (`relation_skipped`);
    - `escalate` membuat persetujuan untuk manusia tujuan;
-   - `requires_approval` membuat persetujuan untuk penanggung jawab role sumber (bila kosong, pembuat tugas), dan
-     relasi baru dijalankan setelah disetujui;
-   - `review`, `handoff`, `consult` menambah langkah untuk role tujuan.
-4. Langkah `review` menghasilkan `approved` atau `revise`. Bila `approved`, relasi keluar milik **pemeriksa**
+   - `requires_approval` membuat persetujuan untuk penanggung jawab role sumber, dan relasi baru dijalankan
+     setelah disetujui;
+   - `review` dan `handoff` menambah langkah untuk role tujuan.
+5. Langkah `review` menghasilkan `approved` atau `revise`. Bila `approved`, relasi keluar milik **pemeriksa**
    dinilai. Bila `revise`, langkah pembuat menjadi `revise_requested` dan diulang dengan catatan.
-5. Langkah `consult` tidak memicu relasi lanjutan (lihat 13.2 nomor 10).
 6. Antrean kosong: `waiting_approval` bila masih ada persetujuan tertunda, selain itu `completed`.
+
+`on_rejected` (B5): dijalankan saat langkah `failed` atau persetujuan atas hasilnya ditolak.
 
 **Keputusan manusia**
 
 | Keputusan | Akibat |
 |---|---|
-| `approved` | Menjalankan relasi yang ditahan, atau melanjutkan rute setelah batas revisi |
-| `revise` | Role pembuat hasil terakhir mengerjakan ulang dengan catatan |
+| `approved` | Menjalankan relasi atau konsultasi yang ditahan, atau melanjutkan rute setelah batas revisi |
+| `revise` | Role pembuat hasil terakhir mengerjakan ulang dengan catatan. Pada izin konsultasi: lanjut tanpa konsultasi itu, dengan catatan |
 | `rejected` | Tugas `failed`; persetujuan lain ikut ditutup |
 
 **Pengaman**
@@ -1035,11 +1092,11 @@ Ini kontrak perilaku untuk B4–B5, diambil dari `lib/mock/engine.ts`.
 | Pengaman | Diperiksa | Akibat |
 |---|---|---|
 | Batas biaya tugas | Setelah tiap langkah (`cost_used > budget_limit`) | `stopped_budget` |
-| Anggaran bulanan | Sebelum tiap langkah dimulai (`terpakai >= batas`) | `stopped_budget` |
+| Anggaran bulanan | Sebelum tiap langkah dimulai (`terpakai >= batas`); boleh terlampaui sedikit oleh langkah yang berjalan | `stopped_budget` |
 | Batas langkah | Sebelum langkah dimulai (langkah yang sudah dimulai ≥ batas) | `failed` |
 | Batas revisi | Saat pemeriksa meminta revisi: putaran > min(relasi, organisasi) | Persetujuan `max_revisions` |
 
-Saat dihentikan pengaman atau manusia: langkah antre menjadi `skipped` dan persetujuan tertunda ditutup
+Saat dihentikan pengaman atau manusia: langkah yang belum selesai menjadi `skipped` dan persetujuan tertunda ditutup
 (`rejected` dengan komentar sistem). Batas langkah, revisi, dan bulanan dibaca saat dijalankan; `budget_limit`
 tersimpan pada tugas.
 
@@ -1048,35 +1105,30 @@ biaya dihitung dari tabel tetap; model cadangan tidak pernah dipakai.
 
 ---
 
-## 13. Yang perlu diputuskan
+## 13. Keputusan
 
-### 13.1 Penting, berpengaruh ke bentuk API atau database
+Disetujui 26 November 2026. Kolom **Data contoh**: apakah perilakunya sudah bisa dicoba di frontend.
 
-| # | Pertanyaan | Usulan |
+| # | Keputusan | Data contoh |
 |---|---|---|
-| 1 | **Alamat saat pengembangan.** Bawaan sekarang: aplikasi di `localhost:3000`, API di `127.0.0.1:8000`. Keduanya beda situs: cookie sesi `SameSite=Lax` tidak terkirim dan cookie `csrf_token` tidak terbaca. | Ganti bawaan ke `http://localhost:8000`; di produksi satu domain lewat Nginx. |
-| 2 | **Biaya dalam rupiah.** Google menagih per token dalam dolar, dan tier gratis tidak menagih. Dari mana angka rupiah? | Tabel harga per model dan kurs di konfigurasi server; biaya tetap dihitung walau tier gratis, agar batas berfungsi. |
-| 3 | **Pendaftaran dan undangan.** Undangan membuat anggota `invited` tanpa cara menerimanya; belum ada halaman daftar. | B1 hanya login dan skrip pembuat akun pertama. Tautan undangan sekali pakai (`POST /auth/accept-invite`) ditambah bersama halamannya; pendaftaran terbuka belakangan. |
-| 4 | **Banyak organisasi.** Data contoh mengambil keanggotaan pertama. | Versi pertama satu organisasi per pengguna; tabel tetap multi-organisasi, pemilih organisasi menyusul. |
-| 5 | **Pengaturan model per organisasi, sementara kunci API milik server** (`server/.env`). Bila ada banyak organisasi, admin organisasi melihat status kunci bersama. | `.env` = nilai bawaan, pilihan organisasi disimpan di database. Status kunci hanya untuk pemilik selama satu server = satu organisasi. PLANNING bagian 9 menyebut "kunci disimpan terenkripsi": tidak dipakai selama kunci hanya di `.env`. |
-| 6 | **Hapus role dan relasi.** Data contoh menghapus permanen, sehingga riwayat tugas menampilkan "(role dihapus)". PLANNING 6.2 meminta nonaktif bila sudah dipakai. | Ikuti PLANNING: soft delete (`deleted_at`) bila sudah dipakai tugas. Bentuk API tidak berubah. |
-| 7 | **Versi dokumen baru langsung aktif**, jadi selama diolah (atau bila gagal) dokumen hilang dari pencarian. | Versi baru menjadi aktif hanya setelah `ready`; versi lama tetap dipakai sampai saat itu. |
-| 8 | **Rujukan menunjuk dokumen + halaman**, lalu dibuka pada versi aktif. Setelah versi diganti, rujukan lama menunjuk isi yang salah. | Tambah `version_id` pada `SearchHit` dan endpoint `GET /admin/pengetahuan/{id}/versions/{vid}`. Dokumen yang pernah dirujuk tidak dihapus permanen. |
-| 9 | **Uji coba role boleh untuk pemantau** dan, di backend, memakai kuota model. | Batasi ke Anggota+, catat biayanya di `llm_calls`, dan ikutkan ke anggaran bulanan. |
-| 10 | **Fitur di PLANNING yang belum ada di frontend:** tugas ke unit, lampiran tugas, status `draft` dan `waiting_review`, unduh berkas dokumen. | Tunda setelah versi pertama, kecuali unduh berkas (`GET /admin/pengetahuan/{id}/versions/{vid}/file`). |
-
-### 13.2 Kecil; saya ikuti usulan ini bila tidak ada keberatan
-
-| # | Hal | Usulan |
-|---|---|---|
-| 1 | `limit` tidak dibatasi | Maksimal 200 |
-| 2 | Pemicu `on_rejected` bisa dipilih di peta, tetapi tidak pernah dijalankan | Dijalankan saat langkah `failed` atau persetujuan ditolak; sampai ada, sembunyikan pilihannya |
-| 3 | Orang yang diminta persetujuan bisa saja pemantau, dan boleh memutuskan | Tolak pemantau sebagai tujuan eskalasi |
-| 4 | Hapus unit meninggalkan dokumen berlingkup unit tanpa pemilik; hapus role sama | `409` selama masih ada dokumen berlingkup itu |
-| 5 | Dokumen berlingkup organisasi tidak terbaca role berlingkup `own`/`unit` | Selalu sertakan dokumen organisasi (mengubah perilaku data contoh) |
-| 6 | Batas bulanan memakai zona waktu apa | Zona waktu organisasi |
-| 7 | Anggaran bulanan bisa terlampaui sedikit oleh langkah yang sedang berjalan | Terima; pemeriksaan dilakukan sebelum langkah dimulai |
-| 8 | `due_at` dikirim tanpa jam | Simpan sebagai akhir hari di zona waktu organisasi |
-| 9 | Persetujuan belum berhalaman | Tambah `skip`/`limit` untuk `decided` |
-| 10 | Konsultasi berjalan setelah role penanya selesai, sehingga masukannya tidak dipakai | Backend menjalankan konsultasi dulu, lalu role penanya menyusun hasil dengan masukan itu. Bentuk API tidak berubah |
-| 11 | Teks yang melebihi batas panjang dipotong diam-diam oleh data contoh | Backend menolak dengan `422` |
+| 1 | API pengembangan di `localhost:8000`; produksi satu domain lewat Nginx | Bawaan sudah diganti |
+| 2 | Biaya rupiah dari tabel harga per model dan kurs di server, juga pada tier gratis | Backend |
+| 3 | B1: login dan skrip akun pertama. Penerimaan undangan menyusul bersama halamannya | Backend |
+| 4 | Satu organisasi per pengguna; tabel tetap multi-organisasi | Sudah begitu |
+| 5 | Model per organisasi (bawaan dari `.env`); kunci hanya di `.env`; status kunci untuk pemilik | Ya |
+| 6 | Role dan relasi yang dipakai tugas hanya ditandai terhapus | Ya |
+| 7 | Versi dokumen baru aktif setelah siap | Ya |
+| 8 | Rujukan menyimpan versi; dokumen yang dirujuk tidak dihapus permanen | Ya |
+| 9 | Uji coba untuk Anggota+, tercatat dan ikut anggaran bulanan | Ya |
+| 10 | Unduh berkas dokumen dibuat di backend | Tombol nonaktif sampai ada backend |
+| 11 | Ditunda setelah versi pertama: tugas ke unit, lampiran tugas, status `draft` dan `waiting_review` | |
+| 12 | `limit` maksimal 200 | Ya |
+| 13 | `on_rejected` disembunyikan sampai dijalankan mesin (B5) | Ya |
+| 14 | Pemantau bukan tujuan eskalasi dan tidak memutuskan | Ya |
+| 15 | Unit atau role yang masih punya dokumen tidak bisa dihapus | Ya |
+| 16 | Dokumen organisasi terbaca semua role | Ya |
+| 17 | Bulan dan tenggat menurut zona waktu organisasi | Memakai jam peramban |
+| 18 | Anggaran bulanan boleh terlampaui sedikit oleh langkah yang berjalan | Ya |
+| 19 | Persetujuan berhalaman | Ya |
+| 20 | Konsultasi dijalankan sebelum role penanya bekerja | Ya |
+| 21 | Teks melebihi batas ditolak `422` | Backend |

@@ -91,9 +91,15 @@ export const useDeleteRole = () => {
 
 export const useTrialRole = (id: string) => {
   const url = useUrlStore((state) => state.URL.APP);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: TrialRequest) =>
       fetchData<ApiResponse<TrialResult>>(`${url}${BASE}/${id}/trial`, { method: "POST", body: { ...body } }),
+    // Uji coba memakai anggaran bulanan
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pengaturan", "batas-biaya"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
     onError: (err: Error) => swallAlert(`uji coba gagal: ${err.message}`, "error"),
   });
 };

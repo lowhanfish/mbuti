@@ -27,6 +27,11 @@ const buildSummary = (db: MockDatabase, self: MockMembership, now: number): Resp
     const bucket = daily_costs.find((d) => d.date === dayKey(s.finished_at!));
     if (bucket) bucket.cost += s.cost;
   }
+  for (const c of db.llm_calls) {
+    if (c.organization_id !== orgId) continue;
+    const bucket = daily_costs.find((d) => d.date === dayKey(c.created_at));
+    if (bucket) bucket.cost += c.cost;
+  }
 
   const perAgent = new Map<string, { step_count: number; cost: number }>();
   for (const s of stepsInMonth(db, orgId, now)) {
