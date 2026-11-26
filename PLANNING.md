@@ -436,6 +436,63 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
 - [ ] Ketentuan layanan dan kebijakan privasi.
 
+#### D1. Akun mandiri: rancangan (disepakati 26 November 2026)
+
+Cakupan: daftar, verifikasi email, terima undangan, lupa kata sandi. Langganan dan pembayaran tidak termasuk (D2).
+Tetap satu organisasi per pengguna.
+
+**Alur 1. Daftar**
+
+1. `/daftar`: nama lengkap, email, kata sandi (minimal 10 karakter, sama dengan skrip akun), nama organisasi, sektor,
+   centang setuju ketentuan layanan.
+2. Server membuat akun (`is_verified=false`), organisasi baru, dan keanggotaan **pemilik**, lalu mengirim tautan
+   verifikasi (berlaku 24 jam). Halaman berpindah ke `/daftar/terkirim` ("Periksa email Anda") dengan tombol kirim ulang.
+3. Jawaban selalu sama walau email sudah terdaftar, supaya orang lain tidak bisa mengecek email siapa yang punya akun.
+   Pemilik email itu menerima email "Anda sudah punya akun" berisi tautan masuk dan lupa kata sandi.
+4. `/verifikasi?token=…`: akun ditandai terverifikasi, sesi dibuat, lalu masuk ke `/admin` dengan panduan awal
+   (buat unit, role pertama, unggah dokumen).
+5. Masuk sebelum verifikasi: kata sandi benar tetapi email belum terverifikasi dijawab `403` "Verifikasi email dulu"
+   dengan tombol kirim ulang.
+6. Mode pendaftaran lewat `.env` `REGISTRATION_MODE`:
+   - `closed`: halaman daftar ditutup (perilaku sekarang).
+   - `approval` (**dipilih**): setelah verifikasi, organisasi berstatus `pending` dan halaman admin menampilkan
+     "Menunggu persetujuan". Pengelola menyetujui lewat skrip `python -m scripts.setujui_organisasi` sampai panel
+     pengelola platform ada. Alasannya: Gemini masih tier gratis dan kuotanya dipakai bersama Toto-L.
+   - `open`: langsung aktif.
+
+**Alur 2. Undangan**
+
+1. Undangan yang sudah ada (`POST /admin/pengguna/invite`) kini juga mengirim email berisi tautan (berlaku 7 hari);
+   admin bisa mengirim ulang atau membatalkan dari halaman Pengguna.
+2. `/undangan?token=…` menampilkan nama organisasi, pengundang, email, dan hak akses. Penerima mengisi nama dan kata
+   sandi, lalu langsung masuk. Email dianggap terverifikasi karena tautannya sampai ke kotak masuk.
+3. Email yang sudah punya akun di organisasi lain ditolak (`409`), sampai fitur satu pengguna di banyak organisasi ada.
+
+**Alur 3. Lupa kata sandi**
+
+1. Tautan "Lupa kata sandi?" di `/login` menuju `/lupa-sandi` (isi email). Jawaban selalu sama.
+2. Tautan atur ulang berlaku 1 jam dan sekali pakai. `/atur-ulang-sandi?token=…`: kata sandi baru dua kali.
+3. Setelah berhasil, semua sesi lama dicabut, pengguna diberi tahu lewat email, dan kejadiannya masuk jejak audit.
+
+**Teknis**
+
+- Tabel `auth_tokens`: `user_id`, `purpose` (`verify`, `reset`, `invite`), `membership_id` (untuk undangan),
+  `token_hash` (SHA-256; token asli hanya ada di email), `expires_at`, `used_at`. Token baru dengan tujuan sama
+  membatalkan yang lama.
+- Kolom `organizations.status`: `pending`, `active`, `suspended` (juga dipakai panel pengelola nanti).
+- Pengirim email lewat antrean Celery `default`, dengan pilihan `EMAIL_BACKEND`: `console` (pengembangan; isi email
+  ditulis ke log, tanpa layanan luar), atau `smtp`. Selama pengembangan dipakai `console`; pengirim sungguhan dipilih sebelum pemasangan di server. Templat email dalam
+  Bahasa Indonesia dengan teks polos dan HTML sederhana.
+- Endpoint publik (dengan pemeriksaan `Origin`, tanpa CSRF seperti login):
+  `POST /auth/register`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`,
+  `POST /auth/reset-password`, `GET /auth/invite/{token}`, `POST /auth/accept-invite`.
+- Batas laju: daftar 5 per jam per alamat; kirim ulang verifikasi dan lupa kata sandi 3 per jam per email dan
+  10 per jam per alamat.
+- Halaman ketentuan layanan dan kebijakan privasi: tautan di formulir daftar wajib ada. Dipakai halaman
+  sementara yang jujur menyebut status uji coba, lalu teks final menyusul sebelum pendaftaran dibuka untuk umum.
+- Urutan kerja: halaman dengan data contoh (mode `mock` menampilkan "email" di panel samping) → kontrak API → backend
+  → uji (termasuk token kedaluwarsa, dipakai dua kali, dan email ganda).
+
 ## 12. Risiko
 
 | Risiko | Penanganan |
