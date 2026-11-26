@@ -47,6 +47,7 @@ async def test_login_sets_cookies_and_returns_profile(application, world):
 
         me = await client.get(ME)
         assert me.json()["data"]["user"]["email"] == "a_owner@uji.test"
+        assert "csrf_token" not in me.json()["data"]
 
     async with world.sessions() as session:
         stored = (await session.scalars(select(RefreshSession.token_hash))).all()

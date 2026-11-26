@@ -25,7 +25,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const meUrl = useUrlStore.getState().URL.ME;
-      const res = await fetchData<ApiResponse<AuthDataResponse>>(meUrl, {}, false);
+      // Token akses berumur pendek: bila kedaluwarsa, sesi diperpanjang dulu
+      const res = await fetchData<ApiResponse<AuthDataResponse>>(meUrl);
       if (res.success && res.data?.user) {
         set({ user: res.data.user, isAuthenticated: true, isLoading: false });
         return res.data.user;
@@ -40,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshUser: async () => {
     try {
       const meUrl = useUrlStore.getState().URL.ME;
-      const res = await fetchData<ApiResponse<AuthDataResponse>>(meUrl, {}, false);
+      const res = await fetchData<ApiResponse<AuthDataResponse>>(meUrl);
       if (res.success && res.data?.user) set({ user: res.data.user });
     } catch {
       // Biarkan data lama; pemeriksaan sesi berikutnya akan menangani sesi yang berakhir

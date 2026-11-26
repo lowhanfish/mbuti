@@ -3,11 +3,10 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { isMockMode } from "@/lib/transport";
-import { useUrlStore } from "@/store/useUrlStore";
 import { formatDate } from "@/utilities/labels";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "../../../../_components/ui";
 import { FileDropzone, IngestionStatusView } from "../../components/DocumentParts";
-import { useActivateVersion, useUploadVersion } from "../../hooks/crud";
+import { useActivateVersion, useDownloadVersion, useUploadVersion } from "../../hooks/crud";
 import { formatBytes, type DetailInterface } from "../../types";
 
 export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; canEdit: boolean }) {
@@ -16,7 +15,7 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
   const [dropKey, setDropKey] = useState(0);
   const upload = useUploadVersion(doc.id);
   const activate = useActivateVersion(doc.id);
-  const url = useUrlStore((state) => state.URL.APP);
+  const download = useDownloadVersion(doc.id);
   const activeNo = doc.active_version?.version_no ?? 0;
 
   return (
@@ -76,9 +75,14 @@ export default function VersionPanel({ doc, canEdit }: { doc: DetailInterface; c
                       Unduh (butuh backend)
                     </span>
                   ) : (
-                    <a href={`${url}/api/v1/admin/pengetahuan/${doc.id}/versions/${v.id}/file`} className="text-brand hover:underline">
-                      Unduh berkas
-                    </a>
+                    <button
+                      type="button"
+                      onClick={() => download.mutate(v)}
+                      disabled={download.isPending}
+                      className="font-semibold text-brand hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                    >
+                      {download.isPending && download.variables?.id === v.id ? "Mengunduh…" : "Unduh berkas"}
+                    </button>
                   )}
                 </div>
               </div>

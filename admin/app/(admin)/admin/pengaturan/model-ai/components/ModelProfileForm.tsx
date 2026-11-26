@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Badge, Button, Card, Select } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
+import { isMockMode } from "@/lib/transport";
 import { formatRupiah } from "../../../tugas/types";
 import { SLOT_LABEL, type ModelSlot, type ResponseInterface, type UpdateInterface } from "../types";
 
@@ -86,8 +87,9 @@ export default function ModelProfileForm({
       </div>
 
       <p className="text-[11px] text-muted px-1">
-        Daftar model dan biaya per langkah adalah data contoh. Biaya dipakai simulasi tugas; model cadangan disimpan, tetapi simulasi
-        tidak memperagakan kejadian kuota habis.
+        {isMockMode()
+          ? "Daftar model dan biaya per langkah adalah data contoh. Biaya dipakai simulasi tugas; model cadangan disimpan, tetapi simulasi tidak memperagakan kejadian kuota habis."
+          : "Biaya per langkah adalah perkiraan. Biaya sebenarnya dihitung dari token tiap panggilan dan harga model."}
       </p>
 
       {canEdit && (

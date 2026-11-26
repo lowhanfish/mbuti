@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchData } from "@/lib/api_secure";
+import { downloadFile, fetchData } from "@/lib/api_secure";
 import { swallAlert } from "@/lib/show_swall";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
@@ -116,6 +116,15 @@ export const useUploadVersion = (id: string) => {
       swallAlert("versi baru diterima dan sedang diolah", "success");
     },
     onError: (err: Error) => swallAlert(`gagal diunggah: ${err.message}`, "error"),
+  });
+};
+
+export const useDownloadVersion = (id: string) => {
+  const url = useUrlStore((state) => state.URL.APP);
+  return useMutation({
+    mutationFn: (version: { id: string; file_name: string }) =>
+      downloadFile(`${url}${BASE}/${id}/versions/${version.id}/file`, version.file_name),
+    onError: (err: Error) => swallAlert(`gagal diunduh: ${err.message}`, "error"),
   });
 };
 

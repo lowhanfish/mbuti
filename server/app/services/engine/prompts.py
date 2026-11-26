@@ -118,7 +118,9 @@ def system_prompt(role: RoleBrief, reviewing: bool = False) -> str:
         "3. Bila aturan yang dibutuhkan tidak ada di potongan dokumen, jawab `status` "
         "`not_in_documents` dan jelaskan di `output` apa yang tidak ditemukan. Jangan menebak.",
         "4. Bila data wajib dari pemberi tugas kurang, jawab `need_info` dan sebutkan yang "
-        "kurang. Jangan mengarang nama, angka, atau tanggal.",
+        "kurang. Jangan mengarang nama, jabatan, alamat, nomor, angka, atau tanggal. Data "
+        "pelengkap yang tidak tersedia ditulis sebagai isian kosong bertanda, mis. "
+        "[alamat kantor].",
         "5. Selain itu jawab `done`. Tulis dalam bahasa Indonesia.",
     ]
     if reviewing:
@@ -127,7 +129,9 @@ def system_prompt(role: RoleBrief, reviewing: bool = False) -> str:
             "Dalam tugas ini Anda MEMERIKSA hasil kerja role lain yang ada di <bahan>. Nilai "
             "terhadap kriteria hasil pembuat dan potongan dokumen. Tulis temuan di `output`. "
             "Isi `verdict` dengan `approved` bila hasil layak diterima, atau `revise` bila perlu "
-            "diperbaiki, beserta apa yang harus diubah.",
+            "diperbaiki, beserta apa yang harus diubah. Data yang tidak berasal dari tugas, "
+            "bahan, atau dokumen adalah karangan dan wajib direvisi; isian kosong bertanda "
+            "diperbolehkan.",
         ]
     return "\n".join(lines)
 

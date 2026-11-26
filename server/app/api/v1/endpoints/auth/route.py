@@ -46,7 +46,10 @@ async def login(
     )
 
 
-@router.get("/me", response_model=ApiResponse[AuthData])
+# Token CSRF hanya dikirim saat masuk; di sini kolomnya ditiadakan, bukan diisi null
+@router.get(
+    "/me", response_model=ApiResponse[AuthData], response_model_exclude={"data": {"csrf_token"}}
+)
 async def me(
     user: User = Depends(get_current_user), session: AsyncSession = Depends(get_db)
 ) -> ApiResponse[AuthData]:

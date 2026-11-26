@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000, lalu masuk dengan tombol **Masuk dengan akun demo**.
+Buka http://localhost:3000, lalu masuk dengan akun backend. Cara menyalakan backend dan membuat akun ada di [README utama](../README.md). Pada mode `mock`, masuk dengan tombol **Masuk dengan akun demo**.
 
 ## Sumber data
 
@@ -23,11 +23,11 @@ Buka http://localhost:3000, lalu masuk dengan tombol **Masuk dengan akun demo**.
 
 | Nilai | Arti |
 |---|---|
-| `mock` (bawaan) | Data contoh di peramban (`lib/mock/`), tanpa backend. Tersimpan di `localStorage`. |
-| `api` | Backend FastAPI di `NEXT_PUBLIC_API_URL`. |
+| `api` (bawaan) | Backend FastAPI di `NEXT_PUBLIC_API_URL`. |
+| `mock` | Data contoh di peramban (`lib/mock/`), tanpa backend. Tersimpan di `localStorage`. |
 
 Semua permintaan lewat `lib/transport.ts`. Halaman dan hooks tidak tahu apakah datanya contoh atau sungguhan,
-jadi pindah ke backend cukup dengan mengganti variabel ini.
+jadi berpindah sumber data cukup dengan mengganti variabel ini.
 
 Untuk mengembalikan data contoh ke keadaan awal, hapus kunci `mbuti-mock-db` di `localStorage` peramban.
 Bila bentuk data contoh berubah, naikkan `MOCK_DB_VERSION` di `lib/mock/seed.ts`.

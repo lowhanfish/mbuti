@@ -8,8 +8,8 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 
 | Folder | Isi | Status |
 |---|---|---|
-| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B5 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role, tugas lintas role, persetujuan, kantor, dan dashboard. Frontend belum disambungkan (B6) |
+| [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya. Tersambung ke backend (B6) |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B5 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role, tugas lintas role, persetujuan, kantor, dan dashboard |
 
 ## Menjalankan frontend
 
@@ -20,7 +20,9 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000 dan masuk dengan tombol **Masuk dengan akun demo**. Semua data adalah data contoh di peramban sampai frontend disambungkan ke backend (tahap B6).
+Frontend memakai backend di `NEXT_PUBLIC_API_URL`, jadi nyalakan backend, kedua worker, dan buat akun dulu (lihat di bawah). Buka http://localhost:3000 dan masuk dengan akun itu.
+
+Untuk mencoba tanpa backend, isi `NEXT_PUBLIC_DATA_SOURCE=mock` di `admin/.env.local` lalu masuk dengan tombol **Masuk dengan akun demo**. Semua datanya data contoh di peramban.
 
 ## Menjalankan backend
 
@@ -99,6 +101,6 @@ pytest
 ruff check .
 ```
 
-Bila `server/.env` memakai server jauh (mis. Neon), tes integrasi butuh koneksi internet dan jauh lebih lambat (beberapa menit).
+Bila `server/.env` memakai server jauh (mis. Neon), aplikasi dan tes integrasi butuh koneksi internet. Tiap query menempuh jarak ke server itu, jadi pilih wilayah database yang dekat; dengan database di benua lain, halaman butuh beberapa detik untuk terisi dan seluruh tes butuh lebih dari setengah jam.
 
 `pytest tests/unit` berjalan tanpa database. Tes di `tests/integration` butuh PostgreSQL dan Redis, memakai database `mbuti_test` pada server yang sama, serta memasang dan membatalkan migrasi di sana. Jangan menyimpan data apa pun di database uji.

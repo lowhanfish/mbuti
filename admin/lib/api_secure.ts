@@ -1,4 +1,4 @@
-import { errorMessageFrom, sendRequest } from "@/lib/transport";
+import { errorMessageFrom, requestServer, sendRequest } from "@/lib/transport";
 import { useUrlStore } from "@/store/useUrlStore";
 
 function getCookie(name: string): string | null {
@@ -61,6 +61,24 @@ export const fetchData = async <T>(
     throw new Error(errorMessageFrom(result.data, result.status));
   }
   return result.data as T;
+};
+
+/** Unduh berkas dari backend, dengan perpanjangan sesi seperti permintaan lain. */
+export const downloadFile = async (url: string, fileName: string, shouldRetry = true): Promise<void> => {
+  const res = await requestServer(url, { method: "GET" });
+  if (res.status === 401 && shouldRetry) {
+    await refreshSession();
+    return downloadFile(url, fileName, false);
+  }
+  if (!res.ok) {
+    throw new Error(errorMessageFrom(await res.json().catch(() => null), res.status));
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(await res.blob());
+  link.download = fileName;
+  link.click();
+  // Beri waktu peramban memulai unduhan sebelum alamat sementaranya dilepas
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
 };
 
 const refreshSession = async (): Promise<void> => {
