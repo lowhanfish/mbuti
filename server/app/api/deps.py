@@ -19,7 +19,7 @@ from app.core.csrf import verify_csrf
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import read_access_token
 from app.db.session import get_db
-from app.models import Membership, RefreshSession, User
+from app.models import Membership, Organization, RefreshSession, User
 
 __all__ = [
     "CurrentMember",
@@ -30,6 +30,10 @@ __all__ = [
 ]
 
 MANAGERS = ("owner", "admin")
+BLOCKED_ORGANIZATION = {
+    "pending": ("Organisasi masih menunggu persetujuan.", "organization_pending"),
+    "suspended": ("Organisasi ditangguhkan. Hubungi pengelola MBUTI.", "organization_suspended"),
+}
 
 
 @dataclass(frozen=True)
@@ -72,14 +76,22 @@ async def get_current_member(
     session: AsyncSession = Depends(get_db),
 ) -> CurrentMember:
     """Keanggotaan aktif pengguna. Permintaan yang mengubah data juga harus lolos CSRF."""
-    membership = await session.scalar(
-        select(Membership)
-        .where(Membership.user_id == user.id, Membership.status == "active")
-        .order_by(Membership.joined_at)
-        .limit(1)
-    )
-    if membership is None:
+    row = (
+        await session.execute(
+            select(Membership, Organization.status)
+            .join(Organization, Organization.id == Membership.organization_id)
+            .where(Membership.user_id == user.id, Membership.status == "active")
+            .order_by(Membership.joined_at)
+            .limit(1)
+        )
+    ).first()
+    if row is None:
         raise ForbiddenException("Akun Anda belum menjadi anggota aktif organisasi mana pun.")
+    membership, organization_status = row
+    # Organisasi yang baru mendaftar atau ditangguhkan belum boleh memakai fitur aplikasi
+    if organization_status in BLOCKED_ORGANIZATION:
+        message, code = BLOCKED_ORGANIZATION[organization_status]
+        raise ForbiddenException(message, code=code)
     # Setelah autentikasi, agar sesi yang berakhir dijawab 401 (memicu refresh), bukan 403.
     verify_csrf(request)
     return CurrentMember(user=user, membership=membership)

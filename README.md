@@ -92,6 +92,23 @@ celery -A app.workers.celery_app beat --loglevel=info
 - Dokumentasi API: http://localhost:8000/docs (hanya saat `APP_DEBUG=true`).
 - Redis memakai basis data 1 (`REDIS_URL`) agar tidak bercampur dengan aplikasi lain.
 
+### Pendaftaran dan email
+
+Organisasi bisa mendaftar sendiri di `/daftar` (`REGISTRATION_MODE=approval`, bawaan). Setelah emailnya
+diverifikasi, organisasi menunggu persetujuan pengelola:
+
+```bash
+python -m scripts.setujui_organisasi --daftar
+```
+
+```bash
+python -m scripts.setujui_organisasi SLUG-ORGANISASI
+```
+
+Tambahkan `--tangguhkan` untuk menangguhkan. Email verifikasi, undangan, dan atur ulang kata sandi dikirim worker
+antrean `default`. Dengan `EMAIL_BACKEND=console` (bawaan pengembangan) isinya, termasuk tautannya, hanya ditulis ke
+log worker; isi `SMTP_*` dan `EMAIL_BACKEND=smtp` untuk mengirim sungguhan.
+
 ### Data contoh
 
 Setelah punya akun pemilik, tambahkan alur contoh **Penyusun Surat → Pemeriksa Surat → Persetujuan Kepala** (dua role, relasinya, dan satu SOP karangan di `server/contoh/`). Worker harus menyala agar SOP-nya diolah.

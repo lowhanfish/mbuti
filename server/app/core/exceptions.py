@@ -74,15 +74,18 @@ class AppException(Exception):
         self,
         message: str = INTERNAL_ERROR_MESSAGE,
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        code: str | None = None,
     ):
         self.message = message
         self.status_code = status_code
+        # Kode untuk galat yang ditangani khusus oleh frontend (kontrak API bagian 15)
+        self.code = code
         super().__init__(message)
 
 
 class BadRequestException(AppException):
-    def __init__(self, message: str = HTTP_MESSAGES[400]):
-        super().__init__(message, status.HTTP_400_BAD_REQUEST)
+    def __init__(self, message: str = HTTP_MESSAGES[400], code: str | None = None):
+        super().__init__(message, status.HTTP_400_BAD_REQUEST, code)
 
 
 class UnauthorizedException(AppException):
@@ -91,8 +94,8 @@ class UnauthorizedException(AppException):
 
 
 class ForbiddenException(AppException):
-    def __init__(self, message: str = HTTP_MESSAGES[403]):
-        super().__init__(message, status.HTTP_403_FORBIDDEN)
+    def __init__(self, message: str = HTTP_MESSAGES[403], code: str | None = None):
+        super().__init__(message, status.HTTP_403_FORBIDDEN, code)
 
 
 class NotFoundException(AppException):
@@ -116,14 +119,16 @@ class RateLimitException(AppException):
 
 
 def error_response(
-    status_code: int, message: str, headers: Mapping[str, str] | None = None
+    status_code: int,
+    message: str,
+    headers: Mapping[str, str] | None = None,
+    code: str | None = None,
 ) -> JSONResponse:
-    """Bungkus galat sesuai kontrak."""
-    return JSONResponse(
-        status_code=status_code,
-        content={"success": False, "statusCode": status_code, "message": message},
-        headers=headers,
-    )
+    """Bungkus galat sesuai kontrak. `code` hanya disertakan bila ada."""
+    content: dict[str, Any] = {"success": False, "statusCode": status_code, "message": message}
+    if code:
+        content["code"] = code
+    return JSONResponse(status_code=status_code, content=content, headers=headers)
 
 
 def validation_message(errors: Sequence[Any]) -> str:
@@ -198,7 +203,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(AppException)
     async def app_exception_handler(_: Request, exc: AppException) -> JSONResponse:
-        return error_response(exc.status_code, exc.message)
+        return error_response(exc.status_code, exc.message, code=exc.code)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:

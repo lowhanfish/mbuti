@@ -15,6 +15,7 @@ from app.core.config import settings
 JWT_ALGORITHM = "HS256"
 JWT_ISSUER = "mbuti"
 PASSWORD_MIN_LENGTH = 10
+PASSWORD_MAX_LENGTH = 128
 
 _hasher = PasswordHasher()
 # Dipakai saat email tidak dikenal, agar lama jawabannya sama dengan kata sandi salah.

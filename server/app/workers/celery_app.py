@@ -18,7 +18,12 @@ celery_app = Celery(
     "mbuti",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["app.workers.system", "app.workers.ingestion", "app.workers.execution"],
+    include=[
+        "app.workers.system",
+        "app.workers.mail",
+        "app.workers.ingestion",
+        "app.workers.execution",
+    ],
 )
 
 celery_app.conf.update(

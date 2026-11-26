@@ -23,6 +23,7 @@ from app.core.rate_limit import key_prefix
 from app.db.engine import build_async_engine
 from app.workers.execution import execute_task
 from app.workers.ingestion import process_version
+from app.workers.mail import send_email
 from tests.integration.world import PASSWORD, World, build_world, new_client
 
 
@@ -112,6 +113,14 @@ def queued_tasks(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     queued: list[str] = []
     monkeypatch.setattr(execute_task, "apply_async", lambda args, **_: queued.append(args[0]))
     return queued
+
+
+@pytest.fixture(autouse=True)
+def sent_emails(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    """Email tidak dikirim ke antrean; isinya dicatat agar tes bisa membuka tautannya."""
+    sent: list[dict] = []
+    monkeypatch.setattr(send_email, "apply_async", lambda args, **_: sent.append(args[0]))
+    return sent
 
 
 @pytest.fixture(autouse=True)

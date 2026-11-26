@@ -57,6 +57,7 @@ async def build_world(sessions: async_sessionmaker[AsyncSession]) -> World:
             email=f"{name}@uji.test",
             full_name=name.replace("_", " ").title(),
             password_hash=PASSWORD_HASH,
+            is_verified=True,
         )
         for name in PEOPLE
     }

@@ -1371,7 +1371,7 @@ export interface AcceptInviteInterface {
 
 Melampauinya dijawab `429` seperti bagian 14. Jejak audit baru: `auth.daftar` (Mendaftarkan organisasi),
 `auth.verifikasi` (Memverifikasi email), `auth.sandi` (Mengatur ulang kata sandi), `anggota.terima` (Menerima
-undangan), dan `anggota.undang` untuk kirim ulang undangan. Token dan kata sandi tidak dicatat.
+undangan), dan `anggota.kirim_ulang` (Mengirim ulang undangan). Token dan kata sandi tidak dicatat.
 
 ### 15.5 Khusus data contoh
 

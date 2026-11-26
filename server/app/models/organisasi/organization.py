@@ -1,17 +1,22 @@
-from sqlalchemy import Column, String
+from sqlalchemy import CheckConstraint, Column, String
 
 from app.db.base import Base
 from app.models.base import created_at, updated_at, uuid_pk
 
+ORGANIZATION_STATUSES = ("pending", "active", "suspended")
+
 
 class Organization(Base):
     __tablename__ = "organizations"
+    __table_args__ = (CheckConstraint(f"status IN {ORGANIZATION_STATUSES}", name="status"),)
 
     id = uuid_pk()
     name = Column(String(150), nullable=False)
     slug = Column(String(160), nullable=False, unique=True)
     description = Column(String(1000), nullable=False, default="")
     sector = Column(String(20), nullable=False, default="lainnya")
+    # pending: mendaftar sendiri dan menunggu persetujuan pengelola; suspended: ditangguhkan
+    status = Column(String(10), nullable=False, default="active", server_default="active")
     timezone = Column(String(60), nullable=False, default="Asia/Makassar")
     email = Column(String(150), nullable=False, default="")
     phone = Column(String(30), nullable=False, default="")

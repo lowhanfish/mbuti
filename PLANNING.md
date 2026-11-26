@@ -426,7 +426,7 @@ MBUTI ditujukan menjadi layanan SaaS. Versi pertama (fase A–C) dipakai satu pe
 dibuat lewat skrip; data sudah dipisah per organisasi. Fase ini dimulai setelah alur utama terbukti jalan, dan
 rinciannya disepakati dulu sebelum dikerjakan.
 
-- [ ] Pendaftaran mandiri, verifikasi email, penerimaan undangan, dan lupa kata sandi.
+- [x] Pendaftaran mandiri, verifikasi email, penerimaan undangan, dan lupa kata sandi (D1, 26 November 2026).
 - [ ] Satu pengguna di beberapa organisasi, dengan pemilih organisasi.
 - [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran. Halaman depan sudah menampilkan
       harga **rencana** (Perintis Rp0, Tim Rp299.000, Instansi Rp1.490.000 per bulan; `admin/app/(publish)/_landing/Pricing.tsx`)
@@ -501,7 +501,10 @@ Kemajuan:
 - [x] Kontrak API (26 November 2026, `admin/API_CONTRACT.md` bagian 15): endpoint di atas, `GET /auth/options`,
       `POST /admin/pengguna/resend-invite/{id}`, `organization.status` pada profil, dan kolom `code` pada galat
       (`email_not_verified`, `invalid_token`, `organization_pending`, `organization_suspended`).
-- [ ] Backend, skrip `scripts.setujui_organisasi`, dan uji.
+- [x] Backend, skrip `scripts.setujui_organisasi`, dan uji (26 November 2026): tabel `auth_tokens`, kolom
+      `organizations.status` dan `users.terms_accepted_at`, pengirim email lewat Celery (`console` atau `smtp`),
+      batas laju per jam, dan `tests/integration/test_accounts.py`. Pengirim email sungguhan dipilih sebelum
+      pemasangan di server.
 
 ## 12. Risiko
 

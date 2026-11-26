@@ -38,7 +38,17 @@ async def invite(
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[MemberItem]:
     data = await service.invite(session, member, body)
-    return ApiResponse(statusCode=201, message="Undangan dibuat.", data=data)
+    return ApiResponse(statusCode=201, message="Undangan terkirim.", data=data)
+
+
+@router.post("/resend-invite/{member_id}", response_model=ApiResponse[MemberItem])
+async def resend_invite(
+    member_id: str,
+    member: CurrentMember = Depends(require_manager),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[MemberItem]:
+    data = await service.resend_invite(session, member, member_id)
+    return ApiResponse(message="Undangan dikirim ulang.", data=data)
 
 
 @router.put("/update/{member_id}", response_model=ApiResponse[MemberItem])

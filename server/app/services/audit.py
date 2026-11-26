@@ -50,6 +50,9 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("PUT", "/unit/update/{unit_id}"): Action("unit.ubah", "Mengubah unit"),
     ("DELETE", "/unit/delete/{unit_id}"): Action("unit.hapus", "Menghapus unit"),
     ("POST", "/pengguna/invite"): Action("anggota.undang", "Mengundang anggota"),
+    ("POST", "/pengguna/resend-invite/{member_id}"): Action(
+        "anggota.kirim_ulang", "Mengirim ulang undangan"
+    ),
     ("PUT", "/pengguna/update/{member_id}"): Action("anggota.ubah", "Mengubah anggota"),
     ("DELETE", "/pengguna/delete/{member_id}"): Action("anggota.keluarkan", "Mengeluarkan anggota"),
     ("POST", "/role/create"): Action("role.buat", "Membuat role"),
@@ -86,6 +89,10 @@ AUTH_ACTIONS = {
     "auth.masuk": "Masuk",
     "auth.gagal": "Gagal masuk",
     "auth.keluar": "Keluar",
+    "auth.daftar": "Mendaftarkan organisasi",
+    "auth.verifikasi": "Memverifikasi email",
+    "auth.sandi": "Mengatur ulang kata sandi",
+    "anggota.terima": "Menerima undangan",
 }
 LABELS = {a.code: a.label for a in ACTIONS.values() if a} | AUTH_ACTIONS
 PREFIX = "/api/v1/admin"

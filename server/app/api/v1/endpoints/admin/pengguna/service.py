@@ -16,6 +16,7 @@ from app.api.v1.endpoints.admin.relasi.service import (
     hide_human,
     is_escalation_target,
 )
+from app.api.v1.endpoints.auth.accounts import send_invitation
 from app.api.v1.endpoints.auth.service import revoke_user_sessions
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.db.transaction import commit_or_raise_unique_conflict
@@ -135,6 +136,17 @@ async def invite(session: AsyncSession, actor: CurrentMember, body: InviteReques
     )
     session.add(membership)
     await commit_or_raise_unique_conflict(session, ALREADY_MEMBER)
+    await send_invitation(session, membership, actor.user)
+    return await _item(session, actor, membership.id)
+
+
+async def resend_invite(session: AsyncSession, actor: CurrentMember, member_id: str) -> MemberItem:
+    membership = await _target(session, actor, member_id)
+    if membership.status != "invited":
+        raise ConflictException("Pengguna ini sudah bergabung.")
+    if membership.access_role == "owner" and actor.access_role != "owner":
+        raise ForbiddenException("Hanya pemilik yang dapat mengundang pemilik lain.")
+    await send_invitation(session, membership, actor.user)
     return await _item(session, actor, membership.id)
 
 

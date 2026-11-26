@@ -105,6 +105,24 @@ class Settings(BaseSettings):
     LOGIN_FAILURE_LIMIT: int = 5
 
     # ==========================
+    # AKUN MANDIRI DAN EMAIL
+    # ==========================
+    # closed: hanya lewat skrip dan undangan; approval: organisasi baru menunggu persetujuan
+    # pengelola (`python -m scripts.setujui_organisasi`); open: langsung aktif
+    REGISTRATION_MODE: Literal["closed", "approval", "open"] = "approval"
+    # Alamat frontend, untuk tautan di email
+    APP_URL: str = "http://localhost:3000"
+    # console: isi email (termasuk tautan) ditulis ke log worker, untuk pengembangan
+    EMAIL_BACKEND: Literal["console", "smtp"] = "console"
+    EMAIL_FROM: str = "MBUTI <no-reply@mbuti.local>"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: SecretStr = Field(default=SecretStr(""))
+    SMTP_STARTTLS: bool = True
+    SMTP_TIMEOUT_SECONDS: int = 20
+
+    # ==========================
     # MODEL AI
     # ==========================
     # Kunci utama; kunci cadangan bernama GEMINI_API_KEY1, GEMINI_API_KEY2, ...
@@ -148,6 +166,11 @@ class Settings(BaseSettings):
     RATE_SEARCH_PER_MINUTE: int = 60
     # Per alamat, karena pengguna belum dikenali
     RATE_REFRESH_PER_MINUTE: int = 60
+    # Per jam: pendaftaran per alamat; permintaan email per email dan per alamat; tautan per alamat
+    RATE_REGISTER_PER_HOUR: int = 5
+    RATE_EMAIL_PER_HOUR: int = 3
+    RATE_EMAIL_PER_HOUR_PER_IP: int = 10
+    RATE_LINK_PER_HOUR: int = 30
 
     # ==========================
     # CORS
@@ -226,6 +249,10 @@ class Settings(BaseSettings):
         if self.APP_ENV == "testing":
             url = url.set(database=self.TEST_DB_NAME)
         return url
+
+    def app_link(self, path: str) -> str:
+        """Tautan lengkap ke halaman frontend, untuk email."""
+        return f"{self.APP_URL.rstrip('/')}{path}"
 
     @property
     def celery_broker_url(self) -> str:

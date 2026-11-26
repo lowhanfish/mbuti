@@ -20,6 +20,7 @@ from app.services import audit
 logger = logging.getLogger("mbuti.auth")
 
 WRONG_CREDENTIALS = "Email atau kata sandi salah."
+NOT_VERIFIED = "Email belum diverifikasi. Buka tautan di email Anda, atau minta tautan baru."
 SESSION_ENDED = "Sesi login telah berakhir."
 # Dua tab bisa memakai token refresh yang sama hampir bersamaan; itu bukan pencurian token.
 ROTATION_GRACE = datetime.timedelta(seconds=10)
@@ -39,7 +40,7 @@ class IssuedSession:
     refresh_token: str | None
 
 
-async def _membership(session: AsyncSession, user_id: uuid.UUID) -> Membership | None:
+async def membership_of(session: AsyncSession, user_id: uuid.UUID) -> Membership | None:
     """Keanggotaan yang aktif bila ada; selain itu keanggotaan pertama apa pun statusnya."""
     rows = (
         await session.scalars(
@@ -50,7 +51,7 @@ async def _membership(session: AsyncSession, user_id: uuid.UUID) -> Membership |
 
 
 async def build_profile(session: AsyncSession, user: User) -> UserProfile:
-    membership = await _membership(session, user.id)
+    membership = await membership_of(session, user.id)
     if membership is not None and membership.status != "active":
         membership = None
     organization = (
@@ -64,7 +65,10 @@ async def build_profile(session: AsyncSession, user: User) -> UserProfile:
         is_verified=user.is_verified,
         access_role=membership.access_role if membership else None,
         organization=OrganizationSummary(
-            id=str(organization.id), name=organization.name, slug=organization.slug
+            id=str(organization.id),
+            name=organization.name,
+            slug=organization.slug,
+            status=organization.status,
         )
         if organization
         else None,
@@ -109,7 +113,7 @@ async def _record_failure(
     session: AsyncSession, email: str, user: User | None, client: ClientInfo
 ) -> None:
     """Percobaan atas akun yang dikenal tampil di jejak audit organisasinya."""
-    membership = await _membership(session, user.id) if user else None
+    membership = await membership_of(session, user.id) if user else None
     audit.add_entry(
         session,
         action="auth.gagal",
@@ -137,24 +141,36 @@ async def login(
     if not user.is_active:
         await _record_failure(session, email, user, client)
         raise ForbiddenException("Akun dinonaktifkan. Hubungi admin organisasi.")
-    membership = await _membership(session, user.id)
+    membership = await membership_of(session, user.id)
     if membership is not None and membership.status == "disabled":
         await _record_failure(session, email, user, client)
         raise ForbiddenException("Keanggotaan Anda dinonaktifkan. Hubungi admin organisasi.")
+    if not user.is_verified:
+        raise ForbiddenException(NOT_VERIFIED, code="email_not_verified")
 
     await rate_limit.clear_login_failures(email, client.ip)
+    issued = await open_session(session, user, client, "auth.masuk")
+    await session.commit()
+    return issued
+
+
+async def open_session(
+    session: AsyncSession, user: User, client: ClientInfo, action: str, target: str = ""
+) -> IssuedSession:
+    """Sesi baru seperti masuk, beserta jejak auditnya. Pemanggil yang melakukan commit."""
+    membership = await membership_of(session, user.id)
     family_id = uuid.uuid4()
     refresh_token = _new_refresh(session, user.id, family_id, client)
     if membership is not None:
         membership.last_active_at = utcnow()
     audit.add_entry(
         session,
-        action="auth.masuk",
+        action=action,
         organization_id=membership.organization_id if membership else None,
         user=user,
+        target=target,
         ip=client.ip,
     )
-    await session.commit()
     return IssuedSession(user, create_access_token(user.id, family_id), refresh_token)
 
 
@@ -172,7 +188,7 @@ async def refresh(session: AsyncSession, token: str, client: ClientInfo) -> Issu
         raise UnauthorizedException(SESSION_ENDED)
 
     user = await session.get(User, row.user_id)
-    membership = await _membership(session, row.user_id)
+    membership = await membership_of(session, row.user_id)
     if not user.is_active or (membership is not None and membership.status == "disabled"):
         await revoke_family(session, row.family_id, "disabled")
         await session.commit()
@@ -228,7 +244,7 @@ async def logout(
     await revoke_family(session, family_id, "logout")
     # Sesi yang sudah dicabut tidak dicatat dua kali
     if user_id is not None:
-        membership = await _membership(session, user_id)
+        membership = await membership_of(session, user_id)
         audit.add_entry(
             session,
             action="auth.keluar",

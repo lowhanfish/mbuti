@@ -65,9 +65,10 @@ async def clear_login_failures(email: str, ip: str) -> None:
         raise _unavailable(exc) from exc
 
 
-async def check_rate(scope: str, identity: str, per_minute: int) -> None:
+async def check_rate(scope: str, identity: str, limit: int, window: int = 60) -> None:
     """
-    Batas pemakaian per menit untuk tindakan yang mahal (memanggil model atau menyimpan berkas).
+    Batas pemakaian per jendela waktu (bawaan semenit) untuk tindakan yang mahal: memanggil
+    model, menyimpan berkas, atau mengirim email.
 
     Bila Redis tidak tersedia, permintaan diteruskan: berbeda dari percobaan masuk, di sini
     layanan yang tetap jalan lebih penting, dan batas biaya model masih berlaku.
@@ -75,9 +76,9 @@ async def check_rate(scope: str, identity: str, per_minute: int) -> None:
     key = f"mbuti:{settings.APP_ENV}:laju:{scope}:{hashlib.sha256(identity.encode()).hexdigest()}"
     try:
         async with Redis.from_url(settings.REDIS_URL) as client:
-            total = await _count(client, key, 60)
+            total = await _count(client, key, window)
     except RedisError as exc:
         logger.error("Pembatas laju tidak tersedia: %s", type(exc).__name__)
         return
-    if total > per_minute:
+    if total > limit:
         raise RateLimitException("Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.")

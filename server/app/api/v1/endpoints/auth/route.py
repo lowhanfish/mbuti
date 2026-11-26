@@ -1,12 +1,22 @@
-"""/api/v1/auth: masuk, data diri, perpanjang sesi, dan keluar."""
+"""/api/v1/auth: masuk, data diri, perpanjang sesi, keluar, dan akun mandiri (bagian 15)."""
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.api.v1.common import ApiResponse
-from app.api.v1.endpoints.auth import service
-from app.api.v1.endpoints.auth.schema import AuthData, LoginRequest
+from app.api.v1.endpoints.auth import accounts, service
+from app.api.v1.endpoints.auth.schema import (
+    AcceptInviteRequest,
+    AuthData,
+    AuthOptions,
+    EmailRequest,
+    InvitePreview,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenRequest,
+)
 from app.core import rate_limit
 from app.core.config import settings
 from app.core.cookies import (
@@ -18,7 +28,7 @@ from app.core.cookies import (
 )
 from app.core.csrf import check_origin, verify_csrf
 from app.core.exceptions import UnauthorizedException
-from app.core.security import random_token, read_access_token
+from app.core.security import PASSWORD_MIN_LENGTH, random_token, read_access_token
 from app.models import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -40,12 +50,17 @@ async def login(
 ) -> ApiResponse[AuthData]:
     check_origin(request)
     issued = await service.login(session, body.email, body.password, client_info(request))
+    return await _signed_in(session, response, issued, "Berhasil masuk.")
+
+
+async def _signed_in(
+    session: AsyncSession, response: Response, issued: service.IssuedSession, message: str
+) -> ApiResponse[AuthData]:
+    """Pasang cookie sesi baru dan kirim profil beserta token CSRF."""
     csrf_token = random_token(32)
     set_session_cookies(response, issued.access_token, csrf_token, issued.refresh_token)
     profile = await service.build_profile(session, issued.user)
-    return ApiResponse(
-        message="Berhasil masuk.", data=AuthData(user=profile, csrf_token=csrf_token)
-    )
+    return ApiResponse(message=message, data=AuthData(user=profile, csrf_token=csrf_token))
 
 
 # Token CSRF hanya dikirim saat masuk; di sini kolomnya ditiadakan, bukan diisi null
@@ -92,3 +107,84 @@ async def logout(
         )
     clear_session_cookies(response)
     return ApiResponse(message="Berhasil keluar.", data=None)
+
+
+# ==========================
+# AKUN MANDIRI (kontrak API bagian 15). Publik: tanpa sesi dan tanpa CSRF, Origin diperiksa.
+# ==========================
+
+
+@router.get("/options", response_model=ApiResponse[AuthOptions])
+async def options() -> ApiResponse[AuthOptions]:
+    return ApiResponse(
+        data=AuthOptions(
+            registration=settings.REGISTRATION_MODE, password_min_length=PASSWORD_MIN_LENGTH
+        )
+    )
+
+
+@router.post("/register", response_model=ApiResponse[None], status_code=201)
+async def register(
+    body: RegisterRequest, request: Request, session: AsyncSession = Depends(get_db)
+) -> ApiResponse[None]:
+    check_origin(request)
+    await accounts.register(session, body, client_info(request))
+    return ApiResponse(statusCode=201, message=accounts.REGISTERED, data=None)
+
+
+@router.post("/verify-email", response_model=ApiResponse[AuthData])
+async def verify_email(
+    body: TokenRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[AuthData]:
+    check_origin(request)
+    issued = await accounts.verify_email(session, body.token, client_info(request))
+    return await _signed_in(session, response, issued, "Email terverifikasi.")
+
+
+@router.post("/resend-verification", response_model=ApiResponse[None])
+async def resend_verification(
+    body: EmailRequest, request: Request, session: AsyncSession = Depends(get_db)
+) -> ApiResponse[None]:
+    check_origin(request)
+    await accounts.resend_verification(session, body.email, client_info(request))
+    return ApiResponse(message=accounts.EMAIL_SENT, data=None)
+
+
+@router.post("/forgot-password", response_model=ApiResponse[None])
+async def forgot_password(
+    body: EmailRequest, request: Request, session: AsyncSession = Depends(get_db)
+) -> ApiResponse[None]:
+    check_origin(request)
+    await accounts.forgot_password(session, body.email, client_info(request))
+    return ApiResponse(message=accounts.EMAIL_SENT, data=None)
+
+
+@router.post("/reset-password", response_model=ApiResponse[None])
+async def reset_password(
+    body: ResetPasswordRequest, request: Request, session: AsyncSession = Depends(get_db)
+) -> ApiResponse[None]:
+    check_origin(request)
+    await accounts.reset_password(session, body, client_info(request))
+    return ApiResponse(message=accounts.PASSWORD_CHANGED, data=None)
+
+
+@router.get("/invite/{token}", response_model=ApiResponse[InvitePreview])
+async def invite_preview(
+    token: str, request: Request, session: AsyncSession = Depends(get_db)
+) -> ApiResponse[InvitePreview]:
+    return ApiResponse(data=await accounts.invite_preview(session, token, client_info(request)))
+
+
+@router.post("/accept-invite", response_model=ApiResponse[AuthData])
+async def accept_invite(
+    body: AcceptInviteRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[AuthData]:
+    check_origin(request)
+    issued = await accounts.accept_invite(session, body, client_info(request))
+    return await _signed_in(session, response, issued, "Selamat bergabung.")
