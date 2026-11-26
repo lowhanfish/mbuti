@@ -114,6 +114,18 @@ class Settings(BaseSettings):
     GEMINI_KEY_COOLDOWN_SECONDS: int = 60
     # "mock" menghitung vektor sendiri tanpa memanggil layanan luar (untuk pengujian)
     EMBEDDING_PROVIDER: Literal["gemini", "mock"] = "gemini"
+    LLM_PROVIDER: Literal["gemini", "mock"] = "gemini"
+    # Model bawaan tiap profil; organisasi bisa menggantinya di Pengaturan > Model AI.
+    # Dipilih dari yang menjawab dengan kunci tier gratis pada 26 November 2026.
+    LLM_MODEL_FAST: str = "gemini-3.1-flash-lite"
+    LLM_MODEL_BALANCED: str = "gemini-3.6-flash"
+    LLM_MODEL_THOROUGH: str = "gemini-4-hydrogen"
+    LLM_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
+    GENERATION_TIMEOUT_SECONDS: int = 60
+    # Kurs untuk mengubah harga dolar menjadi rupiah (JISDOR 10 November 2026: 18.059)
+    USD_IDR_RATE: int = 18_000
+    # Potongan dokumen yang lebih jauh dari ini tidak diberikan kepada role
+    RETRIEVAL_MAX_DISTANCE: float = 0.55
     EMBEDDING_MODEL: str = "gemini-embedding-2"
     EMBEDDING_DIMENSION: Literal[768] = 768
     # Potongan dengan jarak kosinus di atas ini dianggap tidak berkaitan. Diukur pada

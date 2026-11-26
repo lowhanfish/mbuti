@@ -102,3 +102,13 @@ class SearchHit(BaseModel):
     heading: str
     snippet: str
     score: int
+
+
+def hit_to_schema(hit) -> SearchHit:
+    return SearchHit(
+        **{
+            **hit.__dict__,
+            "document_id": str(hit.document_id),
+            "version_id": str(hit.version_id),
+        }
+    )

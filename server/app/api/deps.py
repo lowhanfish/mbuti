@@ -83,10 +83,12 @@ async def get_current_member(
     return CurrentMember(user=user, membership=membership)
 
 
-def require_access(*roles: str) -> Callable:
+def require_access(
+    *roles: str, message: str = "Hanya pemilik atau admin yang dapat melakukan perubahan ini."
+) -> Callable:
     async def dependency(member: CurrentMember = Depends(get_current_member)) -> CurrentMember:
         if member.access_role not in roles:
-            raise ForbiddenException("Hanya pemilik atau admin yang dapat melakukan perubahan ini.")
+            raise ForbiddenException(message)
         return member
 
     return dependency

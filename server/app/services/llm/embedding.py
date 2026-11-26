@@ -9,7 +9,7 @@ from typing import Protocol
 from google.genai import types
 
 from app.core.config import settings
-from app.services.llm.gemini_keys import KeyPool, configured_keys
+from app.services.llm.gemini_keys import KeyPool
 
 
 class EmbeddingProvider(Protocol):
@@ -26,7 +26,7 @@ class GeminiEmbedding:
 
     async def _embed(self, content: str) -> list[float]:
         if self._pool is None:
-            self._pool = KeyPool(configured_keys())
+            self._pool = KeyPool.configured()
         config = types.EmbedContentConfig(output_dimensionality=settings.EMBEDDING_DIMENSION)
 
         async def call(client):
@@ -34,7 +34,7 @@ class GeminiEmbedding:
                 model=settings.EMBEDDING_MODEL, contents=content, config=config
             )
 
-        response = await self._pool.run(call)
+        response = await self._pool.run(settings.EMBEDDING_MODEL, call)
         values = response.embeddings[0].values if response.embeddings else None
         if not values or len(values) != settings.EMBEDDING_DIMENSION:
             raise ValueError("Model embedding mengembalikan vektor yang tidak sesuai.")

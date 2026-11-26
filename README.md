@@ -9,7 +9,7 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 | Folder | Isi | Status |
 |---|---|---|
 | [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B3 selesai: kerangka, auth, organisasi, unit, pengguna, role, peta relasi, pengetahuan (unggah, olah, pencarian), tes isolasi. Eksekusi tugas menyusul |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B4 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role dengan Gemini. Eksekusi tugas menyusul |
 
 ## Menjalankan frontend
 

@@ -21,6 +21,7 @@ from app.api.v1.endpoints.admin.pengetahuan.schema import (
     Section,
     Version,
     VersionDetail,
+    hit_to_schema,
 )
 from app.api.v1.endpoints.admin.role.service import live_agents
 from app.core.config import settings
@@ -226,16 +227,7 @@ async def search(
     hits = await search_documents(
         session, organization_id, query.strip()[:300], get_embedding_provider(), visibility
     )
-    return [
-        SearchHit(
-            **{
-                **hit.__dict__,
-                "document_id": str(hit.document_id),
-                "version_id": str(hit.version_id),
-            }
-        )
-        for hit in hits
-    ]
+    return [hit_to_schema(hit) for hit in hits]
 
 
 async def _get(

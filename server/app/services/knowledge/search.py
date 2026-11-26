@@ -33,6 +33,20 @@ STOPWORDS = frozenset(
 
 
 @dataclass
+class Chunk:
+    """Potongan dokumen yang cocok, lengkap dengan asal rujukannya."""
+
+    document_id: uuid.UUID
+    document_title: str
+    version_id: uuid.UUID
+    version_no: int
+    page_no: int
+    heading: str
+    text: str
+    score: int
+
+
+@dataclass
 class Hit:
     document_id: uuid.UUID
     document_title: str
@@ -77,14 +91,16 @@ async def _query_vector(query: str, provider: EmbeddingProvider) -> list[float]:
         return await provider.embed_query(query)
 
 
-async def search_documents(
+async def rank_chunks(
     session: AsyncSession,
     organization_id: uuid.UUID,
     query: str,
     provider: EmbeddingProvider,
     visibility: ColumnElement[bool] | None = None,
-    limit: int = 8,
-) -> list[Hit]:
+    max_distance: float | None = None,
+) -> list[Chunk]:
+    """Semua potongan yang cocok, terurut dari yang paling relevan."""
+    max_distance = settings.SEARCH_MAX_DISTANCE if max_distance is None else max_distance
     terms = tokenize(query)
     if not terms:
         return []
@@ -135,9 +151,7 @@ async def search_documents(
         semantic = list(
             await session.scalars(
                 candidates()
-                .where(
-                    DocumentChunk.embedding.is_not(None), distance <= settings.SEARCH_MAX_DISTANCE
-                )
+                .where(DocumentChunk.embedding.is_not(None), distance <= max_distance)
                 .order_by(distance)
                 .limit(CANDIDATES)
             )
@@ -166,21 +180,47 @@ async def search_documents(
         .join(Document, Document.id == DocumentVersion.document_id)
         .where(DocumentChunk.id.in_(scores))
     )
-    # Rujukan per halaman: potongan terbaik mewakili halamannya
     best = 2 / (RRF_K + 1)
-    hits: dict[tuple[uuid.UUID, int], Hit] = {}
-    for row in sorted(rows, key=lambda r: (-scores[r.id], r.page_no)):
-        hits.setdefault(
-            (row.version_id, row.page_no),
-            Hit(
-                document_id=row.document_id,
-                document_title=row.title,
-                version_id=row.version_id,
-                version_no=row.version_no,
-                page_no=row.page_no,
-                heading=row.heading,
-                snippet=snippet_around(row.text, terms),
-                score=round(scores[row.id] / best * 100),
-            ),
+    return [
+        Chunk(
+            document_id=row.document_id,
+            document_title=row.title,
+            version_id=row.version_id,
+            version_no=row.version_no,
+            page_no=row.page_no,
+            heading=row.heading,
+            text=row.text,
+            score=round(scores[row.id] / best * 100),
         )
-    return list(hits.values())[:limit]
+        for row in sorted(rows, key=lambda r: (-scores[r.id], r.page_no))
+    ]
+
+
+def to_hit(chunk: Chunk, terms: list[str]) -> Hit:
+    return Hit(
+        document_id=chunk.document_id,
+        document_title=chunk.document_title,
+        version_id=chunk.version_id,
+        version_no=chunk.version_no,
+        page_no=chunk.page_no,
+        heading=chunk.heading,
+        snippet=snippet_around(chunk.text, terms),
+        score=chunk.score,
+    )
+
+
+async def search_documents(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    query: str,
+    provider: EmbeddingProvider,
+    visibility: ColumnElement[bool] | None = None,
+    limit: int = 8,
+) -> list[Hit]:
+    """Hasil per halaman: potongan terbaik mewakili halamannya."""
+    chunks = await rank_chunks(session, organization_id, query, provider, visibility)
+    terms = tokenize(query)
+    pages: dict[tuple[uuid.UUID, int], Hit] = {}
+    for chunk in chunks:
+        pages.setdefault((chunk.version_id, chunk.page_no), to_hit(chunk, terms))
+    return list(pages.values())[:limit]

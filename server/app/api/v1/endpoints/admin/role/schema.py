@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.v1.common import ApiListResponse, RequestModel
+from app.api.v1.endpoints.admin.pengetahuan.schema import SearchHit
 
 AgentStatus = Literal["draft", "active", "paused"]
 OutputFormat = Literal["text", "template", "table", "json"]
@@ -144,6 +145,25 @@ class RoleItem(BaseModel):
     task_count: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class TrialRequest(RequestModel):
+    brief: str = Field(default="", max_length=4000)
+    inputs: dict[str, Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=dict, max_length=20
+    )
+
+
+class TrialResult(BaseModel):
+    simulated: bool = False
+    status: Literal["done", "need_info", "not_in_documents"]
+    output: str
+    notes: str
+    prompt_preview: str
+    missing_inputs: list[str]
+    citations: list[SearchHit]
+    cost: int
+    model: str
 
 
 class RoleSummary(BaseModel):

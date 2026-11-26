@@ -20,13 +20,12 @@ from app.db.transaction import commit_or_raise_unique_conflict
 from app.models import Agent, AgentRelation, FlowHuman, FlowPosition, Membership, Unit, User
 from app.models.base import utcnow
 from app.services.appearance import UNIT_COLOR_HEX
+from app.services.budget import read_settings
 from app.services.organisation import lock_organization
 
 NOT_FOUND = "Relasi tidak ditemukan."
 DUPLICATE = "Relasi dengan jenis yang sama di antara keduanya sudah ada."
 VIEWER_TARGET = "Pemantau tidak bisa menjadi tujuan eskalasi."
-# Batas revisi organisasi; menjadi pengaturan saat tabel Batas Biaya dibuat
-DEFAULT_REVISION_LIMIT = 3
 ACCESS_LABEL = {"owner": "Pemilik", "admin": "Admin", "member": "Anggota", "viewer": "Pemantau"}
 
 
@@ -109,7 +108,7 @@ async def read_graph(session: AsyncSession, organization_id: uuid.UUID) -> Graph
         nodes=nodes,
         relations=[_to_item(r) for r in relations],
         positions={str(p.node_id): {"x": p.x, "y": p.y} for p in positions},
-        revision_limit=DEFAULT_REVISION_LIMIT,
+        revision_limit=(await read_settings(session, organization_id)).max_revisions,
     )
 
 

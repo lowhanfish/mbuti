@@ -30,10 +30,10 @@ def pool_with(monkeypatch, behaviour: dict[str, int | None]):
 async def test_moves_to_next_key_and_rotates(monkeypatch):
     pool, operation, calls = pool_with(monkeypatch, {"a": 429, "b": None, "c": None})
 
-    assert await pool.run(operation) == "b"
-    assert await pool.run(operation) == "c"
+    assert await pool.run("model", operation) == "b"
+    assert await pool.run("model", operation) == "c"
     # Kunci yang kena batas tidak dicoba lagi selama istirahat
-    assert await pool.run(operation) == "b"
+    assert await pool.run("model", operation) == "b"
     assert calls == ["a", "b", "c", "b"]
 
 
@@ -41,18 +41,43 @@ async def test_all_keys_resting(monkeypatch):
     pool, operation, calls = pool_with(monkeypatch, {"a": 429, "b": 403})
 
     with pytest.raises(GeminiUnavailable) as failure:
-        await pool.run(operation)
+        await pool.run("model", operation)
     assert failure.value.retry_after >= 5
     with pytest.raises(GeminiUnavailable):
-        await pool.run(operation)
+        await pool.run("model", operation)
     assert calls == ["a", "b"]
+
+
+async def test_resting_is_per_model_but_rejection_is_not(monkeypatch):
+    pool, operation, calls = pool_with(monkeypatch, {"a": 429, "b": 403})
+    with pytest.raises(GeminiUnavailable):
+        await pool.run("model", operation)
+    calls.clear()
+    with pytest.raises(GeminiUnavailable):
+        await pool.run("model-lain", operation)
+    # "a" dicoba lagi untuk model lain; "b" yang ditolak tidak
+    assert calls == ["a"]
+
+
+async def test_timeouts_stop_after_two_keys(monkeypatch):
+    pool = KeyPool(["a", "b", "c"])
+    monkeypatch.setattr(pool, "_client", lambda index: index)
+    calls = []
+
+    async def slow(index):
+        calls.append(index)
+        raise TimeoutError
+
+    with pytest.raises(GeminiUnavailable):
+        await pool.run("model", slow)
+    assert calls == [0, 1]
 
 
 async def test_other_errors_are_not_retried(monkeypatch):
     pool, operation, calls = pool_with(monkeypatch, {"a": 400, "b": None})
 
     with pytest.raises(errors.APIError):
-        await pool.run(operation)
+        await pool.run("model", operation)
     assert calls == ["a"]
 
 

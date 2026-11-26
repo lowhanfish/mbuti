@@ -1,12 +1,25 @@
-"""/api/v1/admin/role. Uji coba role dibuat pada tahap B4."""
+"""/api/v1/admin/role."""
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentMember, get_current_member, get_db, require_manager
+from app.api.deps import (
+    CurrentMember,
+    get_current_member,
+    get_db,
+    require_access,
+    require_manager,
+)
 from app.api.v1.common import ApiResponse, Option, Paging, paging
 from app.api.v1.endpoints.admin.role import service
-from app.api.v1.endpoints.admin.role.schema import RoleCreate, RoleItem, RoleList, RoleUpdate
+from app.api.v1.endpoints.admin.role.schema import (
+    RoleCreate,
+    RoleItem,
+    RoleList,
+    RoleUpdate,
+    TrialRequest,
+    TrialResult,
+)
 
 router = APIRouter(prefix="/role", tags=["Role"])
 
@@ -62,6 +75,22 @@ async def delete_role(
 ) -> ApiResponse[None]:
     await service.delete_role(session, member.organization_id, role_id)
     return ApiResponse(message="Role dihapus.", data=None)
+
+
+require_trial = require_access(
+    "owner", "admin", "member", message="Pemantau tidak dapat menjalankan uji coba."
+)
+
+
+@router.post("/{role_id}/trial", response_model=ApiResponse[TrialResult])
+async def trial(
+    role_id: str,
+    body: TrialRequest,
+    member: CurrentMember = Depends(require_trial),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[TrialResult]:
+    data = await service.run_trial(session, member, role_id, body)
+    return ApiResponse(message="Uji coba selesai.", data=data)
 
 
 # Terakhir: "/{role_id}" tidak boleh menelan "/read" dan "/option"

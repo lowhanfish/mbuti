@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,12 +7,23 @@ from sqlalchemy.orm import aliased
 
 from app.api.deps import CurrentMember
 from app.api.v1.common import Option, Paging, like_pattern, parse_id
-from app.api.v1.endpoints.admin.role.schema import RoleCreate, RoleItem, RoleSummary, RoleUpdate
+from app.api.v1.endpoints.admin.pengetahuan.schema import hit_to_schema
+from app.api.v1.endpoints.admin.role.schema import (
+    RoleCreate,
+    RoleItem,
+    RoleSummary,
+    RoleUpdate,
+    TrialRequest,
+    TrialResult,
+)
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
 from app.models import Agent, AgentRelation, Document, FlowPosition, Membership, Unit, User
 from app.models.base import utcnow
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
+from app.services.engine.runner import Caller, run_agent
 from app.services.knowledge.scope import visible_to
+from app.services.llm.embedding import get_embedding_provider
+from app.services.llm.generation import get_llm_provider
 from app.services.organisation import lock_organization, require_membership, require_unit
 
 NOT_FOUND = "Role tidak ditemukan."
@@ -240,3 +252,22 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
     )
     await session.execute(delete(FlowPosition).where(FlowPosition.node_id == agent.id))
     await session.commit()
+
+
+async def run_trial(
+    session: AsyncSession, actor: CurrentMember, role_id: str, body: TrialRequest
+) -> TrialResult:
+    """Uji coba: role bekerja sekali tanpa menjadi tugas dan tanpa menjalankan relasi."""
+    agent = await _get(session, actor.organization_id, role_id)
+    result = await run_agent(
+        session,
+        Caller(actor.organization_id, actor.user.id, "trial"),
+        agent,
+        body.brief,
+        {key: value for key, value in body.inputs.items() if value},
+        get_llm_provider(),
+        get_embedding_provider(),
+    )
+    return TrialResult(
+        **{**asdict(result), "citations": [hit_to_schema(hit) for hit in result.citations]}
+    )

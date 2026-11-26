@@ -433,6 +433,9 @@ export interface AvatarConfig {
   role itu. Relasinya ikut dihapus. Role dan relasi yang pernah dipakai tugas hanya ditandai terhapus
   (`deleted_at`): hilang dari daftar dan pilihan, tetapi namanya tetap tampil di riwayat tugas.
 - Backend menandai terhapus semua role yang dihapus, dipakai tugas atau belum.
+- Backend: model profil dipakai lebih dulu, lalu model cadangan bila tidak tersedia. `503` bila keduanya gagal,
+  `502` bila jawaban model ditolak atau tidak terbaca. Nomor rujukan `[n]` pada `output` mengikuti urutan
+  `citations`.
 - Uji coba tidak membuat tugas dan tidak menjalankan relasi. Isian wajib kosong menghasilkan `need_info`; tidak ada
   potongan dokumen yang cocok menghasilkan `not_in_documents`. Keduanya tidak memanggil model (`cost: 0`,
   `model: ""`). `simulated` bernilai `false` di backend.
@@ -1031,6 +1034,7 @@ export interface UpdateInterface {
 - `server/.env` memberi nilai bawaan tiap slot; pilihan organisasi disimpan di database. Kunci API hanya ada di
   `server/.env`, tidak disimpan di database.
 - **Nilai kunci API tidak boleh ada di respons mana pun**, termasuk potongan atau empat huruf terakhir.
+- Katalog dan harga ada di `server/app/services/llm/catalog.py`; kurs di `USD_IDR_RATE`.
 - Biaya dihitung dari token dengan tabel harga per model dan kurs di konfigurasi server, juga pada tier gratis,
   agar batas tetap berfungsi. `available_models` dan `estimated_step_cost` di data contoh adalah angka rekaan.
 
