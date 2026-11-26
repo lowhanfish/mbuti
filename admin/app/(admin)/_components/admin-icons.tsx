@@ -173,6 +173,18 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />,
+  lock: (
+    <>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7a12.6 12.6 0 0 1-3.1 4.2M6.2 6.6C4.1 8 2.6 10 2 12c1 2.5 5 7 10 7a9.7 9.7 0 0 0 4.4-1" />
+    </>
+  ),
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
 };
 
 export function Icon({

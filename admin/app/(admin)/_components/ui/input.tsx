@@ -28,7 +28,7 @@ export function Input({
     <FieldShell id={inputId} label={label} required={required} error={error} helperText={helperText}>
       <div className="relative flex items-center w-full">
         {leftIcon && (
-          <span className="absolute left-3 text-faint pointer-events-none flex items-center">
+          <span className="absolute left-3 z-10 text-faint pointer-events-none flex items-center">
             {leftIcon}
           </span>
         )}
@@ -42,7 +42,7 @@ export function Input({
           {...props}
         />
         {rightIcon && (
-          <span className="absolute right-3 text-faint flex items-center">{rightIcon}</span>
+          <span className="absolute right-3 z-10 text-faint flex items-center">{rightIcon}</span>
         )}
       </div>
     </FieldShell>

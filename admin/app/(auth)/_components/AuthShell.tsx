@@ -5,13 +5,46 @@ import { ThemeToggle } from "../../(admin)/_components/theme-toggle";
 
 const HIGHLIGHTS = ["Role bekerja dari SOP", "Hasil saling diperiksa", "Keputusan tetap di manusia"];
 
+/** Kartu kecil yang mengambang di sekitar maskot: gambaran alur kerja kantor AI. */
+const WORKING = [
+  { initial: "R", name: "Rani", activity: "menyusun surat", color: "#a78bfa", status: "✍️", className: "-left-[6%] top-[12%]", delay: "0s" },
+  { initial: "T", name: "Tegar", activity: "memeriksa hasil", color: "#fb923c", status: "🔍", className: "-right-[8%] top-[46%]", delay: "-1.6s" },
+  { initial: "K", name: "Kepala", activity: "menunggu persetujuan", color: "#34d399", status: "✅", className: "left-0 bottom-[6%]", delay: "-3s" },
+];
+
+function WorkingChip({ item }: { item: (typeof WORKING)[number] }) {
+  return (
+    <div
+      className={`auth-chip absolute z-10 flex items-center gap-2.5 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md pl-1.5 pr-3.5 py-1.5 shadow-[0_12px_30px_-12px_rgba(0,0,0,.6)] ${item.className}`}
+      style={{ animationDelay: item.delay }}
+    >
+      <span
+        className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold text-night"
+        style={{ background: item.color }}
+      >
+        {item.initial}
+      </span>
+      <span className="leading-tight">
+        <span className="block text-[11px] font-bold">{item.name}</span>
+        <span className="block text-[10px] text-white/65">{item.activity}</span>
+      </span>
+      <span className="text-sm" aria-hidden="true">
+        {item.status}
+      </span>
+    </div>
+  );
+}
+
 /** Kerangka halaman akun: panel merek di kiri (layar lebar) dan kartu formulir di kanan. */
 export function AuthShell({
   title,
   subtitle,
   children,
   wide = false,
+  eyebrow,
 }: {
+  /** Lencana kecil di atas judul */
+  eyebrow?: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   children: React.ReactNode;
@@ -25,6 +58,7 @@ export function AuthShell({
       <section className="hidden lg:flex flex-col justify-between p-10 m-3 rounded-4xl bg-linear-to-br from-night via-night-2 to-[#3b2580] text-white relative overflow-hidden">
         <div className="absolute -left-20 top-1/3 w-80 h-80 rounded-full bg-brand/40 blur-3xl" aria-hidden="true" />
         <div className="absolute right-0 -bottom-20 w-96 h-96 rounded-full bg-accent/25 blur-3xl" aria-hidden="true" />
+        <div className="auth-hex absolute inset-0" aria-hidden="true" />
 
         <Link href="/" className="flex items-center gap-3 relative">
           <BrandMark size={40} />
@@ -33,8 +67,20 @@ export function AuthShell({
           </span>
         </Link>
 
-        <div className="relative flex justify-center">
-          <BrandMascot width={400} />
+        <div className="relative flex-1 flex items-center justify-center my-6 min-h-[340px]" aria-hidden="true">
+          <div className="relative w-[min(420px,100%)] aspect-square flex items-center justify-center">
+            <div className="auth-halo absolute inset-[12%] rounded-full blur-2xl" />
+            <div className="auth-ring absolute inset-[6%] rounded-full">
+              <span className="-top-[5px] left-1/2" />
+              <span className="bottom-[14%] -right-[5px] !w-2 !h-2 !bg-brand" />
+            </div>
+            <div className="animate-float relative">
+              <BrandMascot width={330} />
+            </div>
+            {WORKING.map((item) => (
+              <WorkingChip key={item.name} item={item} />
+            ))}
+          </div>
         </div>
 
         <div className="relative space-y-4 max-w-lg">
@@ -61,13 +107,16 @@ export function AuthShell({
           </Link>
           <ThemeToggle />
         </div>
-        <div className={`glass ring-gradient w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-[28px] p-6 sm:p-8 space-y-6 rise`}>
+        <div className={`glass ring-gradient relative overflow-hidden w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-[28px] p-6 sm:p-8 space-y-6 rise`}>
+          <div className="auth-card-top absolute inset-x-0 top-0 h-1" aria-hidden="true" />
+          <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-accent/15 blur-2xl" aria-hidden="true" />
           <div className="space-y-2">
             <Link href="/" className="lg:hidden mb-4 inline-block" aria-label="Halaman depan MBUTI">
               <BrandMark size={52} />
             </Link>
-            <h1 className="text-3xl font-bold text-ink tracking-tight text-balance">{title}</h1>
-            {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+            {eyebrow && <div className="relative">{eyebrow}</div>}
+            <h1 className="relative text-3xl font-bold text-ink tracking-tight text-balance">{title}</h1>
+            {subtitle && <p className="relative text-sm text-muted">{subtitle}</p>}
           </div>
           {children}
         </div>

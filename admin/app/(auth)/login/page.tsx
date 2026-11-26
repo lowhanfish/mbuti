@@ -9,6 +9,7 @@ import { ApiError, isMockMode } from "@/lib/transport";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
+import { Icon } from "../../(admin)/_components/admin-icons";
 import { Button, Input } from "../../(admin)/_components/ui";
 import { AuthShell, FooterLink, Notice } from "../_components/AuthShell";
 import { landingPathFor } from "../_components/redirect";
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const [unverified, setUnverified] = useState(false);
   const [resent, setResent] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const signIn = async (credentials: { email: string; password: string }) => {
     setSubmitting(true);
@@ -67,8 +69,24 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthShell title="Selamat datang 👋" subtitle="Masuk untuk mengatur kantor AI organisasi Anda.">
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+    <AuthShell
+      eyebrow={
+        <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-strong text-[11px] font-bold px-3 py-1 mb-1 tracking-wide">
+          <span className="relative flex w-2 h-2">
+            <span className="absolute inset-0 rounded-full bg-accent animate-ping opacity-70" />
+            <span className="relative w-2 h-2 rounded-full bg-accent" />
+          </span>
+          Tim AI Anda sudah siap bekerja
+        </span>
+      }
+      title={
+        <>
+          Selamat datang <span className="inline-block origin-[70%_70%] motion-safe:animate-[wave_2.4s_ease-in-out_infinite]">👋</span>
+        </>
+      }
+      subtitle="Masuk untuk mengatur kantor AI organisasi Anda."
+    >
+      <form className="relative space-y-4" onSubmit={handleSubmit} noValidate>
         <Input
           label="Email"
           type="email"
@@ -77,15 +95,29 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nama@instansi.go.id"
+          leftIcon={<Icon name="mail" size={16} />}
         />
         <div className="space-y-1.5">
           <Input
             label="Kata sandi"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••"
+            leftIcon={<Icon name="lock" size={16} />}
+            rightIcon={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="text-faint hover:text-brand cursor-pointer"
+                aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                title={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+              >
+                <Icon name={showPassword ? "eye-off" : "eye"} size={16} />
+              </button>
+            }
           />
           <div className="text-right">
             <Link href="/lupa-sandi" className="text-xs font-semibold text-brand hover:underline">
@@ -111,12 +143,30 @@ export default function LoginPage() {
         )}
         {resent && <Notice tone="success">{resent}</Notice>}
 
-        <Button type="submit" size="lg" className="w-full" loading={submitting} disabled={!email || !password}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting} disabled={!email || !password}>
           Masuk
+          <Icon name="arrow" size={18} />
         </Button>
       </form>
 
+      <div className="relative flex items-center gap-3 text-[11px] text-faint" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span>atau</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
       <FooterLink text="Belum punya akun?" href="/daftar" label="Daftarkan organisasi" />
+
+      <div className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-faint">
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="shield" size={13} className="text-brand" />
+          Sesi aman, kata sandi tidak disimpan apa adanya
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="building" size={13} className="text-accent-strong" />
+          Data tiap organisasi terpisah
+        </span>
+      </div>
 
       {isMockMode() && (
         <div className="rounded-2xl bg-gradient-to-br from-accent-soft to-surface border border-accent/30 p-4 space-y-3">
