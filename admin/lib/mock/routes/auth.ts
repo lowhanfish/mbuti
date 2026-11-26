@@ -255,12 +255,11 @@ export const authRoutes: MockRoute[] = [
       const user = membership && db.users.find((u) => u.id === membership.user_id);
       const organization = membership && db.organizations.find((o) => o.id === membership.organization_id);
       if (!found || !membership || !user || !organization) return fail(400, INVALID_LINK, "invalid_token");
-      const owner = db.memberships.find((m) => m.organization_id === organization.id && m.access_role === "owner" && m.status === "active");
       return ok<InvitePreviewResponse>({
         email: user.email,
         full_name: user.full_name,
         organization_name: organization.name,
-        inviter_name: db.users.find((u) => u.id === owner?.user_id)?.full_name ?? organization.name,
+        inviter_name: db.users.find((u) => u.id === found.created_by)?.full_name ?? organization.name,
         access_role: membership.access_role,
         expires_at: found.expires_at,
       });

@@ -24,6 +24,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 12. [Perilaku mesin agen](#12-perilaku-mesin-agen)
 13. [Keputusan](#13-keputusan)
 14. [Jejak audit, batas laju, dan kode permintaan](#14-jejak-audit-batas-laju-dan-kode-permintaan)
+15. [Akun mandiri (D1)](#15-akun-mandiri-d1)
 
 ---
 
@@ -81,6 +82,9 @@ Galat:
 { "success": false, "statusCode": 422, "message": "Judul tugas minimal 5 karakter." }
 ```
 
+Galat yang perlu ditangani khusus oleh frontend membawa `code` (mis. `email_not_verified`, `invalid_token`,
+`organization_pending`; daftar lengkap di bagian 15). Galat lain tidak menyertakan `code`.
+
 `message` ditulis dalam bahasa Indonesia dan ditampilkan apa adanya kepada pengguna. Frontend juga membaca
 `detail` (bawaan FastAPI) dan `errors[0].message`, tetapi backend sebaiknya selalu memakai bentuk di atas,
 termasuk untuk galat validasi Pydantic.
@@ -119,10 +123,14 @@ Singkatan hak akses di tabel endpoint:
 ```ts
 export type AccessRole = "owner" | "admin" | "member" | "viewer";
 
+/** `pending`: baru mendaftar, menunggu persetujuan pengelola platform. */
+export type OrganizationStatus = "pending" | "active" | "suspended";
+
 export interface OrganizationSummary {
   id: string;
   name: string;
   slug: string;
+  status: OrganizationStatus;
 }
 
 export interface UserProfile {
@@ -164,8 +172,8 @@ export interface AuthDataResponse {
 - Logout tetap berhasil walau token akses sudah kedaluwarsa. Menonaktifkan atau mengeluarkan anggota mengakhiri
   sesinya.
 - Pengguna tanpa keanggotaan aktif bisa memanggil `/auth/me` (`access_role: null`), tetapi `/admin/*` menjawab `403`.
-- B1 hanya login dan skrip pembuat akun pertama. Penerimaan undangan (`POST /auth/accept-invite`, tautan sekali pakai)
-  ditambah bersama halamannya; pendaftaran terbuka menyusul.
+- B1 hanya login dan skrip pembuat akun pertama. Pendaftaran, verifikasi email, lupa kata sandi, dan penerimaan
+  undangan ada di bagian 15. Email belum terverifikasi dijawab `403` dengan `code: "email_not_verified"`.
 
 ---
 
@@ -255,6 +263,7 @@ export interface ResponseInterface extends CreateInterface {
 |---|---|---|---|---|
 | GET | `/admin/pengguna/read` | Semua | `search, access_role, status, skip, limit` (bawaan 10) | daftar + `summary` |
 | POST | `/admin/pengguna/invite` | Admin+ | `InviteInterface` | `ResponseInterface` (201) |
+| POST | `/admin/pengguna/resend-invite/{id}` | Admin+ | | `ResponseInterface` |
 | PUT | `/admin/pengguna/update/{id}` | Admin+ | `UpdateInterface` | `ResponseInterface` |
 | DELETE | `/admin/pengguna/delete/{id}` | Admin+ | | `null` |
 
@@ -301,7 +310,10 @@ export interface ResponseListInterface {
 ```
 
 - `{id}` adalah ID **keanggotaan**. `summary` dihitung sebelum saringan. Urutan: hak akses, lalu nama.
-- Undang: `full_name` 2–150, email valid, `409` bila sudah anggota. Hasilnya berstatus `invited`.
+- Undang: `full_name` 2–150, email valid, `409` bila sudah anggota. Hasilnya berstatus `invited`, dan email berisi
+  tautan undangan (berlaku 7 hari) dikirim. Pesan: `Undangan terkirim.`
+- Kirim ulang undangan: hanya untuk `invited` (`409` bila sudah bergabung); tautan lama tidak berlaku lagi. Mengundang
+  ulang pemilik hanya oleh pemilik (`403`).
 - Hanya pemilik yang boleh mengundang, mengubah, atau mengeluarkan pemilik (`403`).
 - Selalu minimal satu pemilik aktif; tidak bisa menonaktifkan atau mengeluarkan diri sendiri (`409`).
 - Ubah dengan `status: "active"` pada anggota yang masih `invited` tidak mengubah statusnya.
@@ -1231,3 +1243,137 @@ Melampauinya dijawab `429` dengan `Terlalu banyak permintaan. Tunggu sebentar la
 Setiap jawaban membawa header `X-Request-ID`. Galat tak terduga (`500`) menyebutnya di `message`
 (`… Kode galat: 1a2b3c4d5e6f.`), dan kode yang sama ada di log server.
 
+
+---
+
+## 15. Akun mandiri (D1)
+
+Ditambahkan pada fase D (rancangan di `PLANNING.md`, bagian D1). Semua endpoint di bawah **Publik**: tanpa sesi dan
+tanpa `X-CSRF-Token` (seperti login), tetapi header `Origin` tetap diperiksa.
+
+### 15.1 Endpoint
+
+| Method | Path | Body | `data` |
+|---|---|---|---|
+| GET | `/auth/options` | | `AuthOptionsResponse` |
+| POST | `/auth/register` | `RegisterInterface` | `null` (201) |
+| POST | `/auth/verify-email` | `{ token }` | `AuthDataResponse` (cookie sesi dipasang) |
+| POST | `/auth/resend-verification` | `{ email }` | `null` |
+| POST | `/auth/forgot-password` | `{ email }` | `null` |
+| POST | `/auth/reset-password` | `{ token, password }` | `null` |
+| GET | `/auth/invite/{token}` | | `InvitePreviewResponse` |
+| POST | `/auth/accept-invite` | `AcceptInviteInterface` | `AuthDataResponse` (cookie sesi dipasang) |
+
+```ts
+/** `approval`: organisasi baru menunggu persetujuan pengelola setelah email diverifikasi. */
+export type RegistrationMode = "closed" | "approval" | "open";
+
+export interface AuthOptionsResponse {
+  registration: RegistrationMode; // dari REGISTRATION_MODE di server/.env, bawaan "approval"
+  password_min_length: number; // 10
+}
+
+export interface RegisterInterface {
+  full_name: string; // 2–150
+  email: string; // maks 150, disimpan huruf kecil
+  password: string; // 10–128
+  organization_name: string; // 2–150
+  sector: OrganizationSector; // lihat 3.1
+  accept_terms: boolean; // harus true
+}
+
+export interface InvitePreviewResponse {
+  email: string;
+  full_name: string; // nama yang ditulis pengundang; boleh diubah penerima
+  organization_name: string;
+  inviter_name: string; // pengirim undangan terakhir
+  access_role: AccessRole;
+  expires_at: string;
+}
+
+export interface AcceptInviteInterface {
+  token: string;
+  full_name: string; // 2–150
+  password: string; // 10–128
+}
+```
+
+### 15.2 Perilaku
+
+**Daftar**
+
+- `registration: "closed"` → `403` "Pendaftaran sedang ditutup." Halaman daftar menampilkan keadaan tertutup.
+- Membuat akun (`is_verified=false`), organisasi baru (slug unik dari nama, zona waktu bawaan `Asia/Makassar`),
+  keanggotaan **pemilik** berstatus aktif, dan pengaturan bawaan organisasi. Lalu mengirim email verifikasi.
+- Status organisasi baru: `pending` bila mode `approval`, `active` bila mode `open`.
+- Email yang sudah terdaftar dijawab **sama persis** (`201`, pesan yang sama) dan pemiliknya menerima email
+  "Anda sudah punya akun". Tidak ada akun atau organisasi yang dibuat.
+- Pesan berhasil: `Pendaftaran diterima. Periksa email Anda untuk tautan verifikasi.`
+
+**Token**
+
+- Tabel `auth_tokens`: `user_id`, `purpose` (`verify`, `reset`, `invite`), `membership_id` (undangan),
+  `token_hash` (SHA-256), `expires_at`, `used_at`. Token asli hanya ada di tautan email, minimal 32 byte acak.
+- Masa berlaku: verifikasi 24 jam, atur ulang 1 jam, undangan 7 hari. Sekali pakai.
+- Token baru dengan tujuan sama (untuk pengguna itu, atau keanggotaan itu untuk undangan) membatalkan yang lama.
+- Token tidak ada, sudah dipakai, kedaluwarsa, atau tujuannya lain → `400` dengan `code: "invalid_token"` dan
+  `Tautan tidak berlaku, sudah dipakai, atau kedaluwarsa. Minta tautan baru.`
+
+**Verifikasi**
+
+- Berhasil: `is_verified=true`, token terpakai, sesi dibuat seperti login. Frontend lalu ke `/menunggu-persetujuan`
+  bila `organization.status` bukan `active`, selain itu ke `/admin`.
+- Kirim ulang verifikasi dan lupa kata sandi selalu menjawab `200` dengan pesan yang sama:
+  `Bila email itu terdaftar, tautannya sudah kami kirim. Periksa kotak masuk dan folder spam.`
+  Email hanya dikirim untuk akun aktif yang punya kata sandi (dan, untuk verifikasi, belum terverifikasi).
+
+**Atur ulang kata sandi**
+
+- Berhasil: kata sandi diganti, `is_verified=true`, **semua** sesi refresh pengguna dicabut, email pemberitahuan
+  "Kata sandi diubah" dikirim. Tidak membuat sesi baru; pengguna masuk lagi.
+- Pesan: `Kata sandi sudah diganti. Silakan masuk dengan kata sandi baru.`
+
+**Undangan**
+
+- `GET /auth/invite/{token}` hanya untuk keanggotaan yang masih `invited`.
+- Terima: nama dan kata sandi disimpan, `is_verified=true`, keanggotaan menjadi `active` (`joined_at` sekarang),
+  sesi dibuat.
+- Pengguna yang sudah aktif di organisasi lain → `409` `Email ini sudah dipakai di organisasi lain. Satu akun baru bisa
+  bergabung ke satu organisasi.` (sampai fitur banyak organisasi ada).
+
+**Login dan organisasi yang belum aktif**
+
+- Kata sandi benar tetapi email belum diverifikasi → `403` dengan `code: "email_not_verified"`
+  (`Email belum diverifikasi. Buka tautan di email Anda, atau minta tautan baru.`). Undangan yang belum diterima tidak
+  punya kata sandi, jadi tetap `401`.
+- Organisasi `pending` atau `suspended` tetap bisa masuk dan memanggil `/auth/me`, tetapi semua `/admin/*` dijawab
+  `403` dengan `code: "organization_pending"` (`Organisasi masih menunggu persetujuan.`) atau
+  `"organization_suspended"` (`Organisasi ditangguhkan. Hubungi pengelola MBUTI.`).
+- Pengelola menyetujui lewat `python -m scripts.setujui_organisasi <slug>` (atau `--daftar` untuk melihat yang
+  menunggu). Setelah disetujui, pemilik menerima email pemberitahuan.
+
+### 15.3 Email
+
+- Dikirim lewat antrean Celery `default`. `EMAIL_BACKEND`: `console` (bawaan pengembangan; isi email, termasuk
+  tautan, ditulis ke log worker) atau `smtp` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
+  `SMTP_STARTTLS`). Pengirim `EMAIL_FROM`. Tautan memakai `APP_URL`.
+- Email dalam Bahasa Indonesia, teks polos ditambah HTML sederhana: verifikasi, sudah punya akun, atur ulang,
+  kata sandi diubah, undangan, organisasi disetujui.
+- Kegagalan kirim diulang oleh worker; jawaban API tidak menunggu email terkirim.
+
+### 15.4 Batas laju dan jejak audit
+
+| Tindakan | Batas |
+|---|---|
+| Daftar | 5 per jam per alamat |
+| Kirim ulang verifikasi, lupa kata sandi | 3 per jam per email dan 10 per jam per alamat |
+| Verifikasi, atur ulang, lihat dan terima undangan | 30 per jam per alamat |
+
+Melampauinya dijawab `429` seperti bagian 14. Jejak audit baru: `auth.daftar` (Mendaftarkan organisasi),
+`auth.verifikasi` (Memverifikasi email), `auth.sandi` (Mengatur ulang kata sandi), `anggota.terima` (Menerima
+undangan), dan `anggota.undang` untuk kirim ulang undangan. Token dan kata sandi tidak dicatat.
+
+### 15.5 Khusus data contoh
+
+`GET`/`DELETE /api/v1/mock/outbox` (Kotak keluar) dan `POST /api/v1/mock/approve-organization` (setujui simulasi)
+hanya ada di `lib/mock/routes/mock.ts` dan **tidak** dibuat di backend.

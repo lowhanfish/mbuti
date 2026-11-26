@@ -186,5 +186,5 @@ function sendInviteFor(db: MockDatabase, membership: MockMembership, inviterUser
   const user = db.users.find((u) => u.id === membership.user_id);
   const organization = db.organizations.find((o) => o.id === membership.organization_id);
   const inviter = db.users.find((u) => u.id === inviterUserId);
-  if (user && organization) sendInvite(db, user, membership.id, organization.name, inviter?.full_name ?? organization.name);
+  if (user && organization) sendInvite(db, user, membership.id, organization.name, inviter ?? null);
 }

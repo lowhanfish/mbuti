@@ -14,6 +14,8 @@ export interface MockAuthToken {
   user_id: string;
   /** Hanya untuk undangan */
   membership_id: string | null;
+  /** Pengguna yang mengirim undangan; null untuk tujuan lain */
+  created_by: string | null;
   expires_at: string;
   used_at: string | null;
   created_at: string;
@@ -49,7 +51,13 @@ const randomToken = () => {
 };
 
 /** Buat token baru; token belum terpakai dengan tujuan yang sama untuk pengguna (atau undangan) itu dibatalkan. */
-export const issueToken = (db: MockDatabase, purpose: TokenPurpose, userId: string, membershipId: string | null = null) => {
+export const issueToken = (
+  db: MockDatabase,
+  purpose: TokenPurpose,
+  userId: string,
+  membershipId: string | null = null,
+  createdBy: string | null = null
+) => {
   const now = nowIso();
   for (const t of db.auth_tokens) {
     if (t.purpose === purpose && t.user_id === userId && t.membership_id === membershipId && !t.used_at) t.used_at = now;
@@ -60,6 +68,7 @@ export const issueToken = (db: MockDatabase, purpose: TokenPurpose, userId: stri
     purpose,
     user_id: userId,
     membership_id: membershipId,
+    created_by: createdBy,
     expires_at: new Date(Date.now() + TOKEN_TTL_MS[purpose]).toISOString(),
     used_at: null,
     created_at: now,
@@ -127,13 +136,24 @@ export const sendPasswordChanged = (db: MockDatabase, user: MockUser) => {
   });
 };
 
-export const sendInvite = (db: MockDatabase, user: MockUser, membershipId: string, organizationName: string, inviterName: string) => {
-  const token = issueToken(db, "invite", user.id, membershipId);
+export const sendInvite = (db: MockDatabase, user: MockUser, membershipId: string, organizationName: string, inviter: MockUser | null) => {
+  const inviterName = inviter?.full_name ?? organizationName;
+  const token = issueToken(db, "invite", user.id, membershipId, inviter?.id ?? null);
   sendEmail(db, {
     to: user.email,
     subject: `Undangan bergabung ke ${organizationName} di MBUTI`,
     body: `Halo ${user.full_name},\n\n${inviterName} mengundang Anda bergabung ke ${organizationName} di MBUTI. Tautan berlaku ${TOKEN_TTL_LABEL.invite}.`,
     link: `${origin()}/undangan?token=${token}`,
     link_label: "Terima undangan",
+  });
+};
+
+export const sendApproved = (db: MockDatabase, user: MockUser, organizationName: string) => {
+  sendEmail(db, {
+    to: user.email,
+    subject: `${organizationName} sudah bisa memakai MBUTI`,
+    body: `Halo ${user.full_name},\n\n${organizationName} sudah disetujui. Silakan masuk dan mulai menyusun unit, role, dan dokumen pertama.`,
+    link: `${origin()}/login`,
+    link_label: "Masuk",
   });
 };
