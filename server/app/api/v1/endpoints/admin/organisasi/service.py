@@ -4,8 +4,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.admin.organisasi.schema import Profile, ProfileStats, ProfileUpdate
+from app.api.v1.endpoints.admin.role.service import live_agents
 from app.core.exceptions import NotFoundException
-from app.models import Membership, Organization, Unit
+from app.models import Agent, Membership, Organization, Unit
 
 
 async def _get(session: AsyncSession, organization_id: uuid.UUID) -> Organization:
@@ -24,6 +25,9 @@ async def _to_profile(session: AsyncSession, organization: Organization) -> Prof
         .select_from(Membership)
         .where(Membership.organization_id == organization.id, Membership.status != "disabled")
     )
+    agent_count = await session.scalar(
+        select(func.count()).select_from(Agent).where(*live_agents(organization.id))
+    )
     return Profile(
         id=str(organization.id),
         slug=organization.slug,
@@ -37,8 +41,9 @@ async def _to_profile(session: AsyncSession, organization: Organization) -> Prof
         website=organization.website,
         created_at=organization.created_at,
         updated_at=organization.updated_at,
-        # Role AI dibuat pada tahap B2
-        stats=ProfileStats(unit_count=unit_count, member_count=member_count, agent_count=0),
+        stats=ProfileStats(
+            unit_count=unit_count, member_count=member_count, agent_count=agent_count
+        ),
     )
 
 

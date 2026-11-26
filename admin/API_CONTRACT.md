@@ -432,6 +432,7 @@ export interface AvatarConfig {
 - Hapus: `409` bila masih terlibat tugas `queued`/`running`/`waiting_approval` atau masih punya dokumen berlingkup
   role itu. Relasinya ikut dihapus. Role dan relasi yang pernah dipakai tugas hanya ditandai terhapus
   (`deleted_at`): hilang dari daftar dan pilihan, tetapi namanya tetap tampil di riwayat tugas.
+- Backend menandai terhapus semua role yang dihapus, dipakai tugas atau belum.
 - Uji coba tidak membuat tugas dan tidak menjalankan relasi. Isian wajib kosong menghasilkan `need_info`; tidak ada
   potongan dokumen yang cocok menghasilkan `not_in_documents`. Keduanya tidak memanggil model (`cost: 0`,
   `model: ""`). `simulated` bernilai `false` di backend.
@@ -658,6 +659,8 @@ Aturan simpan (`422`):
 - `revision_limit` berasal dari Pengaturan > Batas Biaya. Relasi menyimpan `max_revisions` aslinya; batas efektif
   adalah nilai yang lebih kecil.
 - `positions` digabung dengan yang tersimpan, dipakai bersama satu organisasi.
+- `update` menerima sebagian kolom. Mengubah atau membuat relasi dengan isian di luar batas dijawab `422`.
+- Menjadikan seseorang pemantau mengeluarkannya dari peta. Mengeluarkannya dari organisasi menghapus eskalasinya.
 - Membuat eskalasi otomatis menambahkan manusia tujuan ke peta. Manusia yang masih menjadi tujuan relasi tidak bisa
   dikeluarkan (`409`).
 

@@ -11,6 +11,11 @@ from app.api.v1.endpoints.admin.pengguna.schema import (
     MemberSummary,
     MemberUpdate,
 )
+from app.api.v1.endpoints.admin.relasi.service import (
+    forget_member,
+    hide_human,
+    is_escalation_target,
+)
 from app.api.v1.endpoints.auth.service import revoke_user_sessions
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.db.transaction import commit_or_raise_unique_conflict
@@ -193,7 +198,11 @@ async def update_member(
         raise ConflictException(LAST_OWNER)
     if target.id == actor.membership.id and status == "disabled":
         raise ConflictException("Anda tidak dapat menonaktifkan akun sendiri.")
-    # Larangan menurunkan tujuan eskalasi menjadi pemantau ditambahkan di B2.
+    if body.access_role == "viewer" and await is_escalation_target(session, target.id):
+        raise ConflictException(
+            "Orang ini masih menjadi tujuan eskalasi. "
+            "Ubah relasinya di Peta Relasi terlebih dahulu."
+        )
 
     unit_id = await require_unit(
         session, actor.organization_id, body.unit_id, "Unit tidak ditemukan."
@@ -201,6 +210,8 @@ async def update_member(
     target.access_role = body.access_role
     target.unit_id = unit_id
     target.status = status
+    if body.access_role == "viewer":
+        await hide_human(session, target.id)
     if status == "disabled":
         await revoke_user_sessions(session, target.user_id, "disabled")
     await session.commit()
@@ -220,6 +231,7 @@ async def remove_member(session: AsyncSession, actor: CurrentMember, member_id: 
         ):
             raise ConflictException(LAST_OWNER)
     await revoke_user_sessions(session, target.user_id, "disabled")
-    # Penanggung jawab unit dikosongkan oleh kunci asing (ON DELETE SET NULL)
+    await forget_member(session, target.id)
+    # Penanggung jawab unit dan role dikosongkan oleh kunci asing (ON DELETE SET NULL)
     await session.delete(target)
     await session.commit()

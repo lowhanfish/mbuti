@@ -8,7 +8,7 @@ from app.api.v1.common import Option, Paging, like_pattern, parse_id
 from app.api.v1.endpoints.admin.unit.schema import UnitItem, UnitWrite
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
 from app.db.transaction import commit_or_raise_unique_conflict
-from app.models import Membership, Unit, User
+from app.models import Agent, Membership, Unit, User
 from app.services.organisation import lock_organization, require_membership, require_unit
 
 NOT_FOUND = "Unit tidak ditemukan."
@@ -32,6 +32,13 @@ def _items_query(organization_id: uuid.UUID):
         .correlate(Unit)
         .scalar_subquery()
     )
+    agent_count = (
+        select(func.count())
+        .select_from(Agent)
+        .where(Agent.unit_id == Unit.id, Agent.deleted_at.is_(None))
+        .correlate(Unit)
+        .scalar_subquery()
+    )
     return (
         select(
             Unit,
@@ -39,6 +46,7 @@ def _items_query(organization_id: uuid.UUID):
             User.full_name.label("lead_name"),
             member_count.label("member_count"),
             child_count.label("child_count"),
+            agent_count.label("agent_count"),
         )
         .outerjoin(parent, parent.id == Unit.parent_id)
         .outerjoin(Membership, Membership.id == Unit.lead_member_id)
@@ -61,8 +69,7 @@ def _to_item(row) -> UnitItem:
         lead_name=row.lead_name,
         sort_order=unit.sort_order,
         member_count=row.member_count,
-        # Role AI dibuat pada tahap B2
-        agent_count=0,
+        agent_count=row.agent_count,
         child_count=row.child_count,
         created_at=unit.created_at,
         updated_at=unit.updated_at,
@@ -184,11 +191,17 @@ async def update_unit(
 async def delete_unit(session: AsyncSession, organization_id: uuid.UUID, unit_id: str) -> None:
     await lock_organization(session, organization_id)
     unit = await _get(session, organization_id, unit_id)
+    if await session.scalar(
+        select(Agent.id).where(Agent.unit_id == unit.id, Agent.deleted_at.is_(None)).limit(1)
+    ):
+        raise ConflictException(
+            "Unit masih punya role AI. Pindahkan role ke unit lain terlebih dahulu."
+        )
     if await session.scalar(select(Unit.id).where(Unit.parent_id == unit.id).limit(1)):
         raise ConflictException(
             "Unit masih punya sub-unit. Pindahkan atau hapus sub-unit terlebih dahulu."
         )
-    # Pemeriksaan role (B2) dan dokumen (B3) ditambahkan bersama tabelnya.
+    # Pemeriksaan dokumen (B3) ditambahkan bersama tabelnya.
     # unit_id anggota dikosongkan oleh kunci asing (ON DELETE SET NULL).
     await session.delete(unit)
     await session.commit()

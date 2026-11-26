@@ -7,8 +7,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.security import hash_password
-from app.models import Membership, Organization, Unit, User
+from app.models import Agent, Membership, Organization, Unit, User
 from app.models.base import utcnow
+from app.services.appearance import avatar_from_seed
 
 PASSWORD = "kata-sandi-uji-123"
 PASSWORD_HASH = hash_password(PASSWORD)
@@ -81,3 +82,22 @@ async def build_world(sessions: async_sessionmaker[AsyncSession]) -> World:
         session.add_all(members.values())
         await session.commit()
     return World(sessions, organizations, users, members, units)
+
+
+async def add_agents(world: World, organization: str, *names: str) -> list[str]:
+    """Role aktif langsung ke database, agar tes relasi tidak lambat. Mengembalikan ID-nya."""
+    agents = [
+        Agent(
+            organization_id=world.organizations[organization].id,
+            name=name,
+            title=f"Jabatan {name}",
+            goal="Tujuan kerja untuk pengujian.",
+            status="active",
+            avatar=avatar_from_seed(name),
+        )
+        for name in names
+    ]
+    async with world.sessions() as session:
+        session.add_all(agents)
+        await session.commit()
+    return [str(agent.id) for agent in agents]
