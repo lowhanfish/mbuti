@@ -425,7 +425,9 @@ rinciannya disepakati dulu sebelum dikerjakan.
 
 - [ ] Pendaftaran mandiri, verifikasi email, penerimaan undangan, dan lupa kata sandi.
 - [ ] Satu pengguna di beberapa organisasi, dengan pemilih organisasi.
-- [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran.
+- [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran. Halaman depan sudah menampilkan
+      harga **rencana** (Perintis Rp0, Tim Rp299.000, Instansi Rp1.490.000 per bulan; `admin/app/(publish)/_landing/Pricing.tsx`)
+      yang belum diputuskan.
 - [ ] Panel pengelola platform: daftar organisasi, pemakaian, dan penangguhan.
 - [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.

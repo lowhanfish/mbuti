@@ -6,6 +6,8 @@ import * as THREE from "three";
 export const HONEY = "#ffb81c";
 export const VIOLET = "#7c4dff";
 export const INK = "#18122b";
+/** Warna latar halaman depan; sama dengan --lp-night di globals.css. */
+export const NIGHT = "#0f0a1f";
 
 /** Angka semu-acak yang tetap untuk urutan yang sama, agar susunan adegan tidak berubah antar-render. */
 export const seeded = (n: number) => {
@@ -53,7 +55,7 @@ export function DocumentSheet({ accent = VIOLET, approved = false }: { accent?: 
     <group>
       <mesh castShadow>
         <boxGeometry args={[0.66, 0.86, 0.045]} />
-        <meshStandardMaterial color="#ffffff" emissive="#c4b5fd" emissiveIntensity={0.22} roughness={0.35} />
+        <meshStandardMaterial color="#d8d2ee" emissive="#8f7ad6" emissiveIntensity={0.16} roughness={0.45} />
       </mesh>
       <mesh position={[-0.09, 0.29, 0.03]}>
         <boxGeometry args={[0.34, 0.075, 0.012]} />

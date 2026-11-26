@@ -2,6 +2,8 @@ import Link from "next/link";
 import React from "react";
 import { BrandMascot } from "../../(admin)/_components/brand-mark";
 import { buttonClasses } from "../../(admin)/_components/ui/button-classes";
+import Heading from "./Heading";
+import Spotlight from "./Spotlight";
 
 const USES = [
   "Surat dinas",
@@ -44,19 +46,18 @@ const SETUP = [
 
 export function Setup() {
   return (
-    <section id="mulai" className="scroll-mt-24 max-w-7xl w-full mx-auto px-5 sm:px-10 pb-24 space-y-12">
-      <header className="lp-reveal max-w-2xl space-y-3">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand">Mulai</p>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-ink text-balance">Empat langkah membuka kantor</h2>
-      </header>
-      <ol className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <section id="mulai" className="scroll-mt-24 max-w-7xl w-full mx-auto px-5 sm:px-10 py-20 sm:py-24 space-y-12">
+      <Heading tag="Mulai" title="Empat langkah membuka kantor" />
+      <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {SETUP.map((item, i) => (
-          <li key={item.title} className="lp-reveal group relative rounded-[28px] bg-white border border-line p-6 space-y-4 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_30px_60px_-28px_rgba(124,77,255,.55)]">
-            <span className="lp-hex flex w-14 h-14 items-center justify-center bg-gradient-to-br from-brand to-brand-strong text-white text-xl font-extrabold transition-transform duration-500 group-hover:rotate-[360deg]">
-              {i + 1}
-            </span>
-            <h3 className="font-bold text-ink text-lg">{item.title}</h3>
-            <p className="text-sm text-muted leading-relaxed">{item.text}</p>
+          <li key={item.title} className="lp-reveal group flex">
+            <Spotlight className="flex-1 p-6 space-y-4">
+              <span className="lp-hex flex w-14 h-14 items-center justify-center bg-gradient-to-br from-accent to-accent-strong text-ink text-xl font-extrabold transition-transform duration-500 group-hover:rotate-[360deg]">
+                {i + 1}
+              </span>
+              <h3 className="font-bold text-white text-lg">{item.title}</h3>
+              <p className="text-sm text-white/60 leading-relaxed">{item.text}</p>
+            </Spotlight>
           </li>
         ))}
       </ol>
@@ -85,22 +86,30 @@ const FAQ = [
     q: "Apakah data antar-organisasi terpisah?",
     a: "Ya. Setiap role, dokumen, dan tugas terikat pada satu organisasi, dan anggota hanya melihat organisasinya sendiri.",
   },
+  {
+    q: "Apakah harga di halaman ini sudah berlaku?",
+    a: "Belum. Itu harga rencana. Pendaftaran mandiri dan pembayaran belum tersedia, dan angkanya masih bisa berubah.",
+  },
+  {
+    q: "Bagaimana cara mendapatkan akun?",
+    a: "Saat ini akun dibuat oleh pengelola server. Pendaftaran mandiri ada di peta jalan.",
+  },
 ];
 
 export function Faq() {
   return (
-    <section id="tanya" className="scroll-mt-24 max-w-3xl w-full mx-auto px-5 sm:px-10 pb-24 space-y-8">
-      <h2 className="lp-reveal text-center text-3xl sm:text-4xl font-extrabold tracking-tight text-ink">Pertanyaan yang sering muncul</h2>
+    <section id="tanya" className="scroll-mt-24 max-w-3xl w-full mx-auto px-5 sm:px-10 py-20 sm:py-24 space-y-10">
+      <Heading center tag="Tanya jawab" title="Yang sering ditanyakan" />
       <div className="space-y-3">
         {FAQ.map((item) => (
-          <details key={item.q} className="lp-reveal group rounded-3xl bg-white border border-line px-5 open:shadow-[0_24px_50px_-30px_rgba(124,77,255,.6)] transition-shadow">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <details key={item.q} className="lp-reveal group rounded-3xl border border-white/10 bg-white/[0.04] px-5 transition-all open:border-accent/40 open:bg-white/[0.07]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-semibold text-white [&::-webkit-details-marker]:hidden">
               {item.q}
-              <span className="shrink-0 w-8 h-8 rounded-xl bg-brand-soft text-brand flex items-center justify-center text-xl leading-none transition-transform duration-300 group-open:rotate-45" aria-hidden="true">
+              <span className="shrink-0 w-8 h-8 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-xl leading-none transition-transform duration-300 group-open:rotate-45" aria-hidden="true">
                 +
               </span>
             </summary>
-            <p className="pb-5 text-sm text-muted leading-relaxed">{item.a}</p>
+            <p className="pb-5 text-sm text-white/65 leading-relaxed">{item.a}</p>
           </details>
         ))}
       </div>
@@ -111,7 +120,7 @@ export function Faq() {
 export function CallToAction() {
   return (
     <section className="max-w-7xl w-full mx-auto px-5 sm:px-10 pb-16">
-      <div className="lp-reveal lp-night relative overflow-hidden rounded-[40px] px-6 sm:px-14 py-14 grid lg:grid-cols-[1.3fr_1fr] gap-8 items-center text-white">
+      <div className="lp-reveal lp-cta relative overflow-hidden rounded-[40px] border border-white/10 px-6 sm:px-14 py-14 grid lg:grid-cols-[1.3fr_1fr] gap-8 items-center text-white">
         <div className="space-y-5">
           <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-balance">
             Buka kantor AI pertama <span className="lp-shimmer">organisasi Anda.</span>
