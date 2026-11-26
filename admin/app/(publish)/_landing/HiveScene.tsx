@@ -302,15 +302,17 @@ function CameraRig({ step, animate }: { step: number; animate: boolean }) {
     const direction = directionRef.current;
     const aspect = size.width / Math.max(1, size.height);
     const overview = step === 0;
+    // Di layar lebar tepi kiri adegan tertutup teks, jadi susunannya digeser ke kanan
+    const aside = size.width >= 560;
     if (overview) {
-      focus.set(0, 1, 0);
+      focus.set(aside ? -1 : 0, 1, 0);
       direction.set(Math.sin(clock.getElapsedTime() * (animate ? 0.12 : 0)) * 0.16, 0.55, 0.83);
     } else {
       const station = STATIONS[step - 1].at;
       focus.set(station.x + 0.55, 1.5, station.z);
       direction.set(0.12, 0.4, 0.9);
     }
-    const width = overview ? 11.2 : 6.8;
+    const width = overview ? (aside ? 12.8 : 11.2) : 6.8;
     const height = overview ? 8 : 6.4;
     const distance = Math.max(width / (SPREAD * aspect), height / SPREAD);
     goal.copy(direction.normalize()).multiplyScalar(distance).add(focus);
