@@ -100,13 +100,19 @@ async def month_usage(
         )
     ).one()
     budget = (await read_settings(session, organization_id)).monthly_budget
+    task_count = await session.scalar(
+        select(func.count(func.distinct(LlmCall.task_id))).where(
+            LlmCall.organization_id == organization_id,
+            LlmCall.created_at >= start,
+            LlmCall.created_at < following,
+        )
+    )
     return MonthUsage(
         month=f"{start:%Y-%m}",
         used=total,
         trial_cost=trial_cost,
         remaining=max(0, budget - total),
-        # Tugas dibuat pada tahap B5
-        task_count=0,
+        task_count=task_count,
     )
 
 

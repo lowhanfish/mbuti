@@ -5,6 +5,7 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.models import LlmCall
 from app.services.llm.generation import Generation, ModelFailed, ModelUnavailable
 from tests.integration.world import add_agents
@@ -160,7 +161,7 @@ async def test_trial_cites_documents_and_records_cost(world, library, use_llm):
         "Sesuai [1].",
     )
     assert len(result["citations"]) == 1 and result["citations"][0]["document_title"] == "pedoman"
-    assert llm.models == ["gemini-3.6-flash"]
+    assert llm.models == [settings.LLM_MODEL_BALANCED]
     assert "Anda adalah Rani" in llm.prompts[0][0] and '<dokumen nomor="2">' in llm.prompts[0][1]
 
     (call,) = await calls(world)
@@ -180,8 +181,9 @@ async def test_trial_uses_fallback_when_model_is_unavailable(world, library, use
 
     result = (await client.post(f"{ROLE}/{rani}/trial", json={"brief": "undangan"})).json()["data"]
 
-    assert llm.models == ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
-    assert (result["status"], result["model"]) == ("not_in_documents", "gemini-3.5-flash-lite")
+    assert llm.models == [settings.LLM_MODEL_BALANCED, settings.LLM_FALLBACK_MODEL]
+    assert len(set(llm.models)) == 2
+    assert (result["status"], result["model"]) == ("not_in_documents", llm.models[1])
     assert [c.status for c in await calls(world)] == ["error", "ok"]
 
 

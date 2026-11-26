@@ -9,7 +9,7 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 | Folder | Isi | Status |
 |---|---|---|
 | [`admin/`](admin/) | Frontend Next.js | Tahap A0–A8 selesai: kerangka, login, organisasi, unit, pengguna, role, pengetahuan, peta relasi, tugas, persetujuan, kantor 3D, dashboard, pengaturan model AI dan batas biaya (data contoh) |
-| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B4 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role dengan Gemini. Eksekusi tugas menyusul |
+| [`server/`](server/) | Backend FastAPI (venv + uvicorn) | Tahap B0–B5 selesai: auth, organisasi, role, peta relasi, pengetahuan, pengaturan model dan biaya, uji coba role, tugas lintas role, persetujuan, kantor, dan dashboard. Frontend belum disambungkan (B6) |
 
 ## Menjalankan frontend
 
@@ -63,15 +63,23 @@ python -m scripts.create_account
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Dokumen yang diunggah baru diolah bila worker menyala. Pengolahan dan pencarian memakai kunci `GEMINI_API_KEY`,
-`GEMINI_API_KEY1`, … di `server/.env` (dipakai bergiliran). Teks dokumen dikirim ke Google; pada tier gratis,
-gunakan hanya dokumen contoh atau publik. Berkas asli disimpan di `server/uploads/`.
+Dokumen baru diolah, dan tugas baru dikerjakan, bila worker menyala. Pengolahan, pencarian, dan kerja role memakai
+kunci `GEMINI_API_KEY`, `GEMINI_API_KEY1`, … di `server/.env` (dipakai bergiliran). Isi dokumen dan tugas dikirim ke
+Google; pada tier gratis, gunakan hanya data contoh atau publik. Berkas asli disimpan di `server/uploads/`.
 
-Worker dan penjadwal Celery, masing-masing di terminal sendiri:
+Dua worker dan penjadwal Celery, masing-masing di terminal sendiri. Worker pertama mengolah dokumen:
 
 ```bash
-celery -A app.workers.celery_app worker --loglevel=info
+celery -A app.workers.celery_app worker -Q default,ingestion -n umum@%h --loglevel=info
 ```
+
+Worker kedua mengerjakan tugas, satu langkah pada satu waktu agar kuota model tidak cepat habis:
+
+```bash
+celery -A app.workers.celery_app worker -Q execution --concurrency=1 -n eksekusi@%h --loglevel=info
+```
+
+Penjadwal mengirim ulang tugas yang pesannya hilang, mis. setelah worker atau Redis mati:
 
 ```bash
 celery -A app.workers.celery_app beat --loglevel=info

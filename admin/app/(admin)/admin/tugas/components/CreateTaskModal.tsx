@@ -68,6 +68,7 @@ function RoutePreview({ agentId, limits }: { agentId: string; limits?: BudgetSet
               )}
               {r.relation_type === "consult" && <span className="text-white/50"> · sebelum {name(r.source_id)} bekerja</span>}
               {r.trigger === "on_condition" && <span className="block text-white/50 mt-0.5">bila: {r.condition}</span>}
+              {r.trigger === "on_rejected" && <span className="block text-white/50 mt-0.5">hanya bila hasilnya ditolak atau gagal</span>}
             </li>
           ))}
         </ol>

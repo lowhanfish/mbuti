@@ -129,6 +129,7 @@ const parseRelation = (db: MockDatabase, orgId: string, body: unknown, selfId: s
   const trigger = (b.trigger ?? base?.trigger) as RelationTrigger;
   const condition = text(b.condition ?? base?.condition, 500);
   if (trigger === "on_condition" && condition.length < 5) return "Tuliskan kondisi kapan relasi ini dijalankan.";
+  if (type === "consult" && trigger === "on_rejected") return "Relasi Konsultasi tidak bisa dipicu penolakan.";
   const maxRev = Number(b.max_revisions ?? base?.max_revisions ?? 2);
 
   return {

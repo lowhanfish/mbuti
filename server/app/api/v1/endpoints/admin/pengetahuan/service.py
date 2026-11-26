@@ -27,7 +27,16 @@ from app.api.v1.endpoints.admin.role.service import live_agents
 from app.core.config import settings
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
 from app.db.transaction import commit_or_raise_unique_conflict
-from app.models import Agent, Document, DocumentSection, DocumentVersion, Membership, Unit, User
+from app.models import (
+    Agent,
+    Citation,
+    Document,
+    DocumentSection,
+    DocumentVersion,
+    Membership,
+    Unit,
+    User,
+)
 from app.models.base import utcnow
 from app.services.appearance import UNIT_COLOR_HEX
 from app.services.knowledge import storage
@@ -503,10 +512,17 @@ async def update_document(
 
 async def delete_document(
     session: AsyncSession, organization_id: uuid.UUID, document_id: str
-) -> None:
+) -> bool:
+    """True bila diarsipkan, False bila dihapus permanen."""
     await lock_organization(session, organization_id)
     document = await _get(session, organization_id, document_id)
-    # Rujukan tugas baru ada di B4; dokumen yang dirujuk nanti diarsipkan, bukan dihapus
+    # Dokumen yang pernah dirujuk hasil tugas diarsipkan agar rujukannya tetap bisa dibuka
+    if await session.scalar(
+        select(Citation.id).where(Citation.document_id == document.id).limit(1)
+    ):
+        document.deleted_at = utcnow()
+        await session.commit()
+        return True
     paths = list(
         await session.scalars(
             select(DocumentVersion.storage_path).where(DocumentVersion.document_id == document.id)
@@ -516,3 +532,4 @@ async def delete_document(
     await session.commit()
     for path in paths:
         storage.delete(path)
+    return False

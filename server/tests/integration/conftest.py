@@ -21,6 +21,7 @@ from app.api.deps import get_db
 from app.core.config import SERVER_DIR, settings
 from app.core.rate_limit import key_prefix
 from app.db.engine import build_async_engine
+from app.workers.execution import execute_task
 from app.workers.ingestion import process_version
 from tests.integration.world import PASSWORD, World, build_world, new_client
 
@@ -101,6 +102,14 @@ def queued_versions(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Pekerjaan olah tidak dikirim ke Redis; ID versinya dicatat agar tes bisa menjalankannya."""
     queued: list[str] = []
     monkeypatch.setattr(process_version, "apply_async", lambda args, **_: queued.append(args[0]))
+    return queued
+
+
+@pytest.fixture(autouse=True)
+def queued_tasks(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Sama untuk tugas: tes menjalankan mesinnya sendiri."""
+    queued: list[str] = []
+    monkeypatch.setattr(execute_task, "apply_async", lambda args, **_: queued.append(args[0]))
     return queued
 
 

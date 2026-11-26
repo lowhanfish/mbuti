@@ -571,7 +571,6 @@ export interface SearchHit {
   dengan jeda.
 - Pencarian backend menggabungkan kata kunci dan kemiripan makna (satu hasil per halaman, `score` 0–100). Bila
   model tidak tersedia, hanya kata kunci yang dipakai. Vektor pertanyaan disimpan sehari agar hemat kuota.
-- Sampai tabel rujukan dibuat (B4), semua dokumen yang dihapus dibuang beserta berkasnya.
 - Pencarian hanya pada versi aktif yang `ready`. Frontend memanggil bila `q` ≥ 3 karakter; `q` ≤ 300.
 - Ubah: `title` ≥ 3. `scope` `unit`/`agent` wajib `scope_id` milik organisasi; `organization` → `scope_id: null`.
 
@@ -660,7 +659,7 @@ Aturan simpan (`422`):
 - Sumber harus role. Tujuan role atau manusia (ID keanggotaan), tidak boleh sama dengan sumber.
 - Ke manusia hanya `escalate`; `escalate` hanya ke manusia, dan `requires_approval` selalu `true`.
 - Pemantau tidak bisa menjadi tujuan eskalasi atau ditambahkan ke peta.
-- `on_rejected` diterima, tetapi frontend menyembunyikannya sampai mesin menjalankannya.
+- `on_rejected` tidak berlaku untuk `consult`, karena konsultasi terjadi sebelum role sumber bekerja.
 - Pada `consult`, `on_complete` berarti selalu, sebelum role sumber bekerja; `on_condition` dinilai dari isi tugas.
 - Pasangan sumber, tujuan, dan jenis harus unik.
 - `handoff` tidak boleh membentuk lingkaran; pesan galat menyebut jalurnya (`A → B → A`).
@@ -1082,7 +1081,7 @@ dihitung menurut zona waktu organisasi.
 
 ## 12. Perilaku mesin agen
 
-Ini kontrak perilaku untuk B4–B5, diambil dari `lib/mock/engine.ts`.
+Ini kontrak perilaku mesin. Backend menjalankannya sejak B5; `lib/mock/engine.ts` menirunya untuk mode data contoh.
 
 **Alur**
 
@@ -1101,7 +1100,28 @@ Ini kontrak perilaku untuk B4–B5, diambil dari `lib/mock/engine.ts`.
    dinilai. Bila `revise`, langkah pembuat menjadi `revise_requested` dan diulang dengan catatan.
 6. Antrean kosong: `waiting_approval` bila masih ada persetujuan tertunda, selain itu `completed`.
 
-`on_rejected` (B5): dijalankan saat langkah `failed` atau persetujuan atas hasilnya ditolak.
+**Relasi `on_rejected`**
+
+Dijalankan saat langkah `failed`, atau saat persetujuan atas sebuah hasil ditolak. Yang dipakai adalah relasi milik
+pembuat hasil (pada langkah `review`: role yang diperiksa). Bila relasi seperti itu ada, tugas tidak langsung gagal:
+`escalate` meminta keputusan, `review` dan `handoff` menambah langkah. Penolakan atas izin konsultasi, atau atas
+persetujuan yang lahir dari relasi `on_rejected`, tetap menggagalkan tugas.
+
+**Hasil yang tidak lengkap**
+
+Bila role (selain konsultasi) menjawab `need_info` atau `not_in_documents`, dibuat persetujuan `escalate` untuk
+penanggung jawabnya. `approved` melanjutkan rute dengan hasil itu; `revise` mengulang dengan catatan. Pemeriksaan
+tanpa keputusan yang jelas dianggap `revise`.
+
+**Gangguan**
+
+- Relasi ke role yang draf, dijeda, atau terhapus, dan relasi yang dihapus saat izinnya menunggu, dilewati
+  (`relation_skipped`).
+- Model tidak tersedia: langkah kembali antre dan dicoba lagi dengan jeda yang makin panjang, sampai 6 kali.
+  Jawaban yang tidak terbaca dicoba 2 kali. Setelah itu langkah `failed`.
+- Langkah yang ditinggalkan worker diambil lagi setelah 10 menit; tugas yang diam diperiksa tiap 5 menit.
+- Tugas yang dihentikan saat model sedang menulis membuang hasilnya, tetapi biayanya tetap tercatat.
+- Biaya penilaian kondisi ikut dihitung pada `cost_used` tugas.
 
 **Keputusan manusia**
 
@@ -1109,7 +1129,7 @@ Ini kontrak perilaku untuk B4–B5, diambil dari `lib/mock/engine.ts`.
 |---|---|
 | `approved` | Menjalankan relasi atau konsultasi yang ditahan, atau melanjutkan rute setelah batas revisi |
 | `revise` | Role pembuat hasil terakhir mengerjakan ulang dengan catatan. Pada izin konsultasi: lanjut tanpa konsultasi itu, dengan catatan |
-| `rejected` | Tugas `failed`; persetujuan lain ikut ditutup |
+| `rejected` | Relasi `on_rejected` bila ada; selain itu tugas `failed` dan persetujuan lain ikut ditutup |
 
 **Pengaman**
 
@@ -1125,7 +1145,8 @@ Saat dihentikan pengaman atau manusia: langkah yang belum selesai menjadi `skipp
 tersimpan pada tugas.
 
 **Hanya simulasi, jangan ditiru:** pemeriksaan pertama selalu `revise`; kondisi dinilai dengan mencocokkan kata;
-biaya dihitung dari tabel tetap; model cadangan tidak pernah dipakai.
+biaya dihitung dari tabel tetap; model cadangan tidak pernah dipakai; langkah tidak pernah gagal dan tidak pernah
+menjawab `need_info` atau `not_in_documents`.
 
 ---
 
@@ -1147,7 +1168,7 @@ Disetujui 26 November 2026. Kolom **Data contoh**: apakah perilakunya sudah bisa
 | 10 | Unduh berkas dokumen dibuat di backend | Tombol nonaktif sampai ada backend |
 | 11 | Ditunda setelah versi pertama: tugas ke unit, lampiran tugas, status `draft` dan `waiting_review` | |
 | 12 | `limit` maksimal 200 | Ya |
-| 13 | `on_rejected` disembunyikan sampai dijalankan mesin (B5) | Ya |
+| 13 | `on_rejected` disembunyikan sampai dijalankan mesin; sejak B5 ditawarkan lagi | Ya |
 | 14 | Pemantau bukan tujuan eskalasi dan tidak memutuskan | Ya |
 | 15 | Unit atau role yang masih punya dokumen tidak bisa dihapus | Ya |
 | 16 | Dokumen organisasi terbaca semua role | Ya |

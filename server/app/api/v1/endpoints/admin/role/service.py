@@ -17,8 +17,19 @@ from app.api.v1.endpoints.admin.role.schema import (
     TrialResult,
 )
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
-from app.models import Agent, AgentRelation, Document, FlowPosition, Membership, Unit, User
+from app.models import (
+    Agent,
+    AgentRelation,
+    Document,
+    FlowPosition,
+    Membership,
+    Task,
+    TaskStep,
+    Unit,
+    User,
+)
 from app.models.base import utcnow
+from app.models.tugas.task import OPEN_STATUSES
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
 from app.services.engine.runner import Caller, run_agent
 from app.services.knowledge.scope import visible_to
@@ -60,6 +71,12 @@ def _items_query(organization_id: uuid.UUID):
         .correlate(Agent)
         .scalar_subquery()
     )
+    task_count = (
+        select(func.count(func.distinct(TaskStep.task_id)))
+        .where(TaskStep.agent_id == Agent.id)
+        .correlate(Agent)
+        .scalar_subquery()
+    )
     return (
         select(
             Agent,
@@ -68,6 +85,7 @@ def _items_query(organization_id: uuid.UUID):
             User.full_name.label("owner_name"),
             relation_count.label("relation_count"),
             document_count.label("document_count"),
+            task_count.label("task_count"),
         )
         .outerjoin(Unit, Unit.id == Agent.unit_id)
         .outerjoin(owner, owner.id == Agent.owner_member_id)
@@ -99,8 +117,7 @@ def _to_item(row) -> RoleItem:
         owner_name=row.owner_name,
         document_count=row.document_count,
         relation_count=row.relation_count,
-        # Tugas dibuat pada tahap B5
-        task_count=0,
+        task_count=row.task_count,
         created_at=agent.created_at,
         updated_at=agent.updated_at,
     )
@@ -236,7 +253,17 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
         raise ConflictException(
             "Role masih punya dokumen. Pindahkan lingkup atau hapus dokumennya terlebih dahulu."
         )
-    # Penolakan karena tugas berjalan ditambahkan pada B5.
+    busy = await session.scalar(
+        select(Task.id)
+        .join(TaskStep, TaskStep.task_id == Task.id)
+        .where(TaskStep.agent_id == agent.id, Task.status.in_(OPEN_STATUSES))
+        .limit(1)
+    )
+    if busy:
+        raise ConflictException(
+            "Role masih terlibat dalam tugas yang berjalan. Selesaikan atau hentikan tugasnya "
+            "terlebih dahulu."
+        )
     now = utcnow()
     agent.deleted_at = now
     await session.execute(

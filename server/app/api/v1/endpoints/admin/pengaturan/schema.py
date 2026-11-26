@@ -54,7 +54,7 @@ class ModelUpdate(RequestModel):
     models: Models
 
 
-def _rupiah(value: int) -> str:
+def rupiah(value: int) -> str:
     return "Rp" + f"{value:,}".replace(",", ".")
 
 
@@ -72,7 +72,7 @@ class BudgetUpdate(RequestModel):
         )
         for label, value, low, high in money:
             if not low <= value <= high:
-                raise ValueError(f"{label} antara {_rupiah(low)} dan {_rupiah(high)}.")
+                raise ValueError(f"{label} antara {rupiah(low)} dan {rupiah(high)}.")
         if self.default_task_budget > self.monthly_budget:
             raise ValueError("Batas bawaan per tugas tidak boleh melebihi batas bulanan.")
         if not 1 <= self.max_steps_per_task <= 50:

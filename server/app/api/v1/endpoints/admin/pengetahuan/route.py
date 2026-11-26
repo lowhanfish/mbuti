@@ -114,8 +114,13 @@ async def delete_document(
     member: CurrentMember = Depends(require_manager),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[None]:
-    await service.delete_document(session, member.organization_id, document_id)
-    return ApiResponse(message="Dokumen dihapus.", data=None)
+    archived = await service.delete_document(session, member.organization_id, document_id)
+    message = (
+        "Dokumen dihapus. Isinya tetap bisa dibuka dari rujukan tugas."
+        if archived
+        else "Dokumen dihapus."
+    )
+    return ApiResponse(message=message, data=None)
 
 
 @router.get("/{document_id}", response_model=ApiResponse[DocumentDetail])

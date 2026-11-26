@@ -1,7 +1,7 @@
 """
 Aplikasi Celery.
 
-Antrean `ingestion` (olah dokumen, B3) dan `execution` (kerja role, B4) dipisah agar olah dokumen
+Antrean `ingestion` (olah dokumen, B3) dan `execution` (kerja role, B5) dipisah agar olah dokumen
 besar tidak menahan tugas. Worker tanpa opsi `-Q` melayani semua antrean di bawah.
 """
 
@@ -18,7 +18,7 @@ celery_app = Celery(
     "mbuti",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["app.workers.system", "app.workers.ingestion"],
+    include=["app.workers.system", "app.workers.ingestion", "app.workers.execution"],
 )
 
 celery_app.conf.update(
@@ -38,6 +38,13 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     broker_connection_retry_on_startup=True,
     result_expires=3600,
+    # Dijalankan `celery beat`
+    beat_schedule={
+        "recover-stalled-tasks": {
+            "task": "app.workers.execution.recover_stalled",
+            "schedule": 300.0,
+        }
+    },
 )
 
 

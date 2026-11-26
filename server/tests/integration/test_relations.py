@@ -79,6 +79,10 @@ async def test_rules(world, sign_in):
             "Tuliskan kondisi kapan relasi ini dijalankan.",
         ),
         (link(rani, world.member_id("b_owner"), "escalate"), "Tujuan relasi tidak ditemukan."),
+        (
+            link(rani, tegar, "consult", trigger="on_rejected"),
+            "Relasi Konsultasi tidak bisa dipicu penolakan.",
+        ),
     ]
     for body, message in cases:
         response = await client.post(f"{BASE}/create", json=body)

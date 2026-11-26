@@ -6,7 +6,7 @@ import { Icon } from "../../../_components/admin-icons";
 import {
   PAYLOAD_LABEL,
   RELATION_STYLE,
-  SELECTABLE_TRIGGERS,
+  selectableTriggers,
   triggerLabel,
   type GraphNodeKind,
   type PayloadSpec,
@@ -52,7 +52,14 @@ export default function RelationForm({
                 type="button"
                 role="radio"
                 aria-checked={active}
-                onClick={() => onChange({ ...value, relation_type: t, requires_approval: t === "escalate" ? true : value.requires_approval })}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    relation_type: t,
+                    trigger: selectableTriggers(t).includes(value.trigger) ? value.trigger : "on_complete",
+                    requires_approval: t === "escalate" ? true : value.requires_approval,
+                  })
+                }
                 className={`rounded-2xl border p-2.5 text-left transition-all cursor-pointer ${active ? "text-white shadow-lg" : "bg-white border-line hover:border-brand/40"}`}
                 style={active ? { background: s.color, borderColor: s.color } : undefined}
               >
@@ -76,7 +83,7 @@ export default function RelationForm({
           label="Kapan dijalankan"
           value={value.trigger}
           onChange={(e) => set("trigger", e.target.value as RelationTrigger)}
-          options={(SELECTABLE_TRIGGERS.includes(value.trigger) ? SELECTABLE_TRIGGERS : [...SELECTABLE_TRIGGERS, value.trigger]).map((v) => ({
+          options={selectableTriggers(value.relation_type).map((v) => ({
             value: v,
             label: triggerLabel(value.relation_type, v),
           }))}
@@ -88,6 +95,12 @@ export default function RelationForm({
           options={Object.entries(PAYLOAD_LABEL).map(([v, label]) => ({ value: v, label }))}
         />
       </div>
+      {value.trigger === "on_rejected" && (
+        <p className="text-xs text-muted rounded-xl bg-canvas px-3 py-2">
+          Dijalankan bila hasil {sourceName} ditolak pada persetujuan, atau bila langkahnya gagal. Tanpa relasi seperti ini, tugas
+          berhenti sebagai gagal.
+        </p>
+      )}
       {value.trigger === "on_condition" && (
         <Textarea
           label="Kondisi"

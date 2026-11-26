@@ -224,6 +224,8 @@ async def _clean(
             )
     if fields.trigger == "on_condition" and len(fields.condition) < 5:
         raise UnprocessableEntityException("Tuliskan kondisi kapan relasi ini dijalankan.")
+    if fields.relation_type == "consult" and fields.trigger == "on_rejected":
+        raise UnprocessableEntityException("Relasi Konsultasi tidak bisa dipicu penolakan.")
 
     values = fields.model_dump(exclude={"source_id", "target_id"})
     if fields.relation_type == "escalate":

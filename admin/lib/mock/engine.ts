@@ -55,12 +55,16 @@ export interface MockStep {
   finished_at: string | null;
 }
 
-export type ApprovalFollowUp =
+export type ApprovalFollowUp = {
+  /** Lahir dari relasi pemicu penolakan; bila ditolak, tidak memicu rute penolakan lagi */
+  from_rejection?: boolean;
+} & (
   | { type: "run_relation"; relation_id: string; from_step_id: string }
   | { type: "route_after"; step_id: string; skip_relation_id: string }
   /** Izin berkonsultasi; langkah `step_id` ditahan sampai semua izinnya diputuskan */
   | { type: "run_consult"; relation_id: string; step_id: string }
-  | { type: "none" };
+  | { type: "none" }
+);
 
 export interface MockApproval {
   id: string;
@@ -264,12 +268,23 @@ const runRelation = (db: MockDatabase, task: MockTask, rel: MockRelation, from: 
   }
 };
 
-/** Jalankan relasi keluar dari sebuah langkah yang selesai. */
-const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, skipRelationId: string | null = null) => {
-  const rels = db.relations.filter((r) => r.organization_id === task.organization_id && r.source_id === from.agent_id && r.id !== skipRelationId);
+type RouteTrigger = "complete" | "rejected";
+
+/** Relasi keluar yang berlaku. Konsultasi sudah dijalankan sebelum role itu bekerja (lihat queueStep). */
+const outgoing = (db: MockDatabase, task: MockTask, agentId: string, trigger: RouteTrigger) =>
+  db.relations.filter(
+    (r) =>
+      r.organization_id === task.organization_id &&
+      r.source_id === agentId &&
+      r.relation_type !== "consult" &&
+      (r.trigger === "on_rejected") === (trigger === "rejected")
+  );
+
+/** Jalankan relasi keluar dari sebuah langkah yang selesai atau ditolak. */
+const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, skipRelationId: string | null = null, trigger: RouteTrigger = "complete") => {
+  const rels = outgoing(db, task, from.agent_id, trigger).filter((r) => r.id !== skipRelationId);
+  const origin = trigger === "rejected" ? { from_rejection: true } : {};
   for (const rel of rels) {
-    // Konsultasi sudah dijalankan sebelum role ini bekerja (lihat queueStep)
-    if (rel.relation_type === "consult" || rel.trigger === "on_rejected") continue;
     if (rel.trigger === "on_condition" && !conditionMet(rel, task)) {
       log(db, task, "relation_skipped", `Kondisi tidak terpenuhi, relasi "${rel.label || rel.relation_type}" dilewati: ${rel.condition}`, at, from.id);
       continue;
@@ -278,7 +293,7 @@ const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, ski
       requestApproval(
         db,
         task,
-        { step_id: from.id, reason: "escalate", question: rel.expected_output || rel.label || "Mohon keputusan atas hasil ini.", requested_from_member_id: rel.target_id, follow_up: { type: "none" } },
+        { step_id: from.id, reason: "escalate", question: rel.expected_output || rel.label || "Mohon keputusan atas hasil ini.", requested_from_member_id: rel.target_id, follow_up: { type: "none", ...origin } },
         at
       );
     } else if (rel.requires_approval) {
@@ -290,7 +305,7 @@ const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, ski
           reason: "requires_approval",
           question: `Boleh lanjut "${rel.label || rel.relation_type}" ke ${agentOf(db, rel.target_id)?.name}?`,
           requested_from_member_id: ownerOf(db, rel.source_id, task),
-          follow_up: { type: "run_relation", relation_id: rel.id, from_step_id: from.id },
+          follow_up: { type: "run_relation", relation_id: rel.id, from_step_id: from.id, ...origin },
         },
         at
       );
@@ -515,20 +530,27 @@ export const decideApproval = (
   const label = decision === "approved" ? "menyetujui" : decision === "rejected" ? "menolak" : "meminta revisi";
   log(db, task, "approval_decided", `${who} ${label}${comment ? `: "${comment}"` : "."}`, at, approval.step_id);
 
-  if (decision === "rejected") {
-    task.status = "failed";
-    skipPendingSteps(db, task);
-    for (const a of pendingApprovals(db, task)) {
-      a.status = "rejected";
-      a.comment = "Tugas ditolak pada persetujuan lain.";
-    }
-    log(db, task, "failed", "Tugas ditolak dan dihentikan.", at);
-    return;
-  }
-
   const step = db.task_steps.find((s) => s.id === approval.step_id);
   const follow = approval.follow_up;
-  if (follow.type === "run_consult") {
+  // Pembuat hasil: untuk langkah pemeriksaan, langkah yang diperiksa
+  const makerStep = step?.kind === "review" ? db.task_steps.find((s) => s.id === step.parent_step_id) ?? step : step;
+
+  if (decision === "rejected") {
+    // Relasi "bila ditolak" milik pembuat hasil mengambil alih; tanpa itu tugas gagal
+    if (makerStep && follow.type !== "run_consult" && !follow.from_rejection && outgoing(db, task, makerStep.agent_id, "rejected").length) {
+      route(db, task, makerStep, at, null, "rejected");
+    } else {
+      task.status = "failed";
+      skipPendingSteps(db, task);
+      for (const a of pendingApprovals(db, task)) {
+        a.status = "rejected";
+        a.comment = "Tugas ditolak pada persetujuan lain.";
+        a.decided_at = iso(at);
+      }
+      log(db, task, "failed", "Tugas ditolak dan dihentikan.", at);
+      return;
+    }
+  } else if (follow.type === "run_consult") {
     // "Minta revisi" berarti: kerjakan tanpa konsultasi ini, dengan catatan
     const rel = db.relations.find((r) => r.id === follow.relation_id);
     if (step && decision === "approved" && rel) runConsult(db, task, rel, step, at);
@@ -538,9 +560,8 @@ export const decideApproval = (
       step.ready_at = at + QUEUE_MS;
       task.queue.push(step.id);
     }
-  } else if (decision === "revise" && step) {
+  } else if (decision === "revise" && step && makerStep) {
     // Revisi dikerjakan ulang oleh role pembuat hasil terakhir
-    const makerStep = step.kind === "review" ? db.task_steps.find((s) => s.id === step.parent_step_id) ?? step : step;
     addStep(
       db,
       task,

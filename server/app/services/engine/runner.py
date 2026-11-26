@@ -16,8 +16,12 @@ from app.models.base import utcnow
 from app.services import budget
 from app.services.engine.citations import apply_citations
 from app.services.engine.prompts import (
+    CONDITION_SCHEMA,
+    CONDITION_SYSTEM,
     RESPONSE_SCHEMA,
+    REVIEW_SCHEMA,
     RoleBrief,
+    condition_prompt,
     local_date_and_zone,
     system_prompt,
     user_prompt,
@@ -55,13 +59,19 @@ class RunResult:
     citations: list[Hit] = field(default_factory=list)
     cost: int = 0
     model: str = ""
+    tokens: int = 0
+    # Hanya untuk pemeriksaan: approved atau revise
+    verdict: str | None = None
 
 
 @dataclass
 class Caller:
     organization_id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None
+    # trial, step, atau condition
     kind: str
+    task_id: uuid.UUID | None = None
+    step_id: uuid.UUID | None = None
 
 
 async def _record(
@@ -80,6 +90,8 @@ async def _record(
             organization_id=caller.organization_id,
             agent_id=agent_id,
             kind=caller.kind,
+            task_id=caller.task_id,
+            step_id=caller.step_id,
             provider=provider,
             model=model,
             input_tokens=tokens[0],
@@ -102,12 +114,13 @@ async def _generate(
     models: list[str],
     system: str,
     user: str,
+    schema: dict,
 ) -> tuple[Generation, str, int]:
     """Coba model profil, lalu cadangan bila tidak tersedia. Setiap panggilan dicatat."""
     for model in dict.fromkeys(models):
         started = time.monotonic()
         try:
-            generation = await llm.generate(model, system, user, RESPONSE_SCHEMA)
+            generation = await llm.generate(model, system, user, schema)
         except ModelUnavailable as exc:
             logger.warning("Model %s tidak tersedia: %s", model, exc)
             await _record(session, caller, agent_id, llm.name, model, (0, 0), started, "error")
@@ -146,7 +159,14 @@ async def run_agent(
     inputs: dict[str, str],
     llm: LlmProvider,
     embedder: EmbeddingProvider,
+    materials: list[tuple[str, str]] | None = None,
+    reviewing: bool = False,
+    check_inputs: bool = True,
 ) -> RunResult:
+    """
+    `materials` adalah bahan dari langkah sebelumnya. Pemeriksaan tetap memanggil model walau
+    tanpa potongan dokumen, karena hasilnya dinilai juga terhadap kriteria.
+    """
     organization = await session.get(Organization, caller.organization_id)
     unit = await session.get(Unit, agent.unit_id) if agent.unit_id else None
     today, timezone = local_date_and_zone(utcnow(), organization.timezone)
@@ -170,9 +190,9 @@ async def run_agent(
     missing = [
         spec["label"]
         for spec in agent.input_spec
-        if spec.get("required") and not inputs.get(spec["key"])
+        if check_inputs and spec.get("required") and not inputs.get(spec["key"])
     ]
-    system = system_prompt(role)
+    system = system_prompt(role, reviewing)
     if missing:
         return RunResult(
             status="need_info",
@@ -182,7 +202,14 @@ async def run_agent(
             missing_inputs=missing,
         )
 
-    query = " ".join([brief, agent.title, *(value for _, value in labelled)])[:2000]
+    query = " ".join(
+        [
+            brief,
+            agent.title,
+            *(value for _, value in labelled),
+            *(text[:400] for _, text in materials or []),
+        ]
+    )[:2000]
     excerpts = (
         await rank_chunks(
             session,
@@ -197,9 +224,9 @@ async def run_agent(
             settings.RETRIEVAL_MAX_DISTANCE,
         )
     )[:MAX_EXCERPTS]
-    user = user_prompt(brief, labelled, excerpts)
+    user = user_prompt(brief, labelled, excerpts, materials)
     preview = f"{system}\n\n{user}"
-    if not excerpts:
+    if not excerpts and not reviewing:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
@@ -220,6 +247,7 @@ async def run_agent(
         [models[profile], models["fallback"]],
         system,
         user,
+        REVIEW_SCHEMA if reviewing else RESPONSE_SCHEMA,
     )
 
     data = generation.data
@@ -240,4 +268,33 @@ async def run_agent(
         citations=[to_hit(chunk, terms) for chunk in cited],
         cost=cost,
         model=model,
+        tokens=generation.input_tokens + generation.output_tokens,
+        # Jawaban tanpa keputusan yang jelas dianggap perlu revisi, bukan diterima diam-diam
+        verdict=("approved" if data.get("verdict") == "approved" else "revise")
+        if reviewing
+        else None,
     )
+
+
+async def evaluate_condition(
+    session: AsyncSession,
+    caller: Caller,
+    agent_id: uuid.UUID,
+    condition: str,
+    material: str,
+    llm: LlmProvider,
+) -> tuple[bool, str, int]:
+    """Dinilai model profil cepat. Kembalikan (terpenuhi, alasan, biaya)."""
+    models = (await budget.read_settings(session, caller.organization_id)).models
+    await session.commit()
+    generation, _, cost = await _generate(
+        session,
+        caller,
+        agent_id,
+        llm,
+        [models["fast"], models["fallback"]],
+        CONDITION_SYSTEM,
+        condition_prompt(condition, material),
+        CONDITION_SCHEMA,
+    )
+    return generation.data.get("met") is True, str(generation.data.get("reason") or ""), cost

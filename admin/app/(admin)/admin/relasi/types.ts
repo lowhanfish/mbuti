@@ -105,8 +105,9 @@ export const TRIGGER_LABEL: Record<RelationTrigger, string> = {
   on_condition: "Bila kondisi terpenuhi",
 };
 
-/** Pemicu yang ditawarkan. `on_rejected` belum dijalankan mesin, jadi disembunyikan sampai ada. */
-export const SELECTABLE_TRIGGERS: RelationTrigger[] = ["on_complete", "on_condition"];
+/** Konsultasi terjadi sebelum role sumber bekerja, jadi tidak bisa dipicu penolakan. */
+export const selectableTriggers = (type: RelationType): RelationTrigger[] =>
+  type === "consult" ? ["on_complete", "on_condition"] : ["on_complete", "on_condition", "on_rejected"];
 
 /** Konsultasi dijalankan sebelum role sumber bekerja, bukan sesudahnya. */
 export const triggerLabel = (type: RelationType, trigger: RelationTrigger) =>

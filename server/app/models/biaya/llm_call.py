@@ -17,7 +17,8 @@ class LlmCall(Base):
     agent_id = Column(
         UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
-    # Langkah tugas (B5); kosong untuk uji coba
+    # Tugas dan langkahnya; kosong untuk uji coba
+    task_id = Column(UUID(as_uuid=True), nullable=True)
     step_id = Column(UUID(as_uuid=True), nullable=True)
     kind = Column(String(10), nullable=False)
     provider = Column(String(20), nullable=False)

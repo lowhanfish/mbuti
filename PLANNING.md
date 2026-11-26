@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B4 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role); berikutnya B5.
+Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B5 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard); berikutnya B6.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -406,7 +406,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 **B4. Eksekusi satu role** (selesai 26 November 2026; termasuk pengaturan model AI dan batas biaya): provider model, runner, rujukan, biaya, uji coba role dari tab "Uji coba".
 
-**B5. Relasi dalam eksekusi** (juga: tabel rujukan hasil, dan dokumen yang dirujuk diarsipkan bukan dihapus; tolak hapus role yang terlibat tugas berjalan, isi `task_count`, batas revisi dari pengaturan): handoff, review dengan batas revisi, eskalasi, persetujuan, hentikan tugas, pengaman biaya dan langkah, konsultasi sebelum bekerja, pemicu `on_rejected` (lalu tampilkan kembali pilihannya di peta).
+**B5. Relasi dalam eksekusi** (selesai 26 November 2026; juga: tabel rujukan hasil, dan dokumen yang dirujuk diarsipkan bukan dihapus; tolak hapus role yang terlibat tugas berjalan, isi `task_count`, batas revisi dari pengaturan): handoff, review dengan batas revisi, eskalasi, persetujuan, hentikan tugas, pengaman biaya dan langkah, konsultasi sebelum bekerja, pemicu `on_rejected` (lalu tampilkan kembali pilihannya di peta).
 
 **B6. Penyambungan**: frontend beralih `NEXT_PUBLIC_DATA_SOURCE=api`, perbaiki selisih kontrak, kantor 3D membaca status nyata.
 
@@ -416,6 +416,20 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 - [ ] Batas laju, audit log, cadangan database, pemantauan galat.
 - [ ] Deploy tanpa Docker: `systemd` untuk uvicorn, worker, dan beat; Nginx sebagai reverse proxy; `next build` + `next start`.
 - [ ] README: persiapan lingkungan, migrasi, seed, menjalankan, uji, dan cara membuat modul baru.
+
+### Fase D — SaaS (setelah fase C)
+
+MBUTI ditujukan menjadi layanan SaaS. Versi pertama (fase A–C) dipakai satu pengguna per organisasi dengan akun yang
+dibuat lewat skrip; data sudah dipisah per organisasi. Fase ini dimulai setelah alur utama terbukti jalan, dan
+rinciannya disepakati dulu sebelum dikerjakan.
+
+- [ ] Pendaftaran mandiri, verifikasi email, penerimaan undangan, dan lupa kata sandi.
+- [ ] Satu pengguna di beberapa organisasi, dengan pemilih organisasi.
+- [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran.
+- [ ] Panel pengelola platform: daftar organisasi, pemakaian, dan penangguhan.
+- [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
+- [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
+- [ ] Ketentuan layanan dan kebijakan privasi.
 
 ## 12. Risiko
 
@@ -441,7 +455,7 @@ Pola URL per fitur: `GET /read`, `GET /option`, `GET /{id}`, `POST /create`, `PU
 
 Sudah diputuskan (26 November 2026):
 
-- Model bawaan: cepat `gemini-3.1-flash-lite`, seimbang `gemini-3.6-flash`, teliti `gemini-4-hydrogen`, cadangan `gemini-3.5-flash-lite` (yang menjawab dengan kunci tier gratis). Bisa diubah di `.env` atau Pengaturan > Model AI.
+- Model bawaan: cepat `gemini-3.1-flash-lite`, seimbang `gemini-3.5-flash-lite`, teliti `gemini-4-hydrogen`, cadangan `gemini-3.1-flash-lite` (yang menjawab dengan kunci tier gratis). Seimbang semula `gemini-3.6-flash`, diganti karena sering 503 atau kehabisan waktu sehingga satu langkah butuh sekitar 3,5 menit. Bisa diubah di `.env` atau Pengaturan > Model AI.
 - Kurs biaya Rp18.000 per dolar (`USD_IDR_RATE`).
 
 - Satu organisasi per pengguna di versi pertama; tabel tetap multi-organisasi, pendaftaran terbuka belakangan.
