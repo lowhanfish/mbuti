@@ -1957,9 +1957,10 @@ Usulan:
 
 - `url` harus `http(s)` (`422`); usulan `pending` dengan alamat yang sama di organisasi itu → `409`. `title` ≤ 200,
   `excerpt` ≤ 2000. `task_id` dan `agent_id` diabaikan bila bukan milik organisasi.
-- Setujui: server mengambil ulang isi halaman (teks saja, maks 20 MB, batas waktu) lalu membuat dokumen
-  `category: "web"`, lingkup organisasi, `source_url` terisi, dan mengolahnya seperti dokumen lain. Bila halaman
-  gagal diambil, isi dokumen memakai `title` dan `excerpt`. Usulan yang sudah diputuskan → `409`.
+- Setujui: server membuat dokumen `category: "web"` berisi `title`, `excerpt`, dan alamat sumber, lingkup
+  organisasi, `source_url` terisi, lalu mengolahnya seperti dokumen lain. Isi halaman sumber **tidak** diambil
+  ulang (mengambil alamat dari luar ditunda karena perlu perlindungan jaringan tersendiri). Usulan yang sudah
+  diputuskan → `409`; organisasi lain → `404`. Setelah diputuskan, alamat yang sama boleh diusulkan lagi.
 
 ### 16.8 Pemakaian kuota (bagian 11.1)
 

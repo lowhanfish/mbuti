@@ -63,6 +63,8 @@ class Document(Base):
     effective_from = Column(Date, nullable=True)
     effective_until = Column(Date, nullable=True)
     policy_status = Column(String(10), nullable=True)
+    # Alamat asal temuan internet yang disetujui (E1d)
+    source_url = Column(String(500), nullable=True)
     scope = Column(String(12), nullable=False)
     unit_id = Column(
         UUID(as_uuid=True), ForeignKey("units.id", ondelete="SET NULL"), nullable=True, index=True

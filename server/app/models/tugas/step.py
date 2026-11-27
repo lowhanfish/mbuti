@@ -54,6 +54,8 @@ class TaskStep(Base):
     output = Column(Text, nullable=False, default="")
     # Temuan atas gambar (E1c), bentuk `Finding` di kontrak 16.6
     findings = Column(JSONB, nullable=False, default=list, server_default="[]")
+    # Sumber internet yang dipakai (E1d), bentuk `WebSource` di kontrak 16.7
+    web_sources = Column(JSONB, nullable=False, default=list, server_default="[]")
     verdict = Column(String(10), nullable=True)
     model = Column(String(60), nullable=False, default="")
     cost = Column(Integer, nullable=False, default=0)

@@ -97,6 +97,13 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ),
     ("PUT", "/pengaturan/model-ai/update"): Action("pengaturan.model", "Mengubah model AI"),
     ("PUT", "/pengaturan/batas-biaya/update"): Action("pengaturan.biaya", "Mengubah batas biaya"),
+    ("POST", "/pengetahuan/usulan"): Action("dokumen.usulan", "Mengusulkan temuan internet"),
+    ("POST", "/pengetahuan/usulan/{proposal_id}/setujui"): Action(
+        "dokumen.usulan", "Menyetujui usulan pengetahuan"
+    ),
+    ("POST", "/pengetahuan/usulan/{proposal_id}/tolak"): Action(
+        "dokumen.usulan", "Menolak usulan pengetahuan"
+    ),
     ("POST", "/tugas/lampiran"): Action("tugas.lampiran", "Mengunggah lampiran tugas"),
     ("POST", "/tugas/create"): Action("tugas.buat", "Membuat tugas"),
     ("POST", "/tugas/{task_id}/cancel"): Action("tugas.hentikan", "Menghentikan tugas"),

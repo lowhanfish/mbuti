@@ -35,6 +35,8 @@ class Task(Base):
     priority = Column(String(10), nullable=False, default="normal")
     due_at = Column(DateTime(timezone=True), nullable=True)
     budget_limit = Column(Integer, nullable=False)
+    # role = ikut pengaturan role; off = tanpa internet untuk tugas ini (E1d)
+    web_search = Column(String(4), nullable=False, default="role", server_default="role")
     cost_used = Column(Integer, nullable=False, default=0)
     # Jumlah putaran revisi per relasi Periksa
     review_rounds = Column(JSONB, nullable=False, default=dict)

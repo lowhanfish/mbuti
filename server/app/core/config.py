@@ -174,6 +174,8 @@ class Settings(BaseSettings):
     MAX_IMAGES_PER_STEP: int = 6
     MAX_ATTACHMENTS: int = 10
     MAX_ATTACHMENT_PAGES: int = 20
+    # Pencarian internet per organisasi per hari (E1d)
+    WEB_SEARCH_PER_DAY: int = 50
 
     # ==========================
     # PEMBENTUKAN ROLE (E1a)
@@ -187,6 +189,7 @@ class Settings(BaseSettings):
     RATE_TRIAL_PER_MINUTE: int = 10
     RATE_FORMATION_PER_MINUTE: int = 10
     RATE_ATTACHMENT_PER_MINUTE: int = 30
+    RATE_PROPOSAL_PER_MINUTE: int = 20
     RATE_UPLOAD_PER_MINUTE: int = 20
     RATE_TASK_PER_MINUTE: int = 20
     RATE_SEARCH_PER_MINUTE: int = 60

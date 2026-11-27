@@ -3,7 +3,7 @@
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from sqlalchemy import literal
 from sqlalchemy.dialects.postgresql import UUID
@@ -33,6 +33,7 @@ from app.services.engine.prompts import (
     system_prompt,
     user_prompt,
 )
+from app.services.engine.web import number_sources, searches_today, should_search
 from app.services.knowledge.scope import visible_to
 from app.services.knowledge.search import Hit, rank_chunks, reference_order, to_hit, tokenize
 from app.services.llm.catalog import cost_in_rupiah
@@ -66,6 +67,8 @@ class RunResult:
     citations: list[Hit] = field(default_factory=list)
     # Temuan atas gambar (E1c)
     findings: list[dict] = field(default_factory=list)
+    # Sumber internet W1, W2, … (E1d)
+    web_sources: list[dict] = field(default_factory=list)
     cost: int = 0
     model: str = ""
     tokens: int = 0
@@ -166,6 +169,41 @@ async def generate_with_fallback(
     raise AppException(UNAVAILABLE, 503)
 
 
+async def _search_web(
+    session: AsyncSession, caller: Caller, agent: Agent, llm: LlmProvider, query: str
+) -> tuple[list[dict], int]:
+    """
+    Pencarian Google bawaan Gemini dengan model profil role, lalu cadangan. Dicatat sebagai
+    `web_search`. Bila gagal, role tetap bekerja tanpa internet.
+    """
+    models = (await budget.read_settings(session, caller.organization_id)).models
+    searching = replace(caller, kind="web_search")
+    await session.commit()
+    for model in dict.fromkeys([models[agent.model_profile], models["fallback"]]):
+        started = time.monotonic()
+        try:
+            result = await llm.search(model, query[:500])
+        except ModelUnavailable:
+            await _record(session, searching, agent.id, llm.name, model, (0, 0), started, "error")
+            continue
+        except (ModelFailed, AttributeError) as exc:
+            logger.warning("Pencarian internet gagal: %s", exc)
+            await _record(session, searching, agent.id, llm.name, model, (0, 0), started, "error")
+            return [], 0
+        cost = await _record(
+            session,
+            searching,
+            agent.id,
+            llm.name,
+            model,
+            (result.input_tokens, result.output_tokens),
+            started,
+            "ok",
+        )
+        return number_sources(result.sources, utcnow().isoformat()), cost
+    return [], 0
+
+
 async def run_agent(
     session: AsyncSession,
     caller: Caller,
@@ -178,6 +216,7 @@ async def run_agent(
     reviewing: bool = False,
     check_inputs: bool = True,
     attachments: list[ImageInput] | None = None,
+    web_mode: str = "role",
 ) -> RunResult:
     """
     `materials` adalah bahan dari langkah sebelumnya. Pemeriksaan tetap memanggil model walau
@@ -245,17 +284,25 @@ async def run_agent(
     # Lampiran lebih dulu, lalu halaman pengetahuan bergambar yang terpilih (kontrak 16.6)
     images = list(attachments or [])
     images += await page_images(excerpts, len(images))
-    if images:
-        system = system_prompt(role, reviewing, with_images=True)
+    # Internet hanya bila diizinkan dan dokumen kurang; maks satu pencarian per langkah (16.7)
+    web: list[dict] = []
+    web_cost = 0
+    if not reviewing and should_search(agent.web_search, web_mode, query, excerpts):
+        if await searches_today(session, caller.organization_id) < settings.WEB_SEARCH_PER_DAY:
+            await budget.require_budget(session, caller.organization_id)
+            web, web_cost = await _search_web(session, caller, agent, llm, query)
+    if images or web:
+        system = system_prompt(role, reviewing, with_images=bool(images), with_web=bool(web))
     user = user_prompt(
         brief,
         labelled,
         excerpts,
         materials,
         [(image.label, image.title, image.excerpt) for image in images],
+        web,
     )
     preview = f"{system}\n\n{user}"
-    if not excerpts and not reviewing and not images:
+    if not excerpts and not reviewing and not images and not web:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
@@ -282,6 +329,12 @@ async def run_agent(
 
     data = generation.data
     status = data.get("status") if data.get("status") in STATUSES else "done"
+    if web and status == "not_in_documents":
+        # Hasil yang bertumpu pada internet tidak dianggap "tidak ada di dokumen"
+        status = "done"
+        data["notes"] = (
+            f"{data.get('notes') or ''} Dasarnya dari internet, di luar dokumen organisasi.".strip()
+        )
     sources = data.get("sources") if isinstance(data.get("sources"), list) else []
     sources = [*sources, *finding_sources(data, len(excerpts))]
     output, cited = apply_citations(str(data.get("output") or ""), sources, excerpts)
@@ -304,7 +357,8 @@ async def run_agent(
         prompt_preview=preview,
         citations=[to_hit(chunk, terms) for chunk in cited],
         findings=findings,
-        cost=cost,
+        web_sources=web,
+        cost=cost + web_cost,
         model=model,
         tokens=generation.input_tokens + generation.output_tokens,
         # Jawaban tanpa keputusan yang jelas dianggap perlu revisi, bukan diterima diam-diam

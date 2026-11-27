@@ -412,6 +412,7 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             return
         step.output = result.output
         step.findings = result.findings
+        step.web_sources = result.web_sources
         step.model = result.model
         step.tokens = result.tokens
         step.status = "done"
@@ -439,6 +440,15 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             "not_in_documents": "tidak menemukan aturannya di dokumen",
         }.get(result.status)
         reviewing = step.kind == "review"
+        if result.web_sources:
+            flow.log(
+                session,
+                task,
+                "step_done",
+                f"{agent.name} mencari di internet karena dokumen internal kurang "
+                f"({len(result.web_sources)} sumber).",
+                step.id,
+            )
         if step.kind == "work":
             flow.log(session, task, "step_done", f"{agent.name} menyelesaikan pekerjaan.", step.id)
         elif step.kind == "consult":
@@ -586,6 +596,7 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
                 reviewing=current.kind == "review",
                 check_inputs=entry,
                 attachments=images,
+                web_mode=task.web_search,
             )
     except ConflictException:
         async with sessions() as session:

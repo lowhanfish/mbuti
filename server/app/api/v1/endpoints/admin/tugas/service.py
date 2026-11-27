@@ -198,6 +198,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
     labels = {spec["key"]: spec["label"] for spec in entry.input_spec}
     return TaskDetail(
         attachments=await attachments.task_attachments(session, task.id),
+        web_search=task.web_search,
         **item.model_dump(),
         inputs=[
             InputValue(label=labels.get(key, key), value=value)
@@ -215,6 +216,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
                 input_notes=step.input_notes,
                 output=step.output,
                 findings=step.findings,
+                web_sources=step.web_sources,
                 citations=[
                     SearchHit(
                         document_id=str(c.document_id),
@@ -302,6 +304,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         priority=body.priority,
         due_at=due_at,
         budget_limit=body.budget_limit,
+        web_search=body.web_search,
         created_by_member_id=actor.membership.id,
         created_by=actor.user.id,
     )

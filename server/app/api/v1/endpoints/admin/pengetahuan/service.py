@@ -200,6 +200,7 @@ def _to_item(row, active: Version | None, today: datetime.date) -> DocumentItem:
         version_count=row.version_count,
         category=document.category,
         policy=_policy(document, today),
+        source_url=document.source_url,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )

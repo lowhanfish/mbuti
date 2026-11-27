@@ -1,4 +1,5 @@
 from app.models.pengetahuan.document import Document, DocumentVersion
+from app.models.pengetahuan.proposal import KnowledgeProposal
 from app.models.pengetahuan.section import EMBEDDING_DIMENSION, DocumentChunk, DocumentSection
 
 __all__ = [
@@ -7,4 +8,5 @@ __all__ = [
     "DocumentChunk",
     "DocumentSection",
     "DocumentVersion",
+    "KnowledgeProposal",
 ]
