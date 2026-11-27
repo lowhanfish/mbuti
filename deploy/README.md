@@ -12,7 +12,7 @@ saat pemasangan pertama.
 
 ## 1. Kebutuhan
 
-Python 3.12, Node.js 20 atau lebih baru, Redis, Nginx, dan PostgreSQL dengan pgvector (di server ini
+Python 3.12, Node.js 24 LTS atau lebih baru, Redis, Nginx, dan PostgreSQL dengan pgvector (di server ini
 atau layanan jarak jauh yang **dekat** dengan server; tiap query menempuh jarak itu). Redis cukup
 mendengarkan di `127.0.0.1`.
 

@@ -65,12 +65,12 @@ Nama `agent` dipakai di kode karena kata "role" sudah dipakai untuk hak akses pe
 
 ## 4. Lingkungan pengembangan (tanpa Docker)
 
-Kondisi mesin saat ini: Python 3.12 ada, Redis 8 sudah berjalan, Node 20. PostgreSQL tidak dipasang lokal: database pengembangan memakai server jauh (Neon, PostgreSQL 18, lewat pooler) yang alamatnya diisi di `server/.env` (`DATABASE_URL`). Ini hanya untuk pengembangan; server produksi ditentukan di fase C.
+Kondisi mesin saat ini: Python 3.12 ada, Redis 8 sudah berjalan, Node 24 LTS (lewat nvm, versinya di `.nvmrc`). PostgreSQL tidak dipasang lokal: database pengembangan memakai server jauh (Neon, PostgreSQL 18, lewat pooler) yang alamatnya diisi di `server/.env` (`DATABASE_URL`). Ini hanya untuk pengembangan; server produksi ditentukan di fase C.
 
 Karena database pengembangan berada di layanan luar, isi hanya dengan data dan dokumen contoh atau publik.
 
 - [x] Siapkan PostgreSQL dengan pgvector (Neon). Pilihan lokal bila diperlukan nanti: Postgres.app atau kompilasi sumber, karena pgvector dari Homebrew tidak mendukung PostgreSQL 17.
-- [ ] Naikkan Node ke versi 22 LTS atau lebih baru (Node 20 sudah lewat masa dukungan).
+- [x] Naikkan Node ke versi 22 LTS atau lebih baru (Node 20 sudah lewat masa dukungan). Dipilih Node 24 LTS (27 November 2026): `.nvmrc` dan `engines` di `admin/package.json`.
 - [x] Buat database `mbuti` dan `mbuti_test`; ekstensi `vector` diaktifkan oleh migrasi.
 
 Menjalankan sistem (empat terminal):

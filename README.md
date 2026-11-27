@@ -14,6 +14,8 @@ Rencana lengkap: [PLANNING.md](PLANNING.md). Kontrak API (disetujui): [admin/API
 
 ## Menjalankan frontend
 
+Butuh Node.js 24 LTS atau lebih baru (versinya tercatat di `.nvmrc`; dengan nvm cukup `nvm use` di folder proyek).
+
 ```bash
 cd admin
 cp .env.example .env.local
