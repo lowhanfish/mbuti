@@ -17,14 +17,20 @@ import TabUjiCoba from "./components/TabUjiCoba";
 import TabDokumen from "./components/TabDokumen";
 import TabRelasi from "./components/TabRelasi";
 import TabRiwayat from "./components/TabRiwayat";
+import TabPembentukan from "./components/TabPembentukan";
+import TabVersi from "./components/TabVersi";
+import { buttonClasses } from "../../../_components/ui/button-classes";
+import { REVISION_STATUS_LABEL } from "../formation-types";
 
 const TABS = [
   { key: "profil", label: "Profil", icon: "agent" },
+  { key: "pembentukan", label: "Pembentukan", icon: "sparkles" },
   { key: "instruksi", label: "Instruksi", icon: "task" },
   { key: "dokumen", label: "Dokumen", icon: "book" },
   { key: "relasi", label: "Relasi", icon: "flow" },
   { key: "uji", label: "Uji coba", icon: "sparkles" },
   { key: "riwayat", label: "Riwayat", icon: "list" },
+  { key: "versi", label: "Versi", icon: "tree" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -102,6 +108,14 @@ function RoleDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">{Role.name}</h2>
               <AgentStatusBadge status={Role.status} />
+              <span className="text-[11px] font-semibold rounded-full bg-surface/80 border border-rim px-2.5 py-1 text-muted">
+                {Role.active_version_no > 0 ? `Versi ${Role.active_version_no}` : "Belum Final"}
+              </span>
+              {Role.revision_status && (
+                <span className="text-[11px] font-semibold rounded-full bg-brand-soft text-brand-strong px-2.5 py-1">
+                  Revisi: {REVISION_STATUS_LABEL[Role.revision_status]}
+                </span>
+              )}
             </div>
             <p className="text-sm font-semibold text-brand">{Role.title}</p>
             <p className="text-sm text-muted max-w-2xl leading-relaxed">{Role.goal || "Belum ada tujuan kerja."}</p>
@@ -115,7 +129,12 @@ function RoleDetail() {
           </div>
           {canEdit && (
             <div className="flex md:flex-col gap-2 shrink-0">
-              {Role.status === "active" ? (
+              {Role.active_version_no === 0 ? (
+                <Link href={`/admin/role/${Role.id}/bentuk`} className={buttonClasses("primary", "sm")}>
+                  <Icon name="sparkles" size={14} />
+                  Lanjutkan pembentukan
+                </Link>
+              ) : Role.status === "active" ? (
                 <Button variant="outline" size="sm" onClick={() => save({ status: "paused" })} loading={updateMutation.isPending}>
                   Jeda
                 </Button>
@@ -163,6 +182,8 @@ function RoleDetail() {
         {tab === "relasi" && <TabRelasi role={Role} />}
         {tab === "uji" && <TabUjiCoba role={Role} />}
         {tab === "riwayat" && <TabRiwayat role={Role} />}
+        {tab === "pembentukan" && <TabPembentukan role={Role} />}
+        {tab === "versi" && <TabVersi role={Role} />}
       </div>
     </div>
   );

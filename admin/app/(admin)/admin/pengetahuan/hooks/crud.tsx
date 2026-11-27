@@ -7,6 +7,9 @@ import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse } from "@/types/global";
 import type {
   DetailInterface,
+  KnowledgeProposal,
+  ProposalRequest,
+  ProposalStatus,
   ResponseInterface,
   ResponseListInterface,
   SearchHit,
@@ -27,6 +30,8 @@ export interface DocumentFilters {
   doc_type?: string;
   status?: string;
   agent_id?: string;
+  /** Satu atau beberapa kategori dipisah koma */
+  category?: string;
 }
 
 export const useResponseListDocument = (filters: DocumentFilters) => {
@@ -166,5 +171,45 @@ export const useDeleteDocument = () => {
       swallAlert("dokumen dihapus", "success");
     },
     onError: (err: Error) => swallAlert(`gagal dihapus: ${err.message}`, "error"),
+  });
+};
+
+/** Usulan temuan internet (E1d). */
+export const useProposals = (status = "") => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const { data, isLoading } = useQuery({
+    queryFn: () =>
+      fetchData<{ data: KnowledgeProposal[]; total: number; summary: Record<ProposalStatus, number> }>(
+        `${url}${BASE}/usulan${status ? `?status=${status}` : ""}`
+      ),
+    queryKey: [QUERY_KEY, "usulan", status],
+  });
+  return { Proposals: data?.data ?? [], summary: data?.summary, isLoading };
+};
+
+export const useCreateProposal = () => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProposalRequest) => fetchData<ApiResponse<KnowledgeProposal>>(`${url}${BASE}/usulan`, { method: "POST", body: { ...body } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "usulan"] });
+      swallAlert("usulan dikirim ke admin", "success");
+    },
+    onError: (err: Error) => swallAlert(`usulan gagal dikirim: ${err.message}`, "error"),
+  });
+};
+
+export const useDecideProposal = () => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const invalidate = useInvalidateDocuments();
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "setujui" | "tolak" }) =>
+      fetchData<ApiResponse<KnowledgeProposal>>(`${url}${BASE}/usulan/${id}/${decision}`, { method: "POST", body: {} }),
+    onSuccess: (_, v) => {
+      invalidate();
+      swallAlert(v.decision === "setujui" ? "usulan disetujui" : "usulan ditolak", "success");
+    },
+    onError: (err: Error) => swallAlert(`gagal memutuskan: ${err.message}`, "error"),
   });
 };

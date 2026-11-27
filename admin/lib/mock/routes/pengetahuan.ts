@@ -1,21 +1,27 @@
 import {
   ACCEPTED_TYPES,
+  IMAGE_TYPES,
   MAX_FILE_BYTES,
+  MAX_IMAGE_BYTES,
   type DetailInterface,
   type DocumentScope,
   type DocumentSection,
+  type DocumentCategory,
   type DocumentType,
   type IngestionStatus,
+  type PolicyFields,
+  type PolicyKind,
   type ResponseInterface,
   type VersionDetailInterface,
 } from "@/app/(admin)/admin/pengetahuan/types";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
-import { documentsForAgent, liveDocuments, searchDocuments, toVersion, versionStatus } from "../knowledge";
+import { documentsForAgent, liveDocuments, policyInForce, searchDocuments, toVersion, versionStatus } from "../knowledge";
+import { placeholderPage, readImage } from "../media";
 import { fail, ok, paging, type MockRoute } from "../router";
 import type { MockDatabase, MockDocVersion, MockDocument } from "../seed";
 
-const TYPES: DocumentType[] = ["sop", "manual", "pedoman", "templat", "regulasi", "lainnya"];
+const TYPES: DocumentType[] = ["sop", "manual", "pedoman", "templat", "regulasi", "uraian_jabatan", "lainnya"];
 const SCOPES: DocumentScope[] = ["organization", "unit", "agent"];
 
 const activeVersion = (db: MockDatabase, docId: string) => db.doc_versions.find((v) => v.document_id === docId && v.is_active) ?? null;
@@ -46,6 +52,9 @@ const toItem = (db: MockDatabase, d: MockDocument): ResponseInterface => {
     scope_color: scope.color,
     active_version: active ? toVersion(db, active) : null,
     version_count: db.doc_versions.filter((v) => v.document_id === d.id).length,
+    category: d.category ?? "knowledge",
+    policy: d.category === "policy" && d.policy ? { ...d.policy, in_force: policyInForce(d.policy) } : null,
+    source_url: d.source_url ?? null,
     created_at: d.created_at,
     updated_at: d.updated_at,
   };
@@ -112,9 +121,11 @@ const textToSections = (raw: string): DocumentSection[] => {
 /** Baca berkas unggahan menjadi versi dokumen (simulasi olah). */
 const readUpload = async (db: MockDatabase, file: File, documentId: string, versionNo: number, memberId: string): Promise<MockDocVersion | string> => {
   const mime = file.type || (file.name.endsWith(".md") ? "text/markdown" : "");
-  if (!ACCEPTED_TYPES[mime] && !/\.(pdf|docx|txt|md)$/i.test(file.name)) {
-    return "Jenis berkas belum didukung. Gunakan PDF berteks, DOCX, TXT, atau MD.";
+  if (!ACCEPTED_TYPES[mime] && !/\.(pdf|docx|txt|md|png|jpe?g|webp)$/i.test(file.name)) {
+    return "Jenis berkas belum didukung. Gunakan PDF, DOCX, TXT, MD, atau gambar PNG, JPG, WEBP.";
   }
+  const isImage = IMAGE_TYPES.includes(mime);
+  if (isImage && file.size > MAX_IMAGE_BYTES) return "Ukuran gambar melebihi 10 MB.";
   if (file.size > MAX_FILE_BYTES) return "Ukuran berkas melebihi 20 MB.";
   if (file.size === 0) return "Berkas kosong.";
   const buffer = await file.arrayBuffer();
@@ -125,17 +136,43 @@ const readUpload = async (db: MockDatabase, file: File, documentId: string, vers
 
   let sections: DocumentSection[];
   let failReason: string | null = null;
-  if (/\.(txt|md)$/i.test(file.name) || mime.startsWith("text/")) {
+  if (isImage) {
+    // Satu gambar = satu bagian; backend memperkecil sampai 2048 px, membuat embedding multimodal, dan menyimpan EXIF
+    try {
+      const image = await readImage(file);
+      sections = [
+        {
+          page_no: 1,
+          heading: file.name.replace(/\.[^.]+$/, ""),
+          text: `Gambar ${image.width}×${image.height} piksel. Isinya dibaca Gemini saat dipakai tugas.`,
+          render: "visual",
+          image_url: image.url,
+        },
+      ];
+    } catch {
+      sections = [];
+      failReason = "Gambar tidak bisa dibaca.";
+    }
+  } else if (/\.(txt|md)$/i.test(file.name) || mime.startsWith("text/")) {
     sections = textToSections(new TextDecoder().decode(buffer));
     if (!sections.length) failReason = "Berkas tidak berisi teks.";
   } else {
     // Data contoh tidak bisa membaca isi PDF/DOCX; backend (tahap B3) yang mengekstrak teksnya
     const pages = Math.min(40, Math.max(1, Math.round(file.size / 90_000)));
-    sections = Array.from({ length: pages }, (_, i) => ({
-      page_no: i + 1,
-      heading: `Halaman ${i + 1}`,
-      text: "Isi halaman ini akan dibaca oleh backend pada tahap B3. Di mode data contoh, hanya berkas TXT dan MD yang isinya bisa dibaca langsung di peramban.",
-    }));
+    // Simulasi pemilahan halaman: sebagian halaman PDF dianggap bergambar (tabel, grafik, hasil scan)
+    const isPdf = /\.pdf$/i.test(file.name) || mime === "application/pdf";
+    sections = Array.from({ length: pages }, (_, i): DocumentSection => {
+      const visual = isPdf && i % 3 === 1;
+      return {
+        page_no: i + 1,
+        heading: `Halaman ${i + 1}`,
+        text: visual
+          ? "Halaman bergambar. Backend membuat embedding gambarnya dan membacanya dengan Gemini saat dipakai tugas."
+          : "Isi halaman ini akan dibaca oleh backend pada tahap B3. Di mode data contoh, hanya berkas TXT dan MD yang isinya bisa dibaca langsung di peramban.",
+        render: visual ? "visual" : "text",
+        image_url: visual ? placeholderPage(file.name, i + 1) : null,
+      };
+    });
   }
 
   return {
@@ -148,6 +185,7 @@ const readUpload = async (db: MockDatabase, file: File, documentId: string, vers
     sha256: sha,
     is_active: true,
     processing_started_at: nowIso(),
+    media_kind: isImage ? "image" : mime === "application/pdf" || /\.pdf$/i.test(file.name) ? "pdf" : "text",
     fail_reason: failReason,
     uploaded_by_member_id: memberId,
     sections,
@@ -156,6 +194,25 @@ const readUpload = async (db: MockDatabase, file: File, documentId: string, vers
 };
 
 const formValue = (body: unknown, key: string) => (body instanceof FormData ? body.get(key) : null);
+
+const POLICY_KINDS: PolicyKind[] = ["peraturan", "kebijakan", "standar_mutu", "panduan_merek", "lainnya"];
+const CATEGORIES: DocumentCategory[] = ["knowledge", "policy", "formation", "qa", "web"];
+const isDate = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/** Keterangan kebijakan dari isian; galat berupa teks. */
+const cleanPolicy = (raw: Partial<Record<keyof PolicyFields, unknown>>): PolicyFields | string => {
+  const from = isDate(raw.effective_from) ? (raw.effective_from as string) : null;
+  const until = isDate(raw.effective_until) ? (raw.effective_until as string) : null;
+  if (from && until && until < from) return "Tanggal akhir berlaku tidak boleh sebelum tanggal mulai.";
+  return {
+    kind: POLICY_KINDS.includes(raw.kind as PolicyKind) ? (raw.kind as PolicyKind) : "lainnya",
+    reference_no: text(raw.reference_no, 100),
+    issuer: text(raw.issuer, 150),
+    effective_from: from,
+    effective_until: until,
+    status: raw.status === "dicabut" ? "dicabut" : "berlaku",
+  };
+};
 
 const BASE = "/api/v1/admin/pengetahuan";
 
@@ -172,6 +229,8 @@ export const pengetahuanRoutes: MockRoute[] = [
       const docType = ctx.query.get("doc_type") ?? "";
       const status = ctx.query.get("status") ?? "";
       const agentId = ctx.query.get("agent_id") ?? "";
+      // Satu atau beberapa kategori dipisah koma, mis. "policy" atau "knowledge,formation,qa,web"
+      const categories = (ctx.query.get("category") ?? "").split(",").filter((c): c is DocumentCategory => CATEGORIES.includes(c as DocumentCategory));
       const { skip, limit } = paging(ctx.query, 50);
 
       let docs = liveDocuments(ctx.db, self.organization_id);
@@ -180,6 +239,7 @@ export const pengetahuanRoutes: MockRoute[] = [
         if (!agent) return fail(404, "Role tidak ditemukan.");
         docs = documentsForAgent(ctx.db, agent);
       }
+      if (categories.length) docs = docs.filter((d) => categories.includes(d.category ?? "knowledge"));
       const all = docs.map((d) => toItem(ctx.db, d));
       const summary: Record<IngestionStatus, number> = { queued: 0, processing: 0, ready: 0, failed: 0 };
       for (const d of all) if (d.active_version) summary[d.active_version.status] += 1;
@@ -240,7 +300,14 @@ export const pengetahuanRoutes: MockRoute[] = [
     method: "POST",
     path: `${BASE}/create`,
     handler: async (ctx) => {
-      const self = requireManager(ctx);
+      // Penanggung jawab role boleh mengunggah uraian jabatan role itu sendiri (pembentukan role)
+      const member = requireMember(ctx);
+      if (isFailure(member)) return member;
+      const formationUpload =
+        formValue(ctx.body, "doc_type") === "uraian_jabatan" &&
+        formValue(ctx.body, "scope") === "agent" &&
+        ctx.db.agents.some((a) => a.id === formValue(ctx.body, "scope_id") && a.owner_member_id === member.id);
+      const self = formationUpload && member.access_role !== "viewer" ? member : requireManager(ctx);
       if (isFailure(self)) return self;
       const file = formValue(ctx.body, "file");
       if (!(file instanceof File)) return fail(422, "Pilih berkas yang akan diunggah.");
@@ -248,6 +315,18 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (typeof scope === "string") return fail(422, scope);
       const title = text(formValue(ctx.body, "title"), 200) || file.name.replace(/\.[^.]+$/, "");
       const docType = formValue(ctx.body, "doc_type");
+      const isPolicy = formValue(ctx.body, "category") === "policy";
+      const policy = isPolicy
+        ? cleanPolicy({
+            kind: formValue(ctx.body, "policy_kind"),
+            reference_no: formValue(ctx.body, "reference_no"),
+            issuer: formValue(ctx.body, "issuer"),
+            effective_from: formValue(ctx.body, "effective_from"),
+            effective_until: formValue(ctx.body, "effective_until"),
+            status: "berlaku",
+          })
+        : undefined;
+      if (typeof policy === "string") return fail(422, policy);
 
       const docItem: MockDocument = {
         id: newId("doc"),
@@ -255,6 +334,8 @@ export const pengetahuanRoutes: MockRoute[] = [
         title,
         description: text(formValue(ctx.body, "description"), 1000),
         doc_type: TYPES.includes(docType as DocumentType) ? (docType as DocumentType) : "lainnya",
+        category: docType === "uraian_jabatan" ? "formation" : isPolicy ? "policy" : "knowledge",
+        ...(policy ? { policy } : {}),
         ...scope,
         created_at: nowIso(),
         updated_at: nowIso(),
@@ -274,11 +355,17 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
+      if (d.category === "qa") return fail(409, "Hasil tanya jawab disusun sistem dan tidak bisa diubah. Ubah lewat pembentukan role.");
       const b = (ctx.body ?? {}) as Record<string, unknown>;
       const title = text(b.title, 200);
       if (title.length < 3) return fail(422, "Judul minimal 3 karakter.");
       const scope = validateScope(ctx.db, self.organization_id, b.scope, b.scope_id);
       if (typeof scope === "string") return fail(422, scope);
+      if (d.category === "policy" && b.policy && typeof b.policy === "object") {
+        const policy = cleanPolicy(b.policy as Record<string, unknown>);
+        if (typeof policy === "string") return fail(422, policy);
+        d.policy = policy;
+      }
       Object.assign(d, {
         title,
         description: text(b.description, 1000),
@@ -297,6 +384,7 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
+      if (d.category === "qa") return fail(409, "Hasil tanya jawab disusun sistem dan tidak bisa diganti.");
       const file = formValue(ctx.body, "file");
       if (!(file instanceof File)) return fail(422, "Pilih berkas versi baru.");
       const versions = ctx.db.doc_versions.filter((v) => v.document_id === d.id);
@@ -339,6 +427,7 @@ export const pengetahuanRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const d = findLive(ctx.db, self.organization_id, ctx.params.id);
       if (!d) return fail(404, "Dokumen tidak ditemukan.");
+      if (d.category === "qa") return fail(409, "Hasil tanya jawab disusun sistem dan tidak bisa dihapus. Ubah lewat pembentukan role.");
       if (isCited(ctx.db, d.id)) {
         d.deleted_at = nowIso();
         return ok(null, "Dokumen dihapus. Isinya tetap bisa dibuka dari rujukan tugas.");

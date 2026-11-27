@@ -1,4 +1,6 @@
 import { LIMITS } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
+import { MAX_IMAGE_BYTES } from "@/app/(admin)/admin/pengetahuan/types";
+import { MAX_ATTACHMENTS, MAX_PDF_PAGES, placeholderPage, readImage, toAttachment, type MockAttachment } from "../media";
 import {
   formatRupiah,
   type AgentRef,
@@ -9,7 +11,7 @@ import {
   type TaskStatus,
 } from "@/app/(admin)/admin/tugas/types";
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
-import { isFailure, requireMember, text } from "../context";
+import { isFailure, newId, nowIso, requireMember, text } from "../context";
 import { cancelTask, createTask, decideApproval, type MockApproval, type MockTask } from "../engine";
 import { findAgent, findRelation } from "../lookup";
 import { fail, ok, paging, type MockRoute } from "../router";
@@ -86,6 +88,8 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
     inputs: Object.entries(t.inputs)
       .filter(([, v]) => v)
       .map(([k, v]) => ({ label: entry?.input_spec.find((f) => f.key === k)?.label ?? k, value: v })),
+    attachments: db.task_attachments.filter((a) => (t.attachment_ids ?? []).includes(a.id)).map((a) => toAttachment(db, a)),
+    web_search: t.web_search ?? "role",
     steps: db.task_steps
       .filter((s) => s.task_id === t.id)
       .map((s) => ({
@@ -98,6 +102,8 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
         input_notes: s.input_notes,
         output: s.output,
         citations: s.citations,
+        findings: s.findings ?? [],
+        web_sources: s.web_sources ?? [],
         verdict: s.verdict,
         model: s.model,
         cost: s.cost,
@@ -117,7 +123,65 @@ export const canDecide = (self: MockMembership, a: MockApproval) =>
 
 const BASE = "/api/v1/admin/tugas";
 
+/** Lampiran yang dipilih untuk tugas atau uji coba: milik organisasi ini dan belum dipakai tugas lain. */
+export const claimAttachments = (db: MockDatabase, orgId: string, ids: unknown): MockAttachment[] | string => {
+  const list = Array.isArray(ids) ? [...new Set(ids.filter((x): x is string => typeof x === "string"))] : [];
+  if (list.length > MAX_ATTACHMENTS) return `Lampiran maksimal ${MAX_ATTACHMENTS} berkas.`;
+  const found = list.map((x) => db.task_attachments.find((a) => a.id === x && a.organization_id === orgId && !a.task_id));
+  if (found.some((a) => !a)) return "Lampiran tidak ditemukan atau sudah dipakai tugas lain. Unggah ulang.";
+  return found as MockAttachment[];
+};
+
+const ATTACHMENT_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+
 export const tugasRoutes: MockRoute[] = [
+  {
+    method: "POST",
+    path: `${BASE}/lampiran`,
+    handler: async (ctx) => {
+      const self = requireMember(ctx);
+      if (isFailure(self)) return self;
+      if (self.access_role === "viewer") return fail(403, "Pemantau tidak dapat mengunggah lampiran.");
+      const file = ctx.body instanceof FormData ? ctx.body.get("file") : null;
+      if (!(file instanceof File)) return fail(422, "Pilih berkas lampiran.");
+      if (!ATTACHMENT_TYPES.includes(file.type)) return fail(422, "Lampiran berupa gambar PNG, JPG, WEBP, atau PDF.");
+      if (file.size > MAX_IMAGE_BYTES) return fail(422, "Ukuran lampiran melebihi 10 MB.");
+      if (file.size === 0) return fail(422, "Berkas kosong.");
+      let pages: string[];
+      let width = 0;
+      let height = 0;
+      if (file.type === "application/pdf") {
+        // Peramban tidak merender PDF di mode data contoh; backend merender maks 20 halaman dengan pypdfium2
+        const count = Math.min(MAX_PDF_PAGES, Math.max(1, Math.round(file.size / 120_000)));
+        pages = Array.from({ length: count }, (_, i) => placeholderPage(file.name, i + 1));
+      } else {
+        try {
+          const image = await readImage(file);
+          pages = [image.url];
+          width = image.width;
+          height = image.height;
+        } catch {
+          return fail(422, "Gambar tidak bisa dibaca.");
+        }
+      }
+      const attachment: MockAttachment = {
+        id: newId("att"),
+        organization_id: self.organization_id,
+        task_id: null,
+        file_name: file.name.slice(0, 200),
+        mime_type: file.type,
+        size_bytes: file.size,
+        width,
+        height,
+        pages,
+        exif: null,
+        uploaded_by_member_id: self.id,
+        created_at: nowIso(),
+      };
+      ctx.db.task_attachments.push(attachment);
+      return ok(toAttachment(ctx.db, attachment), "Lampiran diterima.", 201);
+    },
+  },
   {
     method: "GET",
     path: `${BASE}/read`,
@@ -184,6 +248,8 @@ export const tugasRoutes: MockRoute[] = [
       if (monthUsage(ctx.db, self.organization_id, Date.now()).remaining <= 0) {
         return fail(409, "Anggaran bulan ini sudah habis. Naikkan batas bulanan di Pengaturan > Batas Biaya.");
       }
+      const attachments = claimAttachments(ctx.db, self.organization_id, b.attachment_ids);
+      if (typeof attachments === "string") return fail(422, attachments);
       const task = createTask(
         ctx.db,
         {
@@ -197,9 +263,12 @@ export const tugasRoutes: MockRoute[] = [
           due_at: typeof b.due_at === "string" && b.due_at ? new Date(b.due_at.length === 10 ? `${b.due_at}T23:59:59` : b.due_at).toISOString() : null,
           budget_limit: budget,
           created_by_member_id: self.id,
+          attachment_ids: attachments.map((a) => a.id),
+          web_search: b.web_search === "off" ? "off" : "role",
         },
         Date.now()
       );
+      for (const a of attachments) a.task_id = task.id;
       return ok(toItem(ctx.db, task), "Tugas dibuat dan masuk antrean.", 201);
     },
   },

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
+import { AttachmentPicker } from "../../../_components/media/attachment-picker";
 import { Button, Input, Modal, Select, Textarea } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
@@ -12,7 +13,7 @@ import { downstream } from "../../relasi/layout-graph";
 import { RELATION_STYLE } from "../../relasi/types";
 import { useResponseListRole } from "../../role/hooks/crud";
 import type { InputField } from "../../role/types";
-import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type TaskPriority } from "../types";
+import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type TaskPriority, type TaskAttachment, type WebSearchMode } from "../types";
 
 function InputControl({ field, value, onChange }: { field: InputField; value: string; onChange: (v: string) => void }) {
   if (field.type === "long_text") return <Textarea label={field.label} required={field.required} rows={2} value={value} onChange={(e) => onChange(e.target.value)} />;
@@ -112,6 +113,8 @@ export default function CreateTaskModal({
   // null = belum diubah, ikut batas bawaan organisasi
   const [budgetInput, setBudgetInput] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [webSearch, setWebSearch] = useState<WebSearchMode>("role");
   const { Budget } = useResponseBudgetSettings();
   const budgetText = budgetInput ?? (Budget ? String(Budget.default_task_budget) : "");
   const budget = Number(budgetText);
@@ -128,7 +131,17 @@ export default function CreateTaskModal({
   const submit = () => {
     setTouched(true);
     if (!agent || title.trim().length < 5 || missing.length || !Budget || !budgetValid || exhausted) return;
-    onSubmit({ title: title.trim(), brief: brief.trim(), entry_agent_id: agent.id, inputs, priority, due_at: dueAt || null, budget_limit: budget });
+    onSubmit({
+      title: title.trim(),
+      brief: brief.trim(),
+      entry_agent_id: agent.id,
+      inputs,
+      priority,
+      due_at: dueAt || null,
+      budget_limit: budget,
+      attachment_ids: attachments.map((a) => a.id),
+      web_search: webSearch,
+    });
   };
 
   return (
@@ -204,6 +217,16 @@ export default function CreateTaskModal({
           <div className="space-y-4">
             <Input label="Judul tugas" required value={title} error={titleError} onChange={(e) => setTitle(e.target.value)} maxLength={150} placeholder="mis. Undangan rapat koordinasi" />
             <Textarea label="Arahan" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} placeholder={`Apa yang perlu dikerjakan ${agent.name}?`} maxLength={4000} />
+            <AttachmentPicker value={attachments} onChange={setAttachments} />
+            {agent.web_search && (
+              <label className="flex items-start gap-2 text-xs text-muted cursor-pointer">
+                <input type="checkbox" className="mt-0.5 accent-[#7c4dff]" checked={webSearch === "off"} onChange={(e) => setWebSearch(e.target.checked ? "off" : "role")} />
+                <span>
+                  <span className="font-semibold text-ink">Tanpa internet untuk tugas ini.</span> {agent.name} boleh mencari di internet bila dokumen internal kurang; centang untuk
+                  mematikannya.
+                </span>
+              </label>
+            )}
             {agent.input_spec.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {agent.input_spec.map((f) => (

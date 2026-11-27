@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "../../../_components/ui";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
+import { Icon } from "../../../_components/admin-icons";
 import { avatarFromSeed } from "../../../_components/agent/avatar-config";
 import { useResponseOptionUnit } from "../../organisasi/unit/hooks/crud";
 import type { CreateInterface } from "../types";
@@ -25,7 +26,7 @@ export default function FormRoleModal({
   onClose: () => void;
   onSubmit: (body: CreateInterface) => void;
 }) {
-  const [form, setForm] = useState<CreateInterface>({ name: "", title: "", unit_id: defaultUnitId, goal: "", status: "draft" });
+  const [form, setForm] = useState<CreateInterface>({ name: "", title: "", unit_id: defaultUnitId, goal: "", status: "draft", mode: "formation" });
   const [touched, setTouched] = useState(false);
   const { List: units, isLoading: unitsLoading } = useResponseOptionUnit();
 
@@ -44,7 +45,7 @@ export default function FormRoleModal({
       isOpen
       onClose={onClose}
       title="Buat role baru"
-      description="Isi yang pokok dulu. Instruksi, dokumen, dan tampilan karakter bisa dilengkapi setelah role dibuat."
+      description="Isi yang pokok dulu, lalu pilih cara membentuk role."
       maxWidth="xl"
       footer={
         <>
@@ -52,13 +53,36 @@ export default function FormRoleModal({
             Batal
           </Button>
           <Button type="submit" form="role-form" loading={saving}>
-            Buat role
+            {form.mode === "formation" ? "Buat dan mulai pembentukan" : "Buat role"}
           </Button>
         </>
       }
     >
       <form id="role-form" onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-[1fr_150px]" noValidate>
         <div className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Cara membentuk role">
+            {(
+              [
+                ["formation", "Bentuk dengan analisis", "Disarankan. Unggah uraian jabatan dan daftar alat; AI menyusun keterampilan lalu bertanya sampai jelas."],
+                ["manual", "Isi manual", "Tulis instruksi sendiri. Isian langsung menjadi versi 1."],
+              ] as const
+            ).map(([mode, label, hint]) => (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={form.mode === mode}
+                onClick={() => setForm({ ...form, mode })}
+                className={`rounded-2xl border p-3 text-left cursor-pointer transition-colors ${form.mode === mode ? "border-brand bg-brand-soft" : "border-line bg-surface hover:border-brand/40"}`}
+              >
+                <p className="text-sm font-bold text-ink flex items-center gap-1.5">
+                  {mode === "formation" && <Icon name="sparkles" size={14} className="text-brand" />}
+                  {label}
+                </p>
+                <p className="text-[11px] text-muted leading-relaxed mt-0.5">{hint}</p>
+              </button>
+            ))}
+          </div>
           <div className="grid gap-4 sm:grid-cols-[150px_1fr]">
             <Input
               label="Nama panggilan"
@@ -93,7 +117,7 @@ export default function FormRoleModal({
             rows={3}
             value={form.goal}
             onChange={(e) => setForm({ ...form, goal: e.target.value })}
-            placeholder="Apa yang harus dihasilkan role ini?"
+            placeholder={form.mode === "formation" ? "Boleh dikosongkan; disusun dari analisis." : "Apa yang harus dihasilkan role ini?"}
             maxLength={500}
           />
           <div className="space-y-1.5">

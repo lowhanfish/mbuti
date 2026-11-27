@@ -11,6 +11,7 @@ import ApprovalCard from "../components/ApprovalCard";
 import { AgentStack, BudgetMeter, TaskStatusBadge } from "../components/TaskParts";
 import { useCancelTask, useResponseDetailTask } from "../hooks/crud";
 import { PRIORITY_LABEL, TASK_STATUS, formatRupiah } from "../types";
+import { AttachmentStrip } from "../../../_components/media/image-findings";
 import Timeline from "./components/Timeline";
 
 function TaskDetail() {
@@ -131,6 +132,18 @@ function TaskDetail() {
               ))}
             </CardContent>
           </Card>
+
+          {Task.attachments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Lampiran</CardTitle>
+                <span className="text-[11px] text-faint">{Task.attachments.length} berkas</span>
+              </CardHeader>
+              <CardContent>
+                <AttachmentStrip attachments={Task.attachments} />
+              </CardContent>
+            </Card>
+          )}
 
           {Task.inputs.length > 0 && (
             <Card>

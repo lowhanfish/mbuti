@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati, halaman dengan data contoh berikutnya.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halamannya selesai dengan data contoh; kontrak API E1 berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -756,6 +756,7 @@ alat dokumen, data, browser, dan media berstatus *segera*.
   organisasi dipakai dan perbedaannya disebut di `notes`. Rujukan tetap dibuat server.
 - Saat Final, server menyusun dokumen sistem "Hasil tanya jawab – {nama} v{N}" (`category=qa`, lingkup role,
   hanya-baca, satu bagian per pertanyaan) lalu dibuat embedding-nya. Versi lama diarsipkan.
+- Uraian jabatan dan hasil tanya jawab hanya dibaca role pemiliknya, walaupun role lain berlingkup seluruh organisasi.
 
 **PDF kompleks dan gambar (E1c)**
 
@@ -809,7 +810,12 @@ Tidak ada perangkat lunak sistem.
 
 Kemajuan:
 
-- [ ] Halaman dengan data contoh untuk E1a–E1d (`MOCK_DB_VERSION` 11).
+- [x] Halaman dengan data contoh untuk E1a–E1d (27 November 2026, `MOCK_DB_VERSION` 11): `/admin/role/[id]/bentuk`
+      (Bahan, Kartu, Tanya jawab, Final), tab Pembentukan dan Versi di detail role, dua jalan di Buat role; tab
+      Kebijakan & Aturan dan Usulan di Pengetahuan; halaman bergambar dan unggah gambar; lampiran di Buat tugas dan
+      Uji coba; temuan bertanda kotak di detail tugas dan uji coba; sumber internet dan izin internet per role;
+      pemakaian hari ini di Pengaturan > Model AI. Contoh: Amir (versi 1 Final, revisi versi 2 sedang tanya jawab),
+      tugas pemeriksaan poster vendor, tiga kebijakan (satu dicabut), satu usulan temuan internet.
 - [ ] Kontrak API (`admin/API_CONTRACT.md` bagian 16).
 - [ ] E1a backend dan uji.
 - [ ] E1b backend dan uji.

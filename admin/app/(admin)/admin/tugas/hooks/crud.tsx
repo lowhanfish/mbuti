@@ -15,6 +15,7 @@ import {
   type DetailInterface,
   type ResponseInterface,
   type ResponseListInterface,
+  type TaskAttachment,
 } from "../types";
 
 const BASE = "/api/v1/admin/tugas";
@@ -111,5 +112,18 @@ export const useDecideApproval = () => {
       swallAlert("keputusan tersimpan", "success");
     },
     onError: (err: Error) => swallAlert(`gagal disimpan: ${err.message}`, "error"),
+  });
+};
+
+/** Unggah satu lampiran (gambar atau PDF) sebelum tugas atau uji coba dibuat (E1c). */
+export const useUploadAttachment = () => {
+  const url = useUrlStore((state) => state.URL.APP);
+  return useMutation({
+    mutationFn: (file: File) => {
+      const body = new FormData();
+      body.set("file", file);
+      return fetchData<ApiResponse<TaskAttachment>>(`${url}${BASE}/lampiran`, { method: "POST", body });
+    },
+    onError: (err: Error) => swallAlert(`lampiran gagal diunggah: ${err.message}`, "error"),
   });
 };

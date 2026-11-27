@@ -38,8 +38,27 @@ export interface ResponseInterface {
   /** Hanya terisi untuk pemilik */
   api_keys: ApiKeyInfo[];
   embedding: { model: string; dimension: number };
+  /** Pemakaian model hari ini per jenis, untuk memantau kuota (E1) */
+  usage_today: UsageToday[];
   updated_at: string;
 }
+
+export type UsagePurpose = "task" | "trial" | "formation" | "vision_ingest" | "web_search";
+
+export interface UsageToday {
+  purpose: UsagePurpose;
+  calls: number;
+  /** Rupiah */
+  cost: number;
+}
+
+export const USAGE_PURPOSE_LABEL: Record<UsagePurpose, string> = {
+  task: "Langkah tugas",
+  trial: "Uji coba role",
+  formation: "Pembentukan role",
+  vision_ingest: "Gambar halaman (embedding)",
+  web_search: "Pencarian internet",
+};
 
 export interface UpdateInterface {
   models: Record<ModelSlot, string>;

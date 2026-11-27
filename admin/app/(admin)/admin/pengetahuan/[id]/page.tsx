@@ -12,6 +12,7 @@ import { ScopeChip } from "../components/DocumentList";
 import { useDeleteDocument, useResponseDetailDocument, useResponseVersion, useUpdateDocument } from "../hooks/crud";
 import { DOC_TYPE_LABEL, type DetailInterface, type DocumentType, type UpdateInterface } from "../types";
 import PageReader from "./components/PageReader";
+import { CategoryBadges, PolicyFieldsForm } from "../components/PolicyParts";
 import VersionPanel from "./components/VersionPanel";
 
 function MetadataForm({ doc, canEdit }: { doc: DetailInterface; canEdit: boolean }) {
@@ -22,6 +23,18 @@ function MetadataForm({ doc, canEdit }: { doc: DetailInterface; canEdit: boolean
     doc_type: doc.doc_type,
     scope: doc.scope,
     scope_id: doc.scope_id,
+    ...(doc.policy
+      ? {
+          policy: {
+            kind: doc.policy.kind,
+            reference_no: doc.policy.reference_no,
+            issuer: doc.policy.issuer,
+            effective_from: doc.policy.effective_from,
+            effective_until: doc.policy.effective_until,
+            status: doc.policy.status,
+          },
+        }
+      : {}),
   };
   const [form, setForm] = useState<UpdateInterface>(initial);
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
@@ -41,6 +54,7 @@ function MetadataForm({ doc, canEdit }: { doc: DetailInterface; canEdit: boolean
             options={Object.entries(DOC_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
           />
           <Textarea label="Keterangan" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={1000} />
+          {form.policy && <PolicyFieldsForm value={form.policy} withStatus onChange={(policy) => setForm({ ...form, policy })} />}
           {canEdit && (
             <Button className="w-full" disabled={!dirty} loading={update.isPending} onClick={() => update.mutate(form)}>
               Simpan keterangan
@@ -83,7 +97,9 @@ function DocumentDetail() {
   }
   if (isLoading || !Document) return <DetailFallback />;
   const archived = Boolean(Document.archived_at);
-  const canEdit = isManager && !archived;
+  // Hasil tanya jawab disusun sistem dari pembentukan role, jadi hanya-baca
+  const systemDoc = Document.category === "qa";
+  const canEdit = isManager && !archived && !systemDoc;
   const shown = otherId ? other.Version : Document.active_version;
   const sections = otherId ? other.Version?.sections ?? [] : Document.sections;
 
@@ -109,6 +125,12 @@ function DocumentDetail() {
         </p>
       )}
 
+      {systemDoc && (
+        <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-amber-900 dark:text-amber-200" role="status">
+          Dokumen ini disusun otomatis dari tanya jawab saat role di-Final. Untuk mengubah isinya, buka pembentukan role.
+        </p>
+      )}
+
       <Card glow>
         <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <FileGlyph fileName={Document.active_version?.file_name ?? "berkas"} size={64} />
@@ -116,6 +138,7 @@ function DocumentDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight">{Document.title}</h2>
               <Badge variant="info">{DOC_TYPE_LABEL[Document.doc_type]}</Badge>
+              <CategoryBadges doc={Document} />
             </div>
             <p className="text-sm text-muted">{Document.description || "Tanpa keterangan."}</p>
             <div className="flex flex-wrap items-center gap-3">

@@ -7,6 +7,7 @@ import { Badge, IconButton } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import { DOC_TYPE_LABEL, SCOPE_LABEL, type ResponseInterface } from "../types";
 import { FileGlyph, IngestionStatusView } from "./DocumentParts";
+import { CategoryBadges } from "./PolicyParts";
 
 export function ScopeChip({ doc }: { doc: ResponseInterface }) {
   return (
@@ -45,6 +46,7 @@ export default function DocumentList({
                 <Badge size="sm" variant="info">
                   {DOC_TYPE_LABEL[doc.doc_type]}
                 </Badge>
+                <CategoryBadges doc={doc} />
                 {inherited && (
                   <Badge size="sm" variant="accent">
                     {inherited}
@@ -60,7 +62,7 @@ export default function DocumentList({
             <div className="shrink-0 relative z-10">
               <IngestionStatusView version={doc.active_version} />
             </div>
-            {canEdit && onDelete && (
+            {canEdit && onDelete && doc.category !== "qa" && (
               <div className="relative z-10 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 <IconButton label={`Hapus ${doc.title}`} tone="danger" onClick={() => onDelete(doc)}>
                   <Icon name="trash" size={16} />

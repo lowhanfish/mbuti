@@ -1,5 +1,7 @@
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
-import type { SearchHit } from "../pengetahuan/types";
+import type { SearchHit, WebSource } from "../pengetahuan/types";
+import type { RevisionStatus } from "./formation-types";
+import type { Finding, TaskAttachment } from "../tugas/types";
 
 export type AgentStatus = "draft" | "active" | "paused";
 export type OutputFormat = "text" | "template" | "table" | "json";
@@ -22,6 +24,11 @@ export interface CreateInterface {
   unit_id: string | null;
   goal: string;
   status: AgentStatus;
+  /**
+   * Hanya saat membuat. `formation` (bawaan di layar) = bentuk dengan analisis, role mulai sebagai draf;
+   * `manual` = isian langsung menjadi versi 1.
+   */
+  mode?: "formation" | "manual";
 }
 
 export interface UpdateInterface extends CreateInterface {
@@ -34,10 +41,16 @@ export interface UpdateInterface extends CreateInterface {
   model_profile: ModelProfile;
   owner_member_id: string | null;
   avatar: AvatarConfig;
+  /** Boleh mencari di internet (E1d); bawaan mati */
+  web_search: boolean;
 }
 
 export interface ResponseInterface extends UpdateInterface {
   id: string;
+  /** Nomor versi Final yang dipakai bekerja; 0 bila belum pernah Final */
+  active_version_no: number;
+  /** Status revisi yang sedang disusun; null bila tidak ada */
+  revision_status: RevisionStatus | null;
   unit_name: string | null;
   unit_color: string | null;
   owner_name: string | null;
@@ -61,6 +74,8 @@ export interface ResponseListInterface {
 export interface TrialRequest {
   brief: string;
   inputs: Record<string, string>;
+  /** Lampiran dari POST /tugas/lampiran (E1c) */
+  attachment_ids?: string[];
 }
 
 export interface TrialResult {
@@ -76,6 +91,11 @@ export interface TrialResult {
   cost: number;
   /** Kosong bila model tidak dipanggil */
   model: string;
+  /** Lampiran yang dibaca dan temuannya (E1c) */
+  attachments: TaskAttachment[];
+  findings: Finding[];
+  /** Sumber internet (E1d) */
+  web_sources: WebSource[];
 }
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {

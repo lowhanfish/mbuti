@@ -1,5 +1,5 @@
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
-import type { SearchHit } from "../pengetahuan/types";
+import type { SearchHit, WebSource } from "../pengetahuan/types";
 import type { RelationType } from "../relasi/types";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "completed" | "failed" | "cancelled" | "stopped_budget";
@@ -31,6 +31,51 @@ export interface CreateInterface {
   due_at: string | null;
   /** Batas biaya tugas dalam rupiah */
   budget_limit: number;
+  /** Lampiran yang sudah diunggah lewat POST /tugas/lampiran (E1c); maks 10 */
+  attachment_ids?: string[];
+  /** `role` = ikut pengaturan role; `off` = tanpa internet untuk tugas ini (E1d) */
+  web_search?: WebSearchMode;
+}
+
+export type WebSearchMode = "role" | "off";
+
+/** Lampiran tugas: gambar (PNG, JPG, WEBP) atau PDF. */
+export interface TaskAttachment {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  /** Ukuran gambar asli (piksel); 0 untuk PDF */
+  width: number;
+  height: number;
+  /** 1 untuk gambar; jumlah halaman yang dibaca untuk PDF (maks 20) */
+  page_count: number;
+  /** Gambar per halaman (gambar = satu). Backend: path API; data contoh: data URL */
+  pages: string[];
+  /** Metadata foto, bila ada */
+  exif: { taken_at: string | null; location: string | null } | null;
+  uploaded_by_name: string | null;
+  created_at: string;
+}
+
+export type FindingSeverity = "info" | "perlu_perbaikan" | "penting";
+
+/** Temuan atas gambar: kotak bernomor di atas lampiran atau halaman dokumen. */
+export interface Finding {
+  no: number;
+  title: string;
+  description: string;
+  severity: FindingSeverity;
+  target:
+    | { kind: "attachment"; attachment_id: string; page_no: number }
+    | { kind: "document"; document_id: string; version_id: string; page_no: number };
+  /** Kotak [y0, x0, y1, x1] dalam skala 0–1000 terhadap gambar; null bila temuan tentang gambar secara umum */
+  box: [number, number, number, number] | null;
+  /** Nomor rujukan (1-based) pada `citations` langkah itu; null bila tidak merujuk pedoman */
+  source_index: number | null;
+  recommendation: string;
+  /** Butir kriteria diterima yang dinilai temuan ini, bila ada */
+  criterion: string | null;
 }
 
 export interface AgentRef {
@@ -51,6 +96,10 @@ export interface StepInterface {
   input_notes: string;
   output: string;
   citations: SearchHit[];
+  /** Temuan bergambar (E1c); kosong bila langkah tidak membaca gambar */
+  findings: Finding[];
+  /** Sumber internet yang dipakai (E1d); kosong bila tidak mencari */
+  web_sources: WebSource[];
   verdict: "approved" | "revise" | null;
   /** Model yang dipakai; kosong selama langkah belum selesai */
   model: string;
@@ -110,6 +159,8 @@ export interface ResponseInterface {
 
 export interface DetailInterface extends ResponseInterface {
   inputs: Array<{ label: string; value: string }>;
+  attachments: TaskAttachment[];
+  web_search: WebSearchMode;
   steps: StepInterface[];
   approvals: ApprovalInterface[];
   events: EventInterface[];

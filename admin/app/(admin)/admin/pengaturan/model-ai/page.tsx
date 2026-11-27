@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
 import ApiKeyPanel from "./components/ApiKeyPanel";
+import UsageTodayPanel from "./components/UsageTodayPanel";
 import ModelProfileForm from "./components/ModelProfileForm";
 import { useResponseModelSettings, useUpdateModelSettings } from "./hooks/crud";
 
@@ -46,6 +47,7 @@ export default function PengaturanModelAiPage() {
             onSubmit={(body) => update.mutate(body)}
           />
           <ApiKeyPanel settings={Settings} canSee={accessRole === "owner"} />
+          <UsageTodayPanel settings={Settings} />
         </>
       )}
     </div>

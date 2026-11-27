@@ -7,6 +7,8 @@ import { useResponseOptionUnit } from "../../organisasi/unit/hooks/crud";
 import { useResponseListRole } from "../../role/hooks/crud";
 import { DOC_TYPE_LABEL, SCOPE_LABEL, type DocumentScope, type DocumentType } from "../types";
 import { FileDropzone } from "./DocumentParts";
+import { PolicyFieldsForm, emptyPolicy } from "./PolicyParts";
+import type { PolicyFields } from "../types";
 
 const SCOPE_HINT: Record<DocumentScope, string> = {
   organization: "Bisa dibaca semua role.",
@@ -17,10 +19,13 @@ const SCOPE_HINT: Record<DocumentScope, string> = {
 export default function UploadDocumentModal({
   saving,
   preset,
+  category = "knowledge",
   onClose,
   onSubmit,
 }: {
   saving: boolean;
+  /** `policy` = unggah ke pustaka Kebijakan & Aturan */
+  category?: "knowledge" | "policy";
   /** Lingkup bawaan, mis. dari tab Dokumen sebuah role */
   preset?: { scope: DocumentScope; scope_id: string | null; lock?: boolean };
   onClose: () => void;
@@ -29,7 +34,8 @@ export default function UploadDocumentModal({
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [docType, setDocType] = useState<DocumentType>("sop");
+  const [docType, setDocType] = useState<DocumentType>(category === "policy" ? "regulasi" : "sop");
+  const [policy, setPolicy] = useState<PolicyFields>(emptyPolicy());
   const [scope, setScope] = useState<DocumentScope>(preset?.scope ?? "organization");
   const [scopeId, setScopeId] = useState<string>(preset?.scope_id ?? "");
   const [description, setDescription] = useState("");
@@ -52,6 +58,14 @@ export default function UploadDocumentModal({
     form.append("scope", scope);
     form.append("scope_id", scope === "organization" ? "" : scopeId);
     form.append("description", description.trim());
+    if (category === "policy") {
+      form.append("category", "policy");
+      form.append("policy_kind", policy.kind);
+      form.append("reference_no", policy.reference_no.trim());
+      form.append("issuer", policy.issuer.trim());
+      form.append("effective_from", policy.effective_from ?? "");
+      form.append("effective_until", policy.effective_until ?? "");
+    }
     onSubmit(form);
   };
 
@@ -59,8 +73,12 @@ export default function UploadDocumentModal({
     <Modal
       isOpen
       onClose={onClose}
-      title="Unggah dokumen"
-      description="SOP, manual book, pedoman, atau templat yang menjadi dasar kerja role. Berkas diolah otomatis setelah diunggah."
+      title={category === "policy" ? "Unggah kebijakan atau aturan" : "Unggah dokumen"}
+      description={
+        category === "policy"
+          ? "Peraturan, kebijakan perusahaan, standar mutu, atau panduan merek. Dicek lebih dulu saat role bekerja, dan didahulukan bila berbeda dengan dokumen lain."
+          : "SOP, manual book, pedoman, atau templat yang menjadi dasar kerja role. Berkas diolah otomatis setelah diunggah."
+      }
       maxWidth="xl"
       footer={
         <>
@@ -93,6 +111,13 @@ export default function UploadDocumentModal({
             options={Object.entries(DOC_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
           />
         </div>
+
+        {category === "policy" && (
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold text-muted mb-2">Keterangan aturan</legend>
+            <PolicyFieldsForm value={policy} onChange={setPolicy} />
+          </fieldset>
+        )}
 
         {!preset?.lock && (
           <fieldset className="space-y-2">

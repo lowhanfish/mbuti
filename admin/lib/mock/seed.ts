@@ -11,6 +11,11 @@ import type { MockApproval, MockEvent, MockStep, MockTask } from "./engine";
 import { seedTasks } from "./seed-tasks";
 import { defaultSettings, type MockSettings } from "./settings";
 import type { MockAuthToken, MockEmail } from "./accounts";
+import type { MockRevision, MockToolRequest } from "./formation";
+import type { MockAttachment } from "./media";
+import type { MockProposal } from "./web";
+import { seedFormation } from "./seed-formation";
+import { seedPolicies } from "./seed-policies";
 
 export type { MockDocVersion, MockDocument };
 
@@ -75,6 +80,8 @@ export interface MockUnit {
 export interface MockAgent extends AgentFields {
   id: string;
   organization_id: string;
+  /** Versi Final yang dipakai bekerja; null sebelum Final pertama */
+  active_revision_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -95,6 +102,8 @@ export interface MockLlmCall {
   agent_id: string;
   model: string;
   cost: number;
+  /** Jenis pemakaian untuk rincian kuota; kosong = uji coba */
+  purpose?: "task" | "trial" | "formation" | "vision_ingest" | "web_search";
   created_at: string;
 }
 
@@ -105,6 +114,10 @@ export interface MockDatabase {
   memberships: MockMembership[];
   units: MockUnit[];
   agents: MockAgent[];
+  /** Versi role: pembentukan, isian manual, dan pulihkan */
+  agent_revisions: MockRevision[];
+  /** Alat yang diminta pembuat role tetapi belum didukung */
+  tool_requests: MockToolRequest[];
   documents: MockDocument[];
   doc_versions: MockDocVersion[];
   relations: MockRelation[];
@@ -113,6 +126,10 @@ export interface MockDatabase {
   /** Posisi node di peta relasi; kosong = disusun otomatis */
   flow_positions: Record<string, { x: number; y: number }>;
   tasks: MockTask[];
+  /** Usulan temuan internet menjadi pengetahuan (E1d) */
+  knowledge_proposals: MockProposal[];
+  /** Lampiran tugas dan uji coba (E1c) */
+  task_attachments: MockAttachment[];
   task_steps: MockStep[];
   approvals: MockApproval[];
   task_events: MockEvent[];
@@ -131,7 +148,7 @@ export interface MockDatabase {
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 10;
+export const MOCK_DB_VERSION = 11;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -222,13 +239,17 @@ const createBase = (): MockDatabase => ({
     unit("unit-persuratan", "unit-layanan", "Persuratan", "SRT", "Penyusunan, pemeriksaan, dan pengarsipan surat dinas.", "orange", "member-bayu", 1),
     unit("unit-data", null, "Bidang Data & Informasi", "DAT", "Statistik, publikasi, dan pengelolaan informasi.", "pink", "member-dimas", 3),
   ],
-  agents: SEED_AGENTS,
+  agents: structuredClone(SEED_AGENTS),
+  agent_revisions: [],
+  tool_requests: [],
   documents: structuredClone(SEED_DOCUMENTS),
   doc_versions: structuredClone(SEED_DOC_VERSIONS),
   relations: SEED_RELATIONS.map((r) => ({ ...r })),
   flow_humans: ["member-bayu", "member-maya", "member-sari"],
   flow_positions: {},
   tasks: [],
+  knowledge_proposals: [],
+  task_attachments: [],
   task_steps: [],
   approvals: [],
   task_events: [],
@@ -244,6 +265,8 @@ const createBase = (): MockDatabase => ({
 /** Data contoh lengkap, termasuk tugas yang riwayatnya dijalankan mesin simulasi. */
 export const createSeed = (): MockDatabase => {
   const db = createBase();
+  seedPolicies(db);
+  seedFormation(db);
   seedTasks(db);
   return db;
 };
@@ -261,7 +284,11 @@ function unit(
   return { id, organization_id: ORG, parent_id, name, code, description, color, lead_member_id, sort_order, created_at: T0, updated_at: T0 };
 }
 
-const agent = (fields: Omit<MockAgent, "organization_id" | "created_at" | "updated_at">): MockAgent => ({
+const agent = (
+  fields: Omit<MockAgent, "organization_id" | "created_at" | "updated_at" | "web_search" | "active_revision_id"> & { web_search?: boolean }
+): MockAgent => ({
+  web_search: false,
+  active_revision_id: null,
   ...fields,
   organization_id: ORG,
   created_at: T0,
@@ -364,6 +391,7 @@ const SEED_AGENTS: MockAgent[] = [
     acceptance_criteria: ["Jawaban bersumber dari SOP", "Tidak menebak bila informasi tidak ada"],
     knowledge_scope: "organization",
     model_profile: "fast",
+    web_search: true,
     owner_member_id: "member-maya",
     avatar: { skin: "#eebd94", hair: "#6d28d9", hair_style: "long", shirt: "#ffb81c", pants: "#18122b", accessory: "antenna" },
   }),

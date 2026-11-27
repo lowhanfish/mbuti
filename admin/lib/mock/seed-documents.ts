@@ -1,7 +1,7 @@
 /**
  * Dokumen contoh. Isinya fiktif dan ditulis khusus untuk peragaan, bukan salinan peraturan resmi.
  */
-import type { DocumentScope, DocumentSection, DocumentType } from "@/app/(admin)/admin/pengetahuan/types";
+import type { DocumentCategory, DocumentScope, DocumentSection, DocumentType, MediaKind, PolicyFields } from "@/app/(admin)/admin/pengetahuan/types";
 
 export interface MockDocument {
   id: string;
@@ -11,6 +11,12 @@ export interface MockDocument {
   doc_type: DocumentType;
   scope: DocumentScope;
   scope_id: string | null;
+  /** Bawaan `knowledge`; `qa` = hasil tanya jawab pembentukan role (dokumen sistem, hanya-baca) */
+  category?: DocumentCategory;
+  /** Untuk dokumen Kebijakan & Aturan */
+  policy?: PolicyFields;
+  /** Untuk temuan internet yang disetujui */
+  source_url?: string;
   created_at: string;
   updated_at: string;
   /** Terisi bila dihapus setelah pernah dirujuk (soft delete) */
@@ -32,6 +38,8 @@ export interface MockDocVersion {
   uploaded_by_member_id: string | null;
   /** Menggantikan versi aktif begitu selesai diolah */
   activate_when_ready?: boolean;
+  /** Bawaan `text` untuk TXT/MD/DOCX dan `pdf` untuk PDF */
+  media_kind?: MediaKind;
   sections: DocumentSection[];
   created_at: string;
 }

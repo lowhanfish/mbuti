@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { ImageFindings } from "../../../../_components/media/image-findings";
+import { WebSources } from "../../../pengetahuan/components/WebSources";
 import { Badge } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Avatar2D } from "../../../../_components/agent/avatar-2d";
 import { citationHref, citationText } from "../../../pengetahuan/types";
+import { SourceKindBadge } from "../../../pengetahuan/components/PolicyParts";
 import { RELATION_STYLE } from "../../../relasi/types";
-import { STEP_KIND_LABEL, formatRupiah, type DetailInterface, type EventType, type StepInterface } from "../../types";
+import { STEP_KIND_LABEL, formatRupiah, type DetailInterface, type EventType, type StepInterface, type TaskAttachment } from "../../types";
 
 const EVENT_STYLE: Partial<Record<EventType, { icon: string; tone: string }>> = {
   created: { icon: "plus", tone: "bg-night text-accent" },
@@ -25,7 +28,7 @@ const EVENT_STYLE: Partial<Record<EventType, { icon: string; tone: string }>> = 
 
 const time = (iso: string) => new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(iso));
 
-function StepCard({ step }: { step: StepInterface }) {
+function StepCard({ step, attachments, taskId }: { step: StepInterface; attachments: TaskAttachment[]; taskId: string }) {
   const [open, setOpen] = useState(false);
   const running = step.status === "running";
   return (
@@ -88,9 +91,22 @@ function StepCard({ step }: { step: StepInterface }) {
                   href={citationHref(c)}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-soft/70 px-2 py-1 text-[11px] text-brand-strong hover:bg-brand-soft"
                 >
-                  <span className="font-bold">[{i + 1}]</span> {citationText(c.document_title, c.version_no, c.page_no)}
+                  <span className="font-bold">[{i + 1}]</span>
+                  <SourceKindBadge kind={c.source_kind ?? "document"} />
+                  {citationText(c.document_title, c.version_no, c.page_no)}
                 </Link>
               ))}
+            </div>
+          )}
+          {step.web_sources.length > 0 && (
+            <div className="border-t border-line p-3">
+              <WebSources sources={step.web_sources} taskId={taskId} agentId={step.agent.id} />
+            </div>
+          )}
+          {step.findings.length > 0 && (
+            <div className="border-t border-line p-3 space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">Temuan pada gambar ({step.findings.length})</p>
+              <ImageFindings attachments={attachments} findings={step.findings} citations={step.citations} />
             </div>
           )}
           <button
@@ -129,7 +145,7 @@ export default function Timeline({ task }: { task: DetailInterface }) {
             </div>
             {step && (
               <div className="mt-2">
-                <StepCard step={step} />
+                <StepCard step={step} attachments={task.attachments} taskId={task.id} />
               </div>
             )}
           </li>

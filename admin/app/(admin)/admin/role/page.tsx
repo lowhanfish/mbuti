@@ -181,7 +181,7 @@ export default function RolePage() {
             createMutation.mutate(body, {
               onSuccess: (res) => {
                 setFormOpen(false);
-                router.push(`/admin/role/${res.data.id}`);
+                router.push(body.mode === "formation" ? `/admin/role/${res.data.id}/bentuk` : `/admin/role/${res.data.id}`);
               },
             })
           }

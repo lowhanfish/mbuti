@@ -1,6 +1,7 @@
 import { auditTarget, recordAudit } from "./audit";
 import { getDb, saveDb } from "./db";
 import { advanceTasks } from "./engine";
+import { advanceFormations } from "./formation";
 import { promoteVersions } from "./knowledge";
 import { fail, matchRoute, type MockRoute } from "./router";
 import { auditRoutes } from "./routes/audit";
@@ -11,14 +12,16 @@ import { mockOnlyRoutes } from "./routes/mock";
 import { organisasiRoutes } from "./routes/organisasi";
 import { pengaturanRoutes } from "./routes/pengaturan";
 import { penggunaRoutes } from "./routes/pengguna";
+import { pembentukanRoutes } from "./routes/pembentukan";
 import { pengetahuanRoutes } from "./routes/pengetahuan";
+import { usulanRoutes } from "./routes/usulan";
 import { relasiRoutes } from "./routes/relasi";
 import { roleRoutes } from "./routes/role";
 import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...roleRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -49,7 +52,8 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   // Majukan simulasi eksekusi tugas sampai waktu sekarang sebelum menjawab
   const db = getDb();
   const promoted = promoteVersions(db);
-  const advanced = advanceTasks(db, Date.now()) || promoted;
+  const formed = advanceFormations(db, Date.now());
+  const advanced = advanceTasks(db, Date.now()) || promoted || formed;
 
   const body = parseBody(init.body);
   // Pelaku dan sasaran dibaca sebelum tindakan: keluar menghapus sesi, hapus menghilangkan nama

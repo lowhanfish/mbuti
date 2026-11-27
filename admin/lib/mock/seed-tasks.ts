@@ -3,6 +3,7 @@
  * sehingga linimasa, biaya, dan persetujuan konsisten dengan aturan relasi.
  */
 import { advanceTasks, cancelTask, createTask, decideApproval } from "./engine";
+import { vendorPoster } from "./media";
 import type { MockDatabase } from "./seed";
 
 const ORG = "org-nusantara";
@@ -109,6 +110,57 @@ export const seedTasks = (db: MockDatabase) => {
     now - 30 * HOUR
   );
   advanceTasks(db, now - 29 * HOUR);
+
+  // 7. Pemeriksaan poster vendor oleh Amir: membaca lampiran gambar dan menandai temuan (E1c)
+  db.task_attachments.push({
+    id: "att-poster-vendor",
+    organization_id: ORG,
+    task_id: null,
+    file_name: "poster-hari-pelayanan.png",
+    mime_type: "image/png",
+    size_bytes: 684_000,
+    width: 1080,
+    height: 1350,
+    pages: [vendorPoster],
+    exif: null,
+    uploaded_by_member_id: "member-demo",
+    created_at: new Date(now - 5 * HOUR).toISOString(),
+  });
+  const poster = createTask(
+    db,
+    {
+      organization_id: ORG,
+      title: "Periksa poster Hari Pelayanan dari vendor",
+      brief: "Amir, lihat poster ini. Apa yang kurang menurut panduan merek? Tandai bagiannya dan beri saran perbaikan.",
+      inputs: { arahan_tugas: "Poster untuk media sosial dan cetak A3." },
+      entry_agent_id: "agent-amir",
+      priority: "normal",
+      due_at: null,
+      budget_limit: 10000,
+      created_by_member_id: "member-demo",
+      attachment_ids: ["att-poster-vendor"],
+    },
+    now - 5 * HOUR
+  );
+  db.task_attachments.find((a) => a.id === "att-poster-vendor")!.task_id = poster.id;
+  advanceTasks(db, now - 4 * HOUR);
+
+  // 8. Usulan temuan internet dari Lumi yang menunggu keputusan admin (E1d)
+  db.knowledge_proposals.push({
+    id: "usul-contoh-1",
+    organization_id: ORG,
+    url: "https://pustaka-terbuka.test/panduan/bahasa-pelayanan-yang-ramah",
+    title: "Panduan umum: bahasa pelayanan yang ramah",
+    excerpt: "Ringkasan praktik menjawab warga dengan kalimat pendek, salam pembuka, dan langkah lanjut yang jelas.",
+    status: "pending",
+    task_id: null,
+    agent_id: "agent-lumi",
+    proposed_by_member_id: "member-bayu",
+    decided_by_member_id: null,
+    decided_at: null,
+    document_id: null,
+    created_at: new Date(now - 6 * HOUR).toISOString(),
+  });
 
   // 6. Baru dibuat: berjalan langsung saat aplikasi dibuka
   createTask(

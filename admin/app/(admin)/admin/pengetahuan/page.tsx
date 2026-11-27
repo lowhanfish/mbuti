@@ -8,8 +8,33 @@ import { Icon } from "../../_components/admin-icons";
 import DocumentList from "./components/DocumentList";
 import SearchPanel from "./components/SearchPanel";
 import UploadDocumentModal from "./components/UploadDocumentModal";
-import { useDeleteDocument, useResponseListDocument, useUploadDocument } from "./hooks/crud";
+import { useDeleteDocument, useProposals, useResponseListDocument, useUploadDocument } from "./hooks/crud";
+import ProposalList from "./components/ProposalList";
 import { DOC_TYPE_LABEL, SCOPE_LABEL, type ResponseInterface } from "./types";
+
+type PageTab = "dokumen" | "kebijakan" | "usulan";
+
+const TAB_CATEGORIES: Record<PageTab, string> = {
+  dokumen: "knowledge,formation,qa,web",
+  kebijakan: "policy",
+  usulan: "web",
+};
+
+const PAGE_TABS: Array<{ key: PageTab; label: string; icon: string; hint: string }> = [
+  { key: "dokumen", label: "Dokumen", icon: "book", hint: "SOP, manual, pedoman, templat, uraian jabatan, dan hasil tanya jawab role." },
+  {
+    key: "kebijakan",
+    label: "Kebijakan & Aturan",
+    icon: "shield",
+    hint: "Peraturan, kebijakan, standar mutu, dan panduan merek. Dicek lebih dulu saat role bekerja; bila berbeda dengan dokumen lain, aturan ini yang dipakai.",
+  },
+  {
+    key: "usulan",
+    label: "Usulan",
+    icon: "search",
+    hint: "Temuan internet yang diusulkan pengguna dari hasil role. Setelah disetujui admin, temuan menjadi pengetahuan organisasi.",
+  },
+];
 
 export default function PengetahuanPage() {
   const accessRole = useAuthStore((state) => state.user?.access_role);
@@ -20,14 +45,22 @@ export default function PengetahuanPage() {
   const [scope, setScope] = useState("");
   const [docType, setDocType] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [tab, setTab] = useState<PageTab>("dokumen");
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(handler);
   }, [search]);
 
-  const { List, isLoading, isError, error, refetch } = useResponseListDocument({ search: debouncedSearch, scope, doc_type: docType });
+  const { List, isLoading, isError, error, refetch } = useResponseListDocument({
+    search: debouncedSearch,
+    scope,
+    doc_type: docType,
+    category: TAB_CATEGORIES[tab],
+  });
   const uploadMutation = useUploadDocument();
+  const { summary: proposalSummary } = useProposals("pending");
+  const pendingProposals = proposalSummary?.pending ?? 0;
   const deleteMutation = useDeleteDocument();
 
   const docs = List?.data ?? [];
@@ -49,14 +82,48 @@ export default function PengetahuanPage() {
         title="Pengetahuan"
         description="SOP, manual book, dan panduan kerja yang menjadi dasar kerja role. Setiap jawaban role merujuk halaman dokumen ini."
         action={
-          canEdit && (
+          canEdit &&
+          tab !== "usulan" && (
             <Button icon={<Icon name="plus" size={16} />} onClick={() => setUploadOpen(true)}>
-              Unggah dokumen
+              {tab === "kebijakan" ? "Unggah aturan" : "Unggah dokumen"}
             </Button>
           )
         }
       />
 
+      <div className="space-y-2">
+        <div className="glass rounded-2xl p-1.5 inline-flex gap-1 max-w-full overflow-x-auto" role="tablist" aria-label="Jenis pengetahuan">
+          {PAGE_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => {
+                setTab(t.key);
+                setDocType("");
+              }}
+              className={`h-10 px-4 rounded-xl text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
+                tab === t.key
+                  ? "bg-gradient-to-r from-brand to-[#9b6bff] text-white shadow-[0_8px_18px_-8px_rgba(124,77,255,.9)]"
+                  : "text-muted hover:text-ink hover:bg-surface/80"
+              }`}
+            >
+              <Icon name={t.icon} size={16} />
+              {t.label}
+              {t.key === "usulan" && pendingProposals > 0 && (
+                <span className="min-w-5 h-5 px-1.5 rounded-full bg-accent text-night text-[10px] font-extrabold flex items-center justify-center">{pendingProposals}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted">{PAGE_TABS.find((t) => t.key === tab)?.hint}</p>
+      </div>
+
+      {tab === "usulan" ? (
+        <ProposalList canDecide={canEdit} />
+      ) : (
+        <>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 stagger">
         <StatCard label="Dokumen siap" value={s.ready} icon={<Icon name="check" size={22} />} tone="teal" />
         <StatCard label="Sedang diolah" value={s.queued + s.processing} icon={<Icon name="sparkles" size={22} />} tone="brand" />
@@ -114,12 +181,18 @@ export default function PengetahuanPage() {
           ) : docs.length === 0 ? (
             <EmptyState
               icon={<Icon name="book" size={26} />}
-              title={filtered ? "Tidak ada dokumen yang cocok" : "Belum ada dokumen"}
-              description={filtered ? "Ubah saringan atau kata pencarian." : "Unggah SOP atau pedoman pertama, lalu tentukan role atau unit yang boleh membacanya."}
+              title={filtered ? "Tidak ada dokumen yang cocok" : tab === "kebijakan" ? "Belum ada kebijakan atau aturan" : "Belum ada dokumen"}
+              description={
+                filtered
+                  ? "Ubah saringan atau kata pencarian."
+                  : tab === "kebijakan"
+                    ? "Unggah peraturan, kebijakan, standar mutu, atau panduan merek organisasi."
+                    : "Unggah SOP atau pedoman pertama, lalu tentukan role atau unit yang boleh membacanya."
+              }
               action={
                 canEdit && !filtered ? (
                   <Button icon={<Icon name="plus" size={16} />} onClick={() => setUploadOpen(true)}>
-                    Unggah dokumen pertama
+                    {tab === "kebijakan" ? "Unggah aturan pertama" : "Unggah dokumen pertama"}
                   </Button>
                 ) : undefined
               }
@@ -133,10 +206,13 @@ export default function PengetahuanPage() {
           <SearchPanel />
         </div>
       </div>
+        </>
+      )}
 
       {uploadOpen && (
         <UploadDocumentModal
           saving={uploadMutation.isPending}
+          category={tab === "kebijakan" ? "policy" : "knowledge"}
           onClose={() => setUploadOpen(false)}
           onSubmit={(form) => uploadMutation.mutate(form, { onSuccess: () => setUploadOpen(false) })}
         />

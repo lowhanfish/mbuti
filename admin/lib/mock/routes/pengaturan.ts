@@ -1,5 +1,5 @@
 import { LIMITS, type ResponseInterface as BudgetResponse } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
-import type { ApiKeyInfo, ModelSlot, ResponseInterface as ModelResponse } from "@/app/(admin)/admin/pengaturan/model-ai/types";
+import type { ApiKeyInfo, ModelSlot, ResponseInterface as ModelResponse, UsagePurpose, UsageToday } from "@/app/(admin)/admin/pengaturan/model-ai/types";
 import { formatRupiah } from "@/app/(admin)/admin/tugas/types";
 import { isFailure, nowIso, requireManager, requireMember } from "../context";
 import { fail, ok, type MockRoute } from "../router";
@@ -18,6 +18,22 @@ const sampleKeys = (now: number): ApiKeyInfo[] => {
   ];
 };
 
+/** Pemakaian hari ini per jenis: langkah tugas dari task_steps, sisanya dari llm_calls. */
+const usageToday = (db: MockDatabase, orgId: string): UsageToday[] => {
+  const day = new Date().toISOString().slice(0, 10);
+  const totals = new Map<UsagePurpose, UsageToday>();
+  const add = (purpose: UsagePurpose, cost: number) => {
+    const row = totals.get(purpose) ?? { purpose, calls: 0, cost: 0 };
+    row.calls += 1;
+    row.cost += cost;
+    totals.set(purpose, row);
+  };
+  const tasks = new Set(db.tasks.filter((t) => t.organization_id === orgId).map((t) => t.id));
+  for (const s of db.task_steps) if (tasks.has(s.task_id) && s.finished_at?.startsWith(day) && s.model) add("task", s.cost);
+  for (const c of db.llm_calls) if (c.organization_id === orgId && c.created_at.startsWith(day)) add(c.purpose ?? "trial", c.cost);
+  return (["task", "trial", "formation", "vision_ingest", "web_search"] as UsagePurpose[]).map((p) => totals.get(p) ?? { purpose: p, calls: 0, cost: 0 });
+};
+
 const toModels = (db: MockDatabase, self: MockMembership): ModelResponse => {
   const s = settingsOf(db, self.organization_id);
   const agents = db.agents.filter((a) => a.organization_id === self.organization_id);
@@ -33,6 +49,7 @@ const toModels = (db: MockDatabase, self: MockMembership): ModelResponse => {
     // Kunci milik server, jadi statusnya hanya untuk pemilik
     api_keys: self.access_role === "owner" ? sampleKeys(Date.now()) : [],
     embedding: { model: "gemini-embedding-2", dimension: 768 },
+    usage_today: usageToday(db, self.organization_id),
     updated_at: s.updated_at,
   };
 };

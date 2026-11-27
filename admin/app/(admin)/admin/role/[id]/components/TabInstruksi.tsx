@@ -20,7 +20,7 @@ import { useResponseModelSettings } from "../../../pengaturan/model-ai/hooks/cru
 
 type InstruksiFields = Pick<
   UpdateInterface,
-  "instructions" | "input_spec" | "output_format" | "output_template" | "acceptance_criteria" | "knowledge_scope" | "model_profile"
+  "instructions" | "input_spec" | "output_format" | "output_template" | "acceptance_criteria" | "knowledge_scope" | "model_profile" | "web_search"
 >;
 
 const pick = (r: ResponseInterface): InstruksiFields => ({
@@ -31,6 +31,7 @@ const pick = (r: ResponseInterface): InstruksiFields => ({
   acceptance_criteria: r.acceptance_criteria,
   knowledge_scope: r.knowledge_scope,
   model_profile: r.model_profile,
+  web_search: r.web_search,
 });
 
 function OptionCards<T extends string>({
@@ -279,6 +280,15 @@ export default function TabInstruksi({
             options={profileOptions}
             value={form.model_profile}
             onChange={(v) => set("model_profile", v)}
+          />
+          <OptionCards<"off" | "on">
+            label="Pencarian internet"
+            options={{
+              off: { label: "Mati", hint: "Hanya dokumen organisasi. Bawaan untuk role baru." },
+              on: { label: "Boleh", hint: "Mencari lewat Google bila dokumen internal kurang atau arahan meminta info terkini; sumbernya ditampilkan." },
+            }}
+            value={form.web_search ? "on" : "off"}
+            onChange={(v) => set("web_search", v === "on")}
           />
         </CardContent>
       </Card>

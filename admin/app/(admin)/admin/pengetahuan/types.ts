@@ -1,5 +1,37 @@
 export type DocumentScope = "organization" | "unit" | "agent";
-export type DocumentType = "sop" | "manual" | "pedoman" | "templat" | "regulasi" | "lainnya";
+export type DocumentType = "sop" | "manual" | "pedoman" | "templat" | "regulasi" | "uraian_jabatan" | "lainnya";
+/**
+ * `knowledge` dokumen biasa, `policy` kebijakan dan aturan (E1b), `formation` uraian jabatan,
+ * `qa` hasil tanya jawab pembentukan role, `web` temuan internet yang disetujui (E1d).
+ */
+export type DocumentCategory = "knowledge" | "policy" | "formation" | "qa" | "web";
+export type PolicyKind = "peraturan" | "kebijakan" | "standar_mutu" | "panduan_merek" | "lainnya";
+export type PolicyStatus = "berlaku" | "dicabut";
+
+/** Sumber sebuah rujukan; menentukan urutan rujukan: kebijakan → tanya jawab → dokumen → internet. */
+export type SourceKind = "policy" | "qa" | "document" | "web" | "image" | "attachment";
+
+/** Keterangan tambahan untuk dokumen di pustaka Kebijakan & Aturan. */
+export interface PolicyFields {
+  kind: PolicyKind;
+  /** Nomor peraturan atau kode kebijakan, mis. "KEP-07/2026" */
+  reference_no: string;
+  issuer: string;
+  /** Tanggal (YYYY-MM-DD); null = tidak dibatasi */
+  effective_from: string | null;
+  effective_until: string | null;
+  status: PolicyStatus;
+}
+
+export interface PolicyInfo extends PolicyFields {
+  /** Dihitung server: berstatus berlaku dan hari ini di dalam masa berlaku */
+  in_force: boolean;
+}
+
+/** `text` dibaca lokal; `scan` dan `visual` (tabel bergaris, grafik, diagram, foto) dibaca Gemini multimodal (E1c). */
+export type PageRender = "text" | "scan" | "visual";
+export type MediaKind = "text" | "pdf" | "image";
+
 export type IngestionStatus = "queued" | "processing" | "ready" | "failed";
 
 export interface DocumentVersion {
@@ -16,6 +48,12 @@ export interface DocumentVersion {
   progress: number;
   error_message: string | null;
   uploaded_by_name: string | null;
+  /** `image` untuk berkas gambar (PNG, JPG, WEBP) */
+  media_kind: MediaKind;
+  /** Halaman berat (scan/visual) yang dibuat embedding gambarnya */
+  visual_pages: number;
+  /** Halaman berat di atas batas per berkas: gambarnya disimpan tanpa embedding */
+  visual_pages_over_limit: number;
   created_at: string;
 }
 
@@ -23,6 +61,15 @@ export interface DocumentSection {
   page_no: number;
   heading: string;
   text: string;
+  /** Bawaan `text` */
+  render?: PageRender;
+  /**
+   * Gambar halaman untuk `scan`/`visual` dan berkas gambar. Backend mengirim path API
+   * (`/api/v1/admin/pengetahuan/{id}/versions/{vid}/pages/{page}/image`); data contoh memakai data URL.
+   */
+  image_url?: string | null;
+  /** Bacaan Gemini atas halaman bergambar, disimpan saat pertama kali dipakai tugas */
+  visual_text?: string;
 }
 
 export interface ResponseInterface {
@@ -37,6 +84,11 @@ export interface ResponseInterface {
   scope_color: string | null;
   active_version: DocumentVersion | null;
   version_count: number;
+  category: DocumentCategory;
+  /** Terisi untuk `category: "policy"` */
+  policy: PolicyInfo | null;
+  /** Alamat asal untuk temuan internet (`category: "web"`) */
+  source_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -70,6 +122,8 @@ export interface UpdateInterface {
   doc_type: DocumentType;
   scope: DocumentScope;
   scope_id: string | null;
+  /** Hanya untuk dokumen kebijakan */
+  policy?: PolicyFields;
 }
 
 /** Satu potongan hasil pencarian beserta rujukannya. */
@@ -83,6 +137,10 @@ export interface SearchHit {
   heading: string;
   snippet: string;
   score: number;
+  /** `policy` untuk dokumen Kebijakan & Aturan, `qa` untuk hasil tanya jawab, `image` untuk halaman bergambar, selain itu `document` */
+  source_kind: SourceKind;
+  /** Gambar halaman bila halaman yang cocok bergambar */
+  image_url?: string | null;
 }
 
 export const DOC_TYPE_LABEL: Record<DocumentType, string> = {
@@ -91,7 +149,72 @@ export const DOC_TYPE_LABEL: Record<DocumentType, string> = {
   pedoman: "Pedoman",
   templat: "Templat",
   regulasi: "Regulasi",
+  uraian_jabatan: "Uraian jabatan",
   lainnya: "Lainnya",
+};
+
+/** Sumber internet yang dipakai role (E1d). Tautan dibuat server dari grounding metadata Gemini, bukan dari teks model. */
+export interface WebSource {
+  /** Nomor rujukan W1, W2, … */
+  no: number;
+  title: string;
+  url: string;
+  domain: string;
+  snippet: string;
+  retrieved_at: string;
+}
+
+export type ProposalStatus = "pending" | "approved" | "rejected";
+
+/** Usulan menyimpan temuan internet sebagai pengetahuan organisasi; admin yang memutuskan. */
+export interface KnowledgeProposal {
+  id: string;
+  url: string;
+  title: string;
+  excerpt: string;
+  status: ProposalStatus;
+  task_id: string | null;
+  task_title: string | null;
+  agent_name: string | null;
+  proposed_by_name: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  /** Dokumen yang dibuat saat disetujui */
+  document_id: string | null;
+  created_at: string;
+}
+
+export interface ProposalRequest {
+  url: string;
+  title: string;
+  excerpt: string;
+  task_id?: string | null;
+  agent_id?: string | null;
+}
+
+export const CATEGORY_LABEL: Record<DocumentCategory, string> = {
+  knowledge: "Dokumen",
+  policy: "Kebijakan & aturan",
+  formation: "Uraian jabatan",
+  qa: "Hasil tanya jawab",
+  web: "Temuan internet",
+};
+
+export const POLICY_KIND_LABEL: Record<PolicyKind, string> = {
+  peraturan: "Peraturan",
+  kebijakan: "Kebijakan",
+  standar_mutu: "Standar mutu",
+  panduan_merek: "Panduan merek",
+  lainnya: "Lainnya",
+};
+
+export const SOURCE_KIND_LABEL: Record<SourceKind, { label: string; variant: "danger" | "accent" | "info" | "neutral" | "success" | "warning" }> = {
+  policy: { label: "Aturan", variant: "danger" },
+  qa: { label: "Tanya jawab", variant: "accent" },
+  document: { label: "Dokumen", variant: "info" },
+  web: { label: "Internet", variant: "neutral" },
+  image: { label: "Gambar", variant: "success" },
+  attachment: { label: "Lampiran", variant: "warning" },
 };
 
 export const SCOPE_LABEL: Record<DocumentScope, string> = {
@@ -112,9 +235,21 @@ export const ACCEPTED_TYPES: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
   "text/plain": "TXT",
   "text/markdown": "MD",
+  "image/png": "PNG",
+  "image/jpeg": "JPG",
+  "image/webp": "WEBP",
 };
 
-export const ACCEPT_ATTR = ".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown";
+export const ACCEPT_ATTR =
+  ".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,image/png,image/jpeg,image/webp";
+
+export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** Batas berkas gambar (pengetahuan dan lampiran tugas). */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Alamat gambar dari API dilengkapi URL backend; data URL (mode data contoh) dipakai apa adanya. */
+export const mediaSrc = (url: string | null | undefined, apiBase: string) => (!url ? "" : url.startsWith("/api/") ? `${apiBase}${url}` : url);
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 

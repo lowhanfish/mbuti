@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import { AttachmentPicker } from "../../../../_components/media/attachment-picker";
+import { ImageFindings } from "../../../../_components/media/image-findings";
+import { WebSources } from "../../../pengetahuan/components/WebSources";
+import type { TaskAttachment } from "../../../tugas/types";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, Textarea } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Avatar2D } from "../../../../_components/agent/avatar-2d";
@@ -9,6 +13,7 @@ import { useTrialRole } from "../../hooks/crud";
 import { formatRupiah } from "../../../tugas/types";
 import Link from "next/link";
 import { citationHref, citationText } from "../../../pengetahuan/types";
+import { SourceKindBadge } from "../../../pengetahuan/components/PolicyParts";
 import type { InputField, ResponseInterface, TrialResult } from "../../types";
 
 const RESULT_STYLE: Record<TrialResult["status"], { label: string; variant: "success" | "warning" | "info" }> = {
@@ -46,6 +51,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
   const [brief, setBrief] = useState("");
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [showPrompt, setShowPrompt] = useState(false);
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const trial = useTrialRole(role.id);
   const canRun = useAuthStore((state) => state.user?.access_role) !== "viewer";
   const result = trial.data?.data;
@@ -66,7 +72,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (canRun) trial.mutate({ brief, inputs });
+              if (canRun) trial.mutate({ brief, inputs, attachment_ids: attachments.map((a) => a.id) });
             }}
           >
             <Textarea
@@ -84,6 +90,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                 onChange={(v) => setInputs((prev) => ({ ...prev, [field.key]: v }))}
               />
             ))}
+            {canRun && <AttachmentPicker value={attachments} onChange={setAttachments} />}
             <Button type="submit" loading={trial.isPending} disabled={!canRun} icon={<Icon name="sparkles" size={16} />} className="w-full">
               Jalankan uji coba
             </Button>
@@ -133,6 +140,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                         className="flex items-center gap-2 rounded-xl bg-brand-soft/60 px-3 py-1.5 text-xs text-brand-strong hover:bg-brand-soft transition-colors"
                       >
                         <span className="w-5 h-5 rounded-md bg-surface text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <SourceKindBadge kind={c.source_kind ?? "document"} />
                         <span className="truncate">{citationText(c.document_title, c.version_no, c.page_no)}</span>
                       </Link>
                     ))}
@@ -140,6 +148,13 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                 )}
               </div>
             </div>
+            <WebSources sources={result.web_sources} agentId={role.id} />
+            {result.attachments.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">Temuan pada gambar</p>
+                <ImageFindings attachments={result.attachments} findings={result.findings} citations={result.citations} />
+              </div>
+            )}
             <div className="rounded-2xl bg-night text-white/90 overflow-hidden">
               <button
                 type="button"

@@ -3,8 +3,10 @@
  * Waktu disimulasikan: setiap permintaan memanggil advanceTasks(db, sekarang) yang memajukan langkah
  * yang sudah "jatuh tempo". Backend nanti menggantinya dengan worker Celery dan panggilan Gemini.
  */
-import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
-import type { ApprovalReason, ApprovalStatus, EventType, StepKind, StepStatus, TaskPriority, TaskStatus } from "@/app/(admin)/admin/tugas/types";
+import type { SearchHit, WebSource } from "@/app/(admin)/admin/pengetahuan/types";
+import type { ApprovalReason, ApprovalStatus, EventType, Finding, StepKind, StepStatus, TaskPriority, TaskStatus, WebSearchMode } from "@/app/(admin)/admin/tugas/types";
+import { findingsSummary, simulateFindings } from "./media";
+import { WEB_SEARCH_PER_DAY, searchesToday, shouldSearchWeb, simulateWebSources, webSummary } from "./web";
 import { documentsForAgent, searchDocuments } from "./knowledge";
 import { findRelation } from "./lookup";
 import type { MockAgent, MockDatabase, MockRelation } from "./seed";
@@ -30,6 +32,9 @@ export interface MockTask {
   queue: string[];
   /** Jumlah putaran revisi per relasi Periksa */
   review_rounds: Record<string, number>;
+  /** Lampiran tugas (E1c); ikut diteruskan ke role berikutnya */
+  attachment_ids: string[];
+  web_search: WebSearchMode;
 }
 
 export interface MockStep {
@@ -44,6 +49,8 @@ export interface MockStep {
   input_notes: string;
   output: string;
   citations: SearchHit[];
+  findings: Finding[];
+  web_sources: WebSource[];
   verdict: "approved" | "revise" | null;
   /** Model yang dipakai; kosong selama langkah belum selesai */
   model: string;
@@ -117,6 +124,8 @@ const addStep = (
     status: "queued",
     output: "",
     citations: [],
+    findings: [],
+    web_sources: [],
     verdict: null,
     model: "",
     cost: 0,
@@ -364,7 +373,19 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
   task.cost_used += step.cost;
 
   if (step.kind === "work") {
-    step.output = workOutput(agent, task, step, hits, adviceFor(db, step));
+    // Role membaca lampiran gambar tugas (backend: Gemini multimodal); PDF lampiran juga dibaca per halaman
+    const attachments = db.task_attachments.filter((a) => task.attachment_ids.includes(a.id));
+    step.findings = attachments.length ? simulateFindings(agent, attachments, hits) : [];
+    // Internet hanya bila role mengizinkan dan dokumen internal kurang; maks satu pencarian per langkah
+    const query = taskQuery(task, step);
+    if (shouldSearchWeb(agent, task.web_search ?? "role", query, hits) && searchesToday(db, task.organization_id, at) < WEB_SEARCH_PER_DAY) {
+      step.web_sources = simulateWebSources(query, iso(at));
+      db.llm_calls.push({ id: id("call"), organization_id: task.organization_id, agent_id: agent.id, model: model.id, cost: 40, purpose: "web_search", created_at: iso(at) });
+      step.cost += 40;
+      task.cost_used += 40;
+      log(db, task, "step_done", `${agent.name} mencari di internet karena dokumen internal kurang (${step.web_sources.length} sumber).`, at, step.id);
+    }
+    step.output = [workOutput(agent, task, step, hits, adviceFor(db, step)), ...findingsSummary(step.findings), ...webSummary(step.web_sources)].join("\n");
     log(db, task, "step_done", `${agent.name} menyelesaikan pekerjaan.`, at, step.id);
   } else if (step.kind === "consult") {
     step.output = `Masukan dari ${agent.name}: ${hits[0] ? `${hits[0].heading} — ${hits[0].snippet.slice(0, 160)}` : "tidak ada aturan khusus di dokumen saya untuk hal ini."}`;
@@ -492,11 +513,14 @@ export const advanceTasks = (db: MockDatabase, now: number) => {
 
 export const createTask = (
   db: MockDatabase,
-  fields: Pick<MockTask, "organization_id" | "title" | "brief" | "inputs" | "entry_agent_id" | "priority" | "due_at" | "budget_limit" | "created_by_member_id">,
+  fields: Pick<MockTask, "organization_id" | "title" | "brief" | "inputs" | "entry_agent_id" | "priority" | "due_at" | "budget_limit" | "created_by_member_id"> &
+    Partial<Pick<MockTask, "attachment_ids" | "web_search">>,
   at: number
 ) => {
   const task: MockTask = {
     id: id("task"),
+    attachment_ids: [],
+    web_search: "role",
     ...fields,
     status: "queued",
     cost_used: 0,

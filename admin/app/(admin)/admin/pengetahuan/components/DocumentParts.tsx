@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Badge } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
-import { ACCEPT_ATTR, MAX_FILE_BYTES, STATUS_LABEL, formatBytes, type DocumentVersion } from "../types";
+import { ACCEPT_ATTR, MAX_FILE_BYTES, MAX_IMAGE_BYTES, STATUS_LABEL, formatBytes, type DocumentVersion } from "../types";
 
 /** Ikon berkas berwarna sesuai jenisnya. */
 export function FileGlyph({ fileName, size = 44 }: { fileName: string; size?: number }) {
@@ -79,7 +79,8 @@ export function FileDropzone({
 
   const accept = (f: File | undefined) => {
     if (!f) return;
-    if (!/\.(pdf|docx|txt|md)$/i.test(f.name)) return onFile(null, "Gunakan PDF berteks, DOCX, TXT, atau MD.");
+    if (!/\.(pdf|docx|txt|md|png|jpe?g|webp)$/i.test(f.name)) return onFile(null, "Gunakan PDF, DOCX, TXT, MD, atau gambar PNG, JPG, WEBP.");
+    if (/\.(png|jpe?g|webp)$/i.test(f.name) && f.size > MAX_IMAGE_BYTES) return onFile(null, "Ukuran gambar melebihi 10 MB.");
     if (f.size > MAX_FILE_BYTES) return onFile(null, "Ukuran berkas melebihi 20 MB.");
     onFile(f, null);
   };
@@ -135,7 +136,8 @@ export function FileDropzone({
             <Icon name="plus" size={22} />
           </span>
           <p className="text-sm font-semibold text-ink">{label}</p>
-          <p className="text-xs text-muted">PDF berteks, DOCX, TXT, atau MD · maksimal 20 MB</p>
+          <p className="text-xs text-muted">PDF, DOCX, TXT, MD (maks 20 MB) atau gambar PNG, JPG, WEBP (maks 10 MB)</p>
+          <p className="text-[11px] text-faint">Halaman bergambar dan hasil scan dibaca Gemini multimodal.</p>
         </div>
       )}
     </div>

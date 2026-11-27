@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, Input } from "../../../_compo
 import { Icon } from "../../../_components/admin-icons";
 import { useSearchDocuments } from "../hooks/crud";
 import { citationHref, citationText } from "../types";
+import { SourceKindBadge } from "./PolicyParts";
 import { Highlight } from "./DocumentParts";
 
 /** Uji pencarian: memperlihatkan potongan dokumen yang akan ditemukan role untuk sebuah pertanyaan. */
@@ -51,7 +52,10 @@ export default function SearchPanel({ agentId = "", title = "Uji pencarian" }: {
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
                   <div className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="font-semibold text-brand truncate">{citationText(h.document_title, h.version_no, h.page_no)}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <SourceKindBadge kind={h.source_kind ?? "document"} />
+                      <span className="font-semibold text-brand truncate">{citationText(h.document_title, h.version_no, h.page_no)}</span>
+                    </span>
                     <span className="text-faint shrink-0">skor {h.score}</span>
                   </div>
                   <p className="text-xs font-semibold text-ink mt-1">{h.heading}</p>

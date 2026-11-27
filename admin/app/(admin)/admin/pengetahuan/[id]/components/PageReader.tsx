@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { Card, EmptyState } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
 import { Highlight } from "../../components/DocumentParts";
-import { citationText, type DocumentSection, type DocumentVersion } from "../../types";
+import { useUrlStore } from "@/store/useUrlStore";
+import { citationText, mediaSrc, type DocumentSection, type DocumentVersion } from "../../types";
 
 export default function PageReader({
   title,
@@ -21,6 +22,7 @@ export default function PageReader({
 }) {
   const [page, setPage] = useState(initialPage);
   const [copied, setCopied] = useState(false);
+  const apiBase = useUrlStore((state) => state.URL.APP);
   const current = sections.find((s) => s.page_no === page) ?? sections[0];
   const terms = query
     .toLowerCase()
@@ -74,6 +76,7 @@ export default function PageReader({
                 >
                   <span className="flex items-center gap-1.5 font-bold">
                     Hlm. {s.page_no}
+                    {s.image_url && <span className="text-[9px] font-bold rounded bg-emerald-500/15 text-emerald-700 px-1">Gambar</span>}
                     {hasHit && <span className="w-1.5 h-1.5 rounded-full bg-accent" title="Ada kata yang dicari" />}
                   </span>
                   <span className="hidden md:block truncate opacity-80">{s.heading}</span>
@@ -98,8 +101,21 @@ export default function PageReader({
             {copied ? "Tersalin ✓" : "Salin rujukan"}
           </button>
         </div>
+        {current.image_url && (
+          <figure className="mb-4 space-y-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- gambar dari API berizin atau data URL, bukan aset statis */}
+            <img
+              src={mediaSrc(current.image_url, apiBase)}
+              alt={`Gambar ${title} halaman ${current.page_no}`}
+              className="w-full max-h-[560px] object-contain rounded-2xl border border-line bg-white"
+            />
+            <figcaption className="text-[11px] text-faint">
+              {current.render === "scan" ? "Hasil scan" : "Halaman bergambar"}: dicari lewat kemiripan gambar dan dibaca Gemini multimodal saat dipakai tugas.
+            </figcaption>
+          </figure>
+        )}
         <div className="rounded-2xl bg-surface border border-line p-5 text-sm text-ink leading-7 whitespace-pre-wrap shadow-inner">
-          <Highlight text={current.text} terms={terms} />
+          <Highlight text={current.visual_text || current.text} terms={terms} />
         </div>
         <p className="text-[11px] text-faint mt-3">Rujukan: {citationText(title, version.version_no, current.page_no)}</p>
       </article>
