@@ -146,7 +146,11 @@ class GeminiLlm:
         try:
             if self._pool is None:
                 self._pool = KeyPool.configured()
-            response = await self._pool.run(model, call, settings.GENERATION_TIMEOUT_SECONDS)
+            # Kuota pencarian Google terpisah dari kuota menulis: kunci yang kena batas pencarian
+            # hanya diistirahatkan untuk pencarian, bukan untuk kerja role biasa
+            response = await self._pool.run(
+                f"{model} (pencarian)", call, settings.GENERATION_TIMEOUT_SECONDS
+            )
         except GeminiUnavailable as exc:
             raise ModelUnavailable(str(exc)) from exc
         except errors.APIError as exc:

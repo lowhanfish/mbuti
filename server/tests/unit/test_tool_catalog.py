@@ -30,3 +30,16 @@ def test_weakest_support_and_catalog() -> None:
     assert weakest_support(tools) == "substitute"
     assert weakest_support([]) == "supported"
     assert len({tool.key for tool in CATALOG}) == len(CATALOG)
+
+
+def test_listed_tools_are_kept_on_the_first_skill():
+    from app.services.formation.job import keep_listed_tools
+
+    skills = [
+        {"tools": [map_tool("Canva")], "support": "upcoming"},
+        {"tools": [], "support": "supported"},
+    ]
+    keep_listed_tools(skills, ["canva", "Kalkulator"])
+
+    assert [t["requested"] for t in skills[0]["tools"]] == ["Canva", "Kalkulator"]
+    assert skills[0]["support"] == "unsupported" and skills[1]["tools"] == []

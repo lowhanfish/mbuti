@@ -143,6 +143,18 @@ def clean_skills(raw: object, previous: list[dict]) -> list[dict]:
     return skills
 
 
+def keep_listed_tools(skills: list[dict], listed: list[str]) -> None:
+    """Alat yang ditulis pembuat tetapi tidak dipakai model di keterampilan mana pun ikut dicatat
+    pada keterampilan pertama, agar tetap terlihat dan tercatat sebagai permintaan bila perlu."""
+    used = {tool["requested"].lower() for skill in skills for tool in skill["tools"]}
+    missing = [name for name in listed if name.lower() not in used]
+    if not missing or not skills:
+        return
+    first = skills[0]
+    first["tools"] = [*first["tools"], *(map_tool(name) for name in missing)][:12]
+    first["support"] = weakest_support(first["tools"])
+
+
 async def replace_skills(
     session: AsyncSession, revision: AgentRevision, skills: list[dict]
 ) -> None:
@@ -241,6 +253,7 @@ async def apply_result(
     skills = clean_skills(data.get("skills"), old_skills) or old_skills
     if not skills:
         raise ValueError("Tidak ada keterampilan.")
+    keep_listed_tools(skills, (revision.materials or {}).get("tools", []))
     card = {
         "summary": _text(data.get("summary"), 1500),
         "goal": _text(data.get("goal"), 500) or agent.goal,

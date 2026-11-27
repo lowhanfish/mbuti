@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 28 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d), belum dicoba dengan Gemini sungguhan; E2 berikutnya setelah rinciannya disepakati.
+Diperbarui: 28 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d) dan migrasinya terpasang di mbuti; pencarian internet belum berhasil dicoba karena kuota; E2 berikutnya setelah rinciannya disepakati.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -657,7 +657,7 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
 
 #### Tahapan
 
-- [x] **E1. Pembentukan role dan pengetahuan** (selesai 28 November 2026; belum dicoba dengan Gemini sungguhan): bahan uraian jabatan dan daftar alat, analisis AI, kartu
+- [x] **E1. Pembentukan role dan pengetahuan** (selesai 28 November 2026; dicoba dengan Gemini di mbuti_test lalu dibatalkan: analisis, tanya jawab, dan temuan poster berjalan baik; pencarian internet kena 429 di semua kunci, kemungkinan kuota grounding tier gratis): bahan uraian jabatan dan daftar alat, analisis AI, kartu
       keterampilan, tanya jawab, Final, versi role; pustaka kebijakan dan aturan; pencarian internet per role;
       PDF kompleks dan gambar dengan Gemini multimodal, termasuk lampiran gambar pada tugas.
 - [ ] **E2. Tugas rutin:** jadwal dari bahasa biasa, kalender libur dan kalender kerja tenant, cuti pemilik role,
