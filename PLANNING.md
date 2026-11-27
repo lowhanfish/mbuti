@@ -599,9 +599,9 @@ kinerja harian, sistem kepegawaian, aplikasi laporan) tanpa dikonfirmasi berulan
 
 Pertanyaan terbuka:
 
-- Jalur WhatsApp: WhatsApp Business Platform resmi dari Meta (berbayar per percakapan, butuh nomor bisnis dan templat
-  pesan untuk memulai percakapan) atau pustaka tidak resmi (gratis, tetapi nomor berisiko diblokir). Telegram bisa
-  menjadi saluran tambahan yang gratis.
+- ~~Jalur WhatsApp~~ **Diputuskan 27 November 2026:** selama uji coba memakai pustaka WhatsApp **tidak resmi** (gratis;
+  nomor berisiko diblokir). WhatsApp Business Platform resmi dari Meta (berbayar per percakapan) belum dipakai.
+  Pengerjaan WhatsApp **ditunda**, dikerjakan belakangan setelah diminta. Telegram bisa menjadi saluran tambahan.
 - Satu nomor WhatsApp untuk semua role di satu organisasi, atau satu nomor per role.
 - Cara penyimpanan brankas (enkripsi dan kunci per organisasi).
 
