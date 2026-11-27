@@ -25,6 +25,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 13. [Keputusan](#13-keputusan)
 14. [Jejak audit, batas laju, dan kode permintaan](#14-jejak-audit-batas-laju-dan-kode-permintaan)
 15. [Akun mandiri (D1)](#15-akun-mandiri-d1)
+16. [Pembentukan role dan pengetahuan (E1)](#16-pembentukan-role-dan-pengetahuan-e1)
 
 ---
 
@@ -1377,3 +1378,636 @@ undangan), dan `anggota.kirim_ulang` (Mengirim ulang undangan). Token dan kata s
 
 `GET`/`DELETE /api/v1/mock/outbox` (Kotak keluar) dan `POST /api/v1/mock/approve-organization` (setujui simulasi)
 hanya ada di `lib/mock/routes/mock.ts` dan **tidak** dibuat di backend.
+
+---
+
+## 16. Pembentukan role dan pengetahuan (E1)
+
+Ditambahkan pada fase E (rancangan di `PLANNING.md`, bagian "E1. Pembentukan role dan pengetahuan"). Bagian ini
+menambah, bukan mengganti, bagian 4, 5, 7, 11, dan 12. Kolom yang ditambahkan ke tipe yang sudah ada disebut di
+masing-masing subbagian. Lampiran tugas (16.6) mengakhiri penundaan "lampiran tugas" pada keputusan 11.
+
+### 16.1 Pembentukan role dan versi (E1a)
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| GET | `/admin/role/{id}/pembentukan` | Semua | | `FormationInterface`: revisi yang sedang disusun, atau versi Final aktif bila tidak ada |
+| POST | `/admin/role/{id}/pembentukan/mulai` | Pembentuk | `StartRequest` | `FormationInterface` (201) |
+| PUT | `/admin/role/{id}/pembentukan/bahan` | Pembentuk | `MaterialsRequest` | `FormationInterface` |
+| POST | `/admin/role/{id}/pembentukan/analisis` | Pembentuk | `{}` | `FormationInterface` (202) |
+| PUT | `/admin/role/{id}/pembentukan/kartu` | Pembentuk | `CardUpdateRequest` | `FormationInterface` |
+| POST | `/admin/role/{id}/pembentukan/jawab` | Pembentuk | `AnswerRequest` | `FormationInterface` (202) |
+| POST | `/admin/role/{id}/pembentukan/final` | Pembentuk | `FinalRequest` | `FormationInterface` |
+| POST | `/admin/role/{id}/pembentukan/batal` | Pembentuk | `{}` | `null` |
+| GET | `/admin/role/{id}/versi` | Semua | | `VersionInterface[]` (terbaru dulu, tanpa yang dibuang) |
+| GET | `/admin/role/{id}/versi/{vid}` | Semua | | `VersionDetailInterface` |
+| POST | `/admin/role/{id}/versi/{vid}/pulihkan` | Pembentuk | `{}` | `FormationInterface` (201) |
+
+**Pembentuk** = pemilik, admin, atau anggota yang menjadi penanggung jawab role itu (`owner_member_id`). Pemantau
+tidak pernah. `can_edit` pada `FormationInterface` dihitung server untuk pengguna yang sedang masuk.
+
+```ts
+export type RevisionStatus = "draft" | "analyzing" | "questioning" | "ready" | "final" | "superseded" | "discarded";
+
+export type RevisionSource = "formation" | "manual" | "restore";
+
+/** `upcoming` = alat direncanakan di tahap E3–E5. */
+export type ToolSupport = "supported" | "upcoming" | "substitute" | "unsupported";
+
+export type FindingKind = "unclear" | "conflict" | "missing_tool" | "missing_material";
+
+export type MessageAuthor = "agent" | "member";
+
+export type MessageKind = "question" | "answer" | "objection" | "note";
+
+/** Alat yang disebut pembuat role, setelah dipetakan ke katalog. */
+export interface ToolRef {
+  /** Kunci katalog; null bila tidak ada padanannya */
+  key: string | null;
+  /** Nama yang ditulis pembuat role, mis. "Ms Word" */
+  requested: string;
+  /** Nama di katalog, atau sama dengan `requested` bila tidak ada padanan */
+  name: string;
+  support: ToolSupport;
+  note: string;
+}
+
+export interface SkillStep {
+  text: string;
+  /** Langkah ini menunggu persetujuan manusia */
+  approval: boolean;
+}
+
+export interface Skill {
+  key: string;
+  name: string;
+  description: string;
+  steps: SkillStep[];
+  inputs: string[];
+  outputs: string[];
+  tools: ToolRef[];
+  /** Status terlemah di antara alat-alatnya */
+  support: ToolSupport;
+  substitute_note: string;
+}
+
+export interface CardFinding {
+  id: string;
+  kind: FindingKind;
+  text: string;
+  /** Rujukan ke uraian jabatan, mis. "Uraian jabatan, hlm. 2"; kosong bila tidak ada */
+  ref: string;
+}
+
+export interface SkillCard {
+  summary: string;
+  goal: string;
+  skills: Skill[];
+  findings: CardFinding[];
+}
+
+export interface FormationMaterials {
+  description: string;
+  tools: string[];
+  /** Orang yang diwakili role, ditulis bebas */
+  represented: string;
+  owner_member_id: string | null;
+}
+
+/** Isian kerja role yang disalin ke role saat Final. */
+export interface RevisionSnapshot {
+  goal: string;
+  instructions: string;
+  input_spec: InputField[];
+  output_format: OutputFormat;
+  output_template: string;
+  acceptance_criteria: string[];
+  knowledge_scope: KnowledgeScope;
+  model_profile: ModelProfile;
+  web_search: boolean;
+}
+
+export interface FormationMessage {
+  id: string;
+  round_no: number;
+  author: MessageAuthor;
+  kind: MessageKind;
+  /** Untuk jawaban: pertanyaan yang dijawab. Untuk pertanyaan: id pertanyaan itu sendiri */
+  question_id: string | null;
+  required: boolean;
+  text: string;
+  skipped: boolean;
+  author_name: string;
+  created_at: string;
+}
+
+/** Uraian jabatan yang diunggah sebagai bahan (dokumen berjenis `uraian_jabatan`). */
+export interface MaterialDocument {
+  id: string;
+  title: string;
+  file_name: string;
+  status: IngestionStatus;
+  progress: number;
+  page_count: number;
+}
+
+export interface FormationInterface {
+  id: string;
+  agent_id: string;
+  version_no: number;
+  status: RevisionStatus;
+  source: RevisionSource;
+  /** Analisis atau putaran tanya jawab sedang berjalan di latar */
+  processing: boolean;
+  /** Pengguna yang sedang masuk boleh membentuk role ini (admin ke atas atau penanggung jawabnya) */
+  can_edit: boolean;
+  materials: FormationMaterials;
+  material_documents: MaterialDocument[];
+  card: SkillCard | null;
+  /** Rancangan isian kerja; terisi setelah analisis */
+  snapshot: RevisionSnapshot | null;
+  round_no: number;
+  messages: FormationMessage[];
+  /** Pertanyaan wajib yang belum dijawab atau dilewati */
+  open_required: number;
+  /** Bagian kartu yang berubah pada putaran terakhir: "summary", "goal", "findings", atau kunci keterampilan */
+  changed: string[];
+  /** Role menyatakan sudah jelas */
+  agent_satisfied: boolean;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VersionInterface {
+  id: string;
+  version_no: number;
+  status: RevisionStatus;
+  source: RevisionSource;
+  change_note: string;
+  finalized_at: string | null;
+  finalized_by_name: string | null;
+  /** Versi yang sedang dipakai role bekerja */
+  is_active: boolean;
+  skill_count: number;
+  question_count: number;
+}
+
+export interface VersionDetailInterface extends VersionInterface {
+  snapshot: RevisionSnapshot;
+  card: SkillCard | null;
+}
+
+export interface StartRequest {
+  /** Kosong = dari versi aktif */
+  from_version_id?: string;
+}
+
+export interface MaterialsRequest {
+  description: string;
+  tools: string[];
+  represented: string;
+  owner_member_id: string | null;
+}
+
+export interface AnswerRequest {
+  answers: Array<{ question_id: string; text: string; skipped: boolean }>;
+  note: string;
+  /** Pembuat memilih "Cukup, ke Final" */
+  finish: boolean;
+}
+
+export interface FinalRequest {
+  change_note: string;
+  status_after: "active" | "paused";
+  /** Wajib bila masih ada pertanyaan wajib terbuka */
+  override_reason: string;
+}
+
+export interface CardUpdateRequest {
+  summary: string;
+  goal: string;
+  skills: Skill[];
+}
+```
+
+**Revisi**
+
+- Tabel baru `agent_revisions`, `agent_skills`, dan `agent_formation_messages` (rinciannya di PLANNING). Kartu
+  (`card`) dan isian kerja (`snapshot`) disimpan per revisi. Nomor versi berurutan per role, termasuk revisi yang
+  kemudian dibuang.
+- Satu role paling banyak punya **satu revisi terbuka** (`draft`, `analyzing`, `questioning`, `ready`). `mulai`
+  dan `pulihkan` saat masih ada revisi terbuka → `409` `Masih ada revisi yang sedang disusun. Lanjutkan atau buang
+  revisi itu.`
+- `mulai` tanpa `from_version_id` menyalin versi Final aktif (bahan, kartu, isian kerja). Bila sumbernya punya kartu,
+  revisi langsung `ready` dan `agent_satisfied: true`; tanpa kartu (versi manual), revisi `draft`.
+  `source`: `formation`, atau `restore` bila `from_version_id` diisi.
+- Selama revisi disusun, **versi Final aktif tetap dipakai bekerja**. Role yang belum pernah Final
+  (`active_version_no: 0`) tetap draf dan tidak menerima tugas.
+- `batal` hanya untuk role yang sudah punya versi Final (`409` bila belum: `Role belum pernah Final, jadi revisi
+  pertamanya tidak bisa dibuang. Hapus role bila tidak jadi dipakai.`). Revisi menjadi `discarded`.
+- Selama `processing: true`, semua perubahan pada revisi dijawab `409` `Role masih memproses putaran sebelumnya.
+  Tunggu sebentar.`
+
+**Bahan dan analisis**
+
+- Uraian jabatan diunggah lewat `POST /admin/pengetahuan/create` dengan `doc_type=uraian_jabatan`, `scope=agent`,
+  `scope_id={id}`. Penanggung jawab role (anggota) boleh mengunggahnya untuk role itu saja. Dokumen ini mendapat
+  `category: "formation"` dan tampil di `material_documents`.
+- `bahan`: `description` ≤ 4000, `tools` ≤ 30 × 80 (duplikat dibuang), `represented` ≤ 160, `owner_member_id`
+  anggota organisasi (`422` bila bukan). Penanggung jawab ini disalin ke role saat Final.
+- `analisis` → `409` bila uraian jabatan masih `queued`/`processing`; `422` bila tidak ada uraian jabatan yang
+  `ready` dan `description` < 80 karakter (`Unggah uraian jabatan, atau tulis deskripsi pekerjaan minimal 80
+  karakter.`). Analisis ulang menghapus kartu dan percakapan revisi itu, lalu mulai dari putaran 1.
+- Analisis dan putaran tanya jawab berjalan di antrean `execution` (satu per satu). Selama berjalan:
+  `processing: true`, status `analyzing` atau `questioning`; frontend memuat ulang tiap 1,5 detik. Bila kuota habis
+  (429), pekerjaan diantre ulang dengan jeda; gagal permanen mengisi `error_message` dan revisi kembali ke status
+  sebelumnya.
+- Analisis memakai profil **teliti** (cadangan: seimbang) dan keluaran terstruktur: ringkasan, tujuan,
+  keterampilan (langkah dengan titik persetujuan, bahan, hasil, alat), temuan dengan rujukan ke uraian jabatan, dan
+  pertanyaan putaran 1 (maks 5, ditandai wajib/opsional, ditambah keberatan bila ada pertentangan).
+- Nama alat dari pembuat dipetakan **oleh server** ke katalog (16.2): model mengusulkan, server memeriksa kuncinya.
+  `support` keterampilan = status terlemah alat-alatnya. Alat `unsupported` dicatat di `tool_requests` (sekali per
+  role per nama alat).
+
+**Kartu dan tanya jawab**
+
+- `kartu`: hanya bila kartu sudah ada (`409`). `skills` 1–20; nama ≤ 120, uraian ≤ 600, langkah ≤ 15 × 200,
+  bahan dan hasil ≤ 8 × 200, alat ≤ 12 (dipetakan ulang ke katalog). `summary` ≤ 1500, `goal` ≤ 500. `changed`
+  dikosongkan.
+- `jawab`: minimal satu jawaban, catatan, atau `finish: true` (`422`). Jawaban untuk pertanyaan yang tidak ada atau
+  sudah dijawab diabaikan. `skipped: true` menyimpan teks `Dilewati` atau `Tidak tahu` (dari frontend). Catatan
+  ≤ 2000 menjadi pesan `note`.
+- Setiap putaran: jawaban dimasukkan ke kartu, `changed` diisi bagian kartu yang berubah, `snapshot` disusun ulang,
+  lalu role mengajukan pertanyaan berikutnya atau menyatakan jelas (`agent_satisfied: true`, status `ready`,
+  ditambah pesan `note` dari role). `finish: true` memproses jawaban terakhir tanpa pertanyaan baru.
+- Batas `FORMATION_ROUNDS_MAX` (bawaan 6): setelah itu `jawab` tanpa `finish` → `409` `Batas 6 putaran tanya jawab
+  tercapai. Lanjutkan ke Final.`
+- `open_required` = pertanyaan wajib yang belum dijawab atau dilewati.
+
+**Final**
+
+- `409` bila kartu belum ada, analisis sedang berjalan, atau uraian jabatan masih diolah.
+- `open_required > 0` dan `override_reason` < 5 karakter → `409` `Masih ada N pertanyaan wajib yang belum dijawab.
+  Jawab dulu, atau tulis alasan untuk tetap Final.` Alasannya ditambahkan ke `change_note`.
+- `snapshot.goal` < 10 karakter → `422`.
+- Final menyalin `snapshot` ke kolom role (`goal`, `instructions`, `input_spec`, `output_format`,
+  `output_template`, `acceptance_criteria`, `knowledge_scope`, `model_profile`, `web_search`), mengisi
+  `active_revision_id`, menyetel status role menurut `status_after`, dan menandai versi Final sebelumnya
+  `superseded`.
+- Bila ada pasangan pertanyaan dan jawaban (bukan dilewati), server menyusun dokumen sistem
+  `Hasil tanya jawab – {nama} v{N}` (`category: "qa"`, lingkup role, satu bagian per pertanyaan) dan mengolahnya
+  seperti dokumen lain. Dokumen tanya jawab versi sebelumnya diarsipkan (`deleted_at`).
+
+### 16.2 Katalog dan permintaan alat
+
+| Method | Path | Akses | `data` |
+|---|---|---|---|
+| GET | `/admin/alat/katalog` | Semua | `ToolCatalogItem[]` |
+| GET | `/admin/alat/permintaan` | Semua | `ToolRequestInterface[]` (terbaru dulu) |
+
+```ts
+export type ToolGroup = "dokumen" | "data" | "media" | "pembacaan" | "browser" | "pencarian" | "integrasi";
+
+export interface ToolCatalogItem {
+  key: string;
+  name: string;
+  group: ToolGroup;
+  support: "supported" | "upcoming";
+  /** Tahap yang menghadirkannya, mis. "E3" */
+  stage: string;
+  description: string;
+  software: string;
+}
+
+export interface ToolRequestInterface {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  skill_name: string;
+  requested: string;
+  status: "open" | "planned" | "done" | "declined";
+  created_at: string;
+}
+```
+
+- Katalog ditulis di kode (`app/services/tools/catalog.py`): kunci, nama, kelompok, status, tahap, perangkat lunak
+  dan lisensinya, serta kata pengenal untuk pemetaan. Di E1 yang `supported`: `read.document`, `read.image`,
+  `search.web`. Lainnya `upcoming` dengan tahapnya (E3–E5).
+- Pemetaan: cocok dengan kata pengenal → alat katalog; alat yang dikenal tetapi tidak ada (mis. AutoCAD) bisa diberi
+  `substitute` dengan catatan; selain itu `unsupported`.
+
+### 16.3 Perubahan pada Role (bagian 4)
+
+Kolom baru:
+
+```ts
+// UpdateInterface
+web_search: boolean; // boleh mencari di internet (16.7); bawaan false
+
+// ResponseInterface
+active_version_no: number; // 0 bila belum pernah Final
+revision_status: RevisionStatus | null; // status revisi terbuka; null bila tidak ada
+
+// CreateInterface
+mode?: "formation" | "manual"; // hanya saat membuat; bawaan backend "manual"
+```
+
+- `create` dengan `mode: "formation"`: role selalu `draft` dan revisi 1 `draft` dibuat. Frontend lalu membuka
+  `/admin/role/{id}/bentuk`. Dengan `mode: "manual"` (atau tanpa `mode`): isian langsung menjadi versi 1
+  `source: "manual"` yang Final.
+- `update` yang mengubah isian kerja role yang sudah punya versi Final mencatat **versi manual baru** yang langsung
+  Final (`change_note`: `Diubah langsung di detail role.`). Mengubah nama, jabatan, unit, avatar, atau status tidak
+  membuat versi.
+- `update` ke `status: "active"` untuk role tanpa versi Final → `409` `Role belum Final. Selesaikan pembentukan
+  role terlebih dahulu.`
+- Role lama (sebelum E1) mendapat versi 1 `manual` lewat migrasi.
+- Hapus role: uraian jabatan dan hasil tanya jawab miliknya tidak menghalangi (`409` hanya untuk dokumen biasa) dan
+  ikut diarsipkan.
+
+### 16.4 Kebijakan & Aturan dan urutan rujukan (E1b)
+
+```ts
+/**
+ * `knowledge` dokumen biasa, `policy` kebijakan dan aturan (E1b), `formation` uraian jabatan,
+ * `qa` hasil tanya jawab pembentukan role, `web` temuan internet yang disetujui (E1d).
+ */
+export type DocumentCategory = "knowledge" | "policy" | "formation" | "qa" | "web";
+
+export type PolicyKind = "peraturan" | "kebijakan" | "standar_mutu" | "panduan_merek" | "lainnya";
+
+export type PolicyStatus = "berlaku" | "dicabut";
+
+/** Sumber sebuah rujukan; menentukan urutan rujukan: kebijakan → tanya jawab → dokumen → internet. */
+export type SourceKind = "policy" | "qa" | "document" | "web" | "image" | "attachment";
+
+/** Keterangan tambahan untuk dokumen di pustaka Kebijakan & Aturan. */
+export interface PolicyFields {
+  kind: PolicyKind;
+  /** Nomor peraturan atau kode kebijakan, mis. "KEP-07/2026" */
+  reference_no: string;
+  issuer: string;
+  /** Tanggal (YYYY-MM-DD); null = tidak dibatasi */
+  effective_from: string | null;
+  effective_until: string | null;
+  status: PolicyStatus;
+}
+
+export interface PolicyInfo extends PolicyFields {
+  /** Dihitung server: berstatus berlaku dan hari ini di dalam masa berlaku */
+  in_force: boolean;
+}
+```
+
+Perubahan pada bagian 5:
+
+- `ResponseInterface` (dokumen) mendapat `category: DocumentCategory`, `policy: PolicyInfo | null` (terisi untuk
+  `policy`), dan `source_url: string | null` (untuk `web`). `DocumentType` mendapat `uraian_jabatan`.
+- `GET /admin/pengetahuan/read` menerima `category`: satu atau beberapa nilai dipisah koma. Tab Dokumen memakai
+  `knowledge,formation,qa,web`, tab Kebijakan & Aturan memakai `policy`. Nilai yang tidak dikenal diabaikan.
+- `POST /admin/pengetahuan/create` menerima `category=policy` beserta `policy_kind`, `reference_no` (≤ 100),
+  `issuer` (≤ 150), `effective_from`, `effective_until` (`YYYY-MM-DD`, kosong = tidak dibatasi). Status awal
+  `berlaku`. `effective_until` sebelum `effective_from` → `422`.
+- `PUT /admin/pengetahuan/update/{id}` menerima `policy: PolicyFields` untuk dokumen kebijakan (termasuk
+  `status`). Kategori tidak bisa diubah lewat update.
+- Dokumen `qa` hanya-baca: ubah, versi baru, dan hapus → `409` `Hasil tanya jawab disusun sistem …`.
+- **Uraian jabatan dan hasil tanya jawab hanya dibaca role pemiliknya**, walaupun role lain berlingkup organisasi
+  atau unit (juga di `document_count` dan `agent_id` pada `read`/`search`).
+- `SearchHit` mendapat `source_kind`: `policy` (dokumen kebijakan), `qa`, `image` (halaman bergambar, 16.5), selain
+  itu `document`. Kebijakan `dicabut`, belum berlaku, atau lewat masa berlaku tidak ikut pencarian.
+- **Urutan rujukan:** pencarian mengambil potongan terbaik, lalu mengurutkannya `policy` → `qa` → `document`/`image`,
+  dan di dalam kelompok menurut skor. Prompt mengelompokkannya di bawah `ATURAN ORGANISASI`, `HASIL TANYA JAWAB`,
+  `DOKUMEN` (dan `INTERNET`, 16.7) dengan perintah: bila berbeda, aturan organisasi yang dipakai dan perbedaannya
+  disebut di `notes`. Nomor rujukan `[n]` tetap mengikuti urutan `citations`.
+
+### 16.5 PDF kompleks dan gambar di pengetahuan (E1c)
+
+```ts
+/** `text` dibaca lokal; `scan` dan `visual` (tabel bergaris, grafik, diagram, foto) dibaca Gemini multimodal (E1c). */
+export type PageRender = "text" | "scan" | "visual";
+
+export type MediaKind = "text" | "pdf" | "image";
+```
+
+- `DocumentVersion` mendapat `media_kind`, `visual_pages`, `visual_pages_over_limit`.
+- `DocumentSection` mendapat `render` (bawaan `text`), `image_url`, dan `visual_text`. Backend selalu mengirim
+  ketiganya. `image_url` berupa path API (frontend menambahkan alamat backend; data URL dipakai apa adanya).
+- `SearchHit` mendapat `image_url` (gambar halaman yang cocok, bila ada).
+- Unggah: PDF, DOCX, TXT, MD (maks 20 MB) dan **gambar PNG, JPG, WEBP (maks 10 MB)**. Jenis diperiksa dari isi.
+- Pemilahan halaman PDF dengan pypdf dan pypdfium2: `text` (lapisan teks cukup dan terbaca), `scan` (teks sedikit
+  atau rusak), `visual` (banyak gambar atau garis). Halaman `scan`/`visual` dirender ke WebP (sisi panjang ±1600 px)
+  dan dibuat satu embedding multimodal (`gemini-embedding-2`, 768) di `document_chunks` dengan `kind: page_image`.
+- Berkas gambar: satu bagian `visual`, diperkecil sampai 2048 px, satu embedding multimodal; tanggal dan lokasi EXIF
+  disimpan sebagai metadata.
+- `VISION_PAGES_PER_DOCUMENT` (bawaan 40): halaman berat di atasnya disimpan gambarnya tanpa embedding
+  (`visual_pages_over_limit`).
+- Tidak ada transkripsi saat unggah. Bacaan Gemini atas halaman bergambar yang pertama kali dipakai tugas disimpan
+  ke `visual_text` dan ikut pencarian kata kunci berikutnya.
+
+| Method | Path | Akses | `data` |
+|---|---|---|---|
+| GET | `/admin/pengetahuan/{id}/versions/{vid}/pages/{page}/image` | Semua | gambar WebP (biner) |
+
+- Query `box=y0,x0,y1,x1` (0–1000) memotong bagian gambar untuk tampilan rujukan; nilai di luar rentang → `422`.
+- Hak akses sama dengan `GET /admin/pengetahuan/{id}`, termasuk dokumen yang diarsipkan tetapi pernah dirujuk.
+
+### 16.6 Lampiran tugas dan temuan bergambar (E1c)
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| POST | `/admin/tugas/lampiran` | Anggota+ | multipart: `file` | `TaskAttachment` (201) |
+| GET | `/admin/tugas/{id}/lampiran/{aid}/pages/{page}` | Semua | query `box` seperti 16.5 | gambar (biner) |
+
+```ts
+export type WebSearchMode = "role" | "off";
+
+/** Lampiran tugas: gambar (PNG, JPG, WEBP) atau PDF. */
+export interface TaskAttachment {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  /** Ukuran gambar asli (piksel); 0 untuk PDF */
+  width: number;
+  height: number;
+  /** 1 untuk gambar; jumlah halaman yang dibaca untuk PDF (maks 20) */
+  page_count: number;
+  /** Gambar per halaman (gambar = satu). Backend: path API; data contoh: data URL */
+  pages: string[];
+  /** Metadata foto, bila ada */
+  exif: { taken_at: string | null; location: string | null } | null;
+  uploaded_by_name: string | null;
+  created_at: string;
+}
+
+export type FindingSeverity = "info" | "perlu_perbaikan" | "penting";
+
+/** Temuan atas gambar: kotak bernomor di atas lampiran atau halaman dokumen. */
+export interface Finding {
+  no: number;
+  title: string;
+  description: string;
+  severity: FindingSeverity;
+  target:
+    | { kind: "attachment"; attachment_id: string; page_no: number }
+    | { kind: "document"; document_id: string; version_id: string; page_no: number };
+  /** Kotak [y0, x0, y1, x1] dalam skala 0–1000 terhadap gambar; null bila temuan tentang gambar secara umum */
+  box: [number, number, number, number] | null;
+  /** Nomor rujukan (1-based) pada `citations` langkah itu; null bila tidak merujuk pedoman */
+  source_index: number | null;
+  recommendation: string;
+  /** Butir kriteria diterima yang dinilai temuan ini, bila ada */
+  criterion: string | null;
+}
+```
+
+Perubahan pada bagian 4 dan 7:
+
+- `CreateInterface` (tugas) mendapat `attachment_ids?: string[]` (maks 10) dan `web_search?: WebSearchMode`
+  (bawaan `role`). `DetailInterface` mendapat `attachments` dan `web_search`.
+- `StepInterface` mendapat `findings: Finding[]` dan `web_sources: WebSource[]` (16.7).
+- `TrialRequest` mendapat `attachment_ids?: string[]`; `TrialResult` mendapat `attachments`, `findings`,
+  `web_sources`.
+
+Perilaku:
+
+- Lampiran: PNG, JPG, WEBP, atau PDF; maks 10 MB; jenis diperiksa dari isi. Gambar diperkecil untuk dikirim ke
+  model; PDF dirender maks 20 halaman (`MAX_PDF_PAGES`). `pages` berisi path gambar tiap halaman.
+- Lampiran yang diunggah belum terikat tugas (`task_id` kosong) dan dibuang setelah 24 jam bila tidak dipakai.
+  `create` tugas dengan lampiran milik organisasi lain, sudah dipakai tugas lain, atau tidak ada → `422`
+  `Lampiran tidak ditemukan atau sudah dipakai tugas lain. Unggah ulang.` Uji coba boleh memakai ulang lampiran tanpa
+  mengikatnya.
+- Lampiran ikut dibaca langkah `work` role pertama dan role yang menerimanya lewat relasi bila `payload_spec`
+  berisi konteks. Maks `MAX_IMAGES_PER_STEP` (bawaan 6) gambar per langkah, termasuk halaman pengetahuan bergambar
+  yang terpilih; `media_resolution` sedang.
+- Uji coba dengan lampiran memanggil model walau tidak ada potongan dokumen yang cocok.
+- Keluaran terstruktur model mendapat `findings` (judul, uraian, tingkat, gambar yang dimaksud, kotak `[y0, x0, y1,
+  x1]` skala 0–1000, nomor potongan pedoman, rekomendasi, butir kriteria). Server memeriksa: gambar harus yang
+  dikirim, kotak dalam 0–1000 dengan y0 < y1 dan x0 < x1 (selain itu `box: null`), nomor potongan harus ada (selain
+  itu `source_index: null`), kriteria harus salah satu `acceptance_criteria` role (selain itu `null`). `no` diberi
+  server berurutan. Maks 12 temuan per langkah.
+- Temuan pemeriksa (`review`) yang menyebut kriteria ikut mengisi `criteria_results`.
+- Frontend menggambar kotak sebagai lapisan SVG; gambar asli tidak diubah.
+
+### 16.7 Pencarian internet dan usulan pengetahuan (E1d)
+
+```ts
+/** Sumber internet yang dipakai role (E1d). Tautan dibuat server dari grounding metadata Gemini, bukan dari teks model. */
+export interface WebSource {
+  /** Nomor rujukan W1, W2, … */
+  no: number;
+  title: string;
+  url: string;
+  domain: string;
+  snippet: string;
+  retrieved_at: string;
+}
+
+export type ProposalStatus = "pending" | "approved" | "rejected";
+
+/** Usulan menyimpan temuan internet sebagai pengetahuan organisasi; admin yang memutuskan. */
+export interface KnowledgeProposal {
+  id: string;
+  url: string;
+  title: string;
+  excerpt: string;
+  status: ProposalStatus;
+  task_id: string | null;
+  task_title: string | null;
+  agent_name: string | null;
+  proposed_by_name: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  /** Dokumen yang dibuat saat disetujui */
+  document_id: string | null;
+  created_at: string;
+}
+
+export interface ProposalRequest {
+  url: string;
+  title: string;
+  excerpt: string;
+  task_id?: string | null;
+  agent_id?: string | null;
+}
+```
+
+| Method | Path | Akses | Body / query | `data` |
+|---|---|---|---|---|
+| GET | `/admin/pengetahuan/usulan` | Semua | `status` (opsional) | daftar `KnowledgeProposal` + `summary: Record<ProposalStatus, number>` |
+| POST | `/admin/pengetahuan/usulan` | Anggota+ | `ProposalRequest` | `KnowledgeProposal` (201) |
+| POST | `/admin/pengetahuan/usulan/{id}/setujui` | Admin+ | `{}` | `KnowledgeProposal` |
+| POST | `/admin/pengetahuan/usulan/{id}/tolak` | Admin+ | `{}` | `KnowledgeProposal` |
+
+Pencarian:
+
+- Dijalankan hanya bila role `web_search: true`, tugas `web_search` bukan `off`, dan salah satu: tidak ada potongan
+  dokumen, skor teratas < 60, atau arahan meminta informasi terkini. Maks satu pencarian per langkah dan
+  `WEB_SEARCH_PER_DAY` per organisasi (bawaan 50); setelah batas, langkah berjalan tanpa internet.
+- Dua panggilan: (1) alat `google_search` Gemini menghasilkan temuan dan grounding metadata; **judul, alamat, dan
+  domain dibuat server dari metadata itu**, bukan dari teks model; (2) temuan masuk prompt utama sebagai potongan
+  `W1…` di bawah `INTERNET`, sesudah semua sumber organisasi. Bila model mendukung alat dan keluaran terstruktur
+  sekaligus, cukup satu panggilan (dicek saat E1d).
+- Panggilan pencarian dicatat di `llm_calls` dengan `purpose: "web_search"`, ikut `cost_used` tugas dan anggaran
+  bulanan. Linimasa mencatat bahwa role mencari di internet.
+- Hasil yang hanya bertumpu pada internet tidak boleh berstatus `not_in_documents`; `notes` menyebut bahwa sumbernya
+  di luar dokumen organisasi.
+
+Usulan:
+
+- `url` harus `http(s)` (`422`); usulan `pending` dengan alamat yang sama di organisasi itu → `409`. `title` ≤ 200,
+  `excerpt` ≤ 2000. `task_id` dan `agent_id` diabaikan bila bukan milik organisasi.
+- Setujui: server mengambil ulang isi halaman (teks saja, maks 20 MB, batas waktu) lalu membuat dokumen
+  `category: "web"`, lingkup organisasi, `source_url` terisi, dan mengolahnya seperti dokumen lain. Bila halaman
+  gagal diambil, isi dokumen memakai `title` dan `excerpt`. Usulan yang sudah diputuskan → `409`.
+
+### 16.8 Pemakaian kuota (bagian 11.1)
+
+`ResponseInterface` Model AI mendapat `usage_today: UsageToday[]` (selalu lima baris, urut seperti di bawah, nol bila
+tidak dipakai), dihitung menurut zona waktu organisasi.
+
+```ts
+export type UsagePurpose = "task" | "trial" | "formation" | "vision_ingest" | "web_search";
+
+export interface UsageToday {
+  purpose: UsagePurpose;
+  calls: number;
+  /** Rupiah */
+  cost: number;
+}
+```
+
+`llm_calls` mendapat kolom `purpose`. Langkah tugas = `task`; uji coba = `trial`; analisis dan putaran tanya jawab =
+`formation`; embedding gambar halaman = `vision_ingest`; pencarian internet = `web_search`. Embedding teks dokumen
+dan pertanyaan tidak dihitung di sini.
+
+### 16.9 Pengaturan server baru
+
+| `.env` | Bawaan | Dipakai untuk |
+|---|---|---|
+| `FORMATION_ROUNDS_MAX` | 6 | Batas putaran tanya jawab |
+| `VISION_PAGES_PER_DOCUMENT` | 40 | Halaman berat per berkas yang dibuat embedding gambarnya |
+| `MAX_IMAGES_PER_STEP` | 6 | Gambar per langkah atau uji coba |
+| `WEB_SEARCH_PER_DAY` | 50 | Pencarian internet per organisasi per hari |
+
+### 16.10 Batas laju dan jejak audit
+
+| Tindakan | Batas per menit per pengguna |
+|---|---|
+| Analisis dan jawab pembentukan | 10 |
+| Unggah lampiran tugas | 30 |
+| Usulan pengetahuan | 20 |
+
+Jejak audit baru: `role.bentuk` (mulai revisi, simpan bahan, analisis, ubah kartu, jawab, buang revisi),
+`role.final` (Mem-Final versi role), `role.pulihkan` (Memulihkan versi role), `tugas.lampiran` (Mengunggah lampiran
+tugas), dan `dokumen.usulan` (mengusulkan, menyetujui, atau menolak usulan). Isi jawaban, bahan, dan lampiran tidak
+dicatat.
+
+### 16.11 Khusus data contoh
+
+Hanya simulasi, jangan ditiru backend: analisis menyusun keterampilan dari kalimat berkata kerja di bahan;
+pertanyaan, putaran, dan pemetaan alat memakai aturan tetap; putaran kedua selalu diakhiri role yang menyatakan
+jelas; temuan gambar memakai pola tetap; halaman PDF bergambar dan lampiran PDF berupa gambar pengganti; gambar
+disimpan sebagai data URL di peramban; sumber internet fiktif dengan domain `.test`; usulan yang disetujui tidak
+mengambil ulang halaman; lampiran dibaca semua langkah `work` tanpa melihat `payload_spec`; temuan tidak mengisi
+`criteria_results`; analisis tidak pernah gagal.
