@@ -438,7 +438,8 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Ketentuan layanan dan kebijakan privasi.
 - [ ] Keterampilan role yang luwes: deskripsi bebas dari tenant, kartu keterampilan yang disusun AI, alat jadi, dan
       ruang kerja terisolasi; juga brankas akun, OTP otomatis, tugas terjadwal, dan WhatsApp. Arah awal dicatat di
-      bagian "Keterampilan role" dan "Role bekerja mandiri di aplikasi luar" di bawah; rinciannya belum disepakati.
+      bagian "Keterampilan role", "Pembentukan role", dan "Role bekerja mandiri di aplikasi luar" di bawah;
+      rinciannya belum disepakati.
 
 #### D1. Akun mandiri: rancangan (disepakati 26 November 2026)
 
@@ -570,6 +571,28 @@ relasi, templat SOP, dan keterampilan yang cocok untuk disesuaikan, sehingga ten
 - Lisensi Remotion untuk pemakaian SaaS: syarat terbaru perlu dicek di situs Remotion sebelum dipilih.
 - Tempat menyimpan berkas besar (terkait butir penyimpanan berkas di luar disk server).
 - Pemasangan LibreOffice (sekitar 600 MB–1 GB), ffmpeg, dan Chromium perlu izin karena disk terbatas.
+
+#### Pembentukan role: analisis dan tanya jawab sebelum final (dicatat 27 November 2026, rincian belum disepakati)
+
+Role tidak langsung ditetapkan begitu formulir diisi. AI menganalisis dulu, bertanya bila ada yang belum jelas, dan
+role baru berlaku setelah pembuatnya menekan **Final**.
+
+1. **Bahan dari pembuat role**
+   - Berkas tugas dan fungsi (misalnya PDF uraian tugas jabatan), SOP, atau manual yang terkait.
+   - Daftar alat, aplikasi, dan kemampuan yang dipakai role, misalnya Word, Excel, Visual Studio Code, JavaScript,
+     aplikasi kinerja harian, atau SIASN.
+   - Deskripsi bebas tentang pekerjaan dan orang yang diwakili role.
+2. **Analisis AI.** AI membaca semua bahan lalu menyusun rancangan: ringkasan tugas, kartu keterampilan, alat yang
+   akan dipakai (dipetakan ke katalog alat), langkah kerja, dan hal yang masih kabur atau saling bertentangan.
+3. **Sesi tanya jawab.** Role bertanya kepada pembuatnya, misalnya *"Pak, laporan bulanan ini dikirim ke siapa dan
+   formatnya seperti apa?"*. Pembuat menjawab, lalu rancangan diperbarui. Tanya jawab berulang sampai semuanya jelas.
+   Role tidak sekadar menurut: bila ada tugas yang tidak didukung alatnya, bahan yang kurang, atau instruksi yang
+   bertentangan dengan berkas tugas dan fungsi, role menyampaikannya.
+4. **Final.** Tombol **Final** menandai bahwa pekerjaan dan alat role sudah matang. Sebelum final, role berstatus
+   *draf* dan tidak bisa menerima tugas. Tanya jawab disimpan sebagai bagian dari pengetahuan role, sehingga
+   jawabannya ikut dipakai saat bekerja.
+5. **Ubah setelah final.** Mengubah bahan atau alat membuka sesi tanya jawab baru, lalu perlu final lagi. Versi lama
+   tetap tercatat.
 
 #### Role bekerja mandiri di aplikasi luar: arah awal (dicatat 27 November 2026, rincian belum disepakati)
 
