@@ -10,6 +10,7 @@ from app.api.v1.common import Paging, like_pattern, parse_id
 from app.api.v1.endpoints.admin.pengaturan.schema import rupiah
 from app.api.v1.endpoints.admin.pengetahuan.schema import SearchHit
 from app.api.v1.endpoints.admin.role.service import live_agents
+from app.api.v1.endpoints.admin.tugas import attachments
 from app.api.v1.endpoints.admin.tugas.schema import (
     Event,
     InputValue,
@@ -196,6 +197,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
     entry = await session.get(Agent, task.entry_agent_id)
     labels = {spec["key"]: spec["label"] for spec in entry.input_spec}
     return TaskDetail(
+        attachments=await attachments.task_attachments(session, task.id),
         **item.model_dump(),
         inputs=[
             InputValue(label=labels.get(key, key), value=value)
@@ -212,6 +214,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
                 status=step.status,
                 input_notes=step.input_notes,
                 output=step.output,
+                findings=step.findings,
                 citations=[
                     SearchHit(
                         document_id=str(c.document_id),
@@ -304,6 +307,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
     )
     session.add(task)
     await session.flush()
+    await attachments.claim(session, organization_id, body.attachment_ids, task.id)
     creator = await flow.member_name(session, actor.membership.id)
     flow.log(session, task, "created", f"Tugas dibuat oleh {creator} untuk {agent.name}.")
     await session.flush()

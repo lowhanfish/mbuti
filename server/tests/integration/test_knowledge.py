@@ -118,7 +118,7 @@ async def test_upload_validation(world, sign_in, monkeypatch, upload_dir):
         (
             {"scope": "organization"},
             {"file": ("palsu.pdf", b"bukan pdf", "application/pdf")},
-            "Jenis berkas belum didukung. Gunakan PDF berteks, DOCX, TXT, atau MD.",
+            "Jenis berkas belum didukung. Gunakan PDF, DOCX, TXT, MD, atau gambar PNG, JPG, WEBP.",
         ),
         ({"scope": "semua"}, markdown(), "Lingkup dokumen tidak valid."),
         (

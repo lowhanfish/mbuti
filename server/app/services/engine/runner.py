@@ -15,6 +15,13 @@ from app.models import Agent, LlmCall, Organization, Unit
 from app.models.base import utcnow
 from app.services import budget
 from app.services.engine.citations import apply_citations
+from app.services.engine.images import (
+    ImageInput,
+    clean_findings,
+    finding_sources,
+    page_images,
+    save_readings,
+)
 from app.services.engine.prompts import (
     CONDITION_SCHEMA,
     CONDITION_SYSTEM,
@@ -57,6 +64,8 @@ class RunResult:
     prompt_preview: str
     missing_inputs: list[str] = field(default_factory=list)
     citations: list[Hit] = field(default_factory=list)
+    # Temuan atas gambar (E1c)
+    findings: list[dict] = field(default_factory=list)
     cost: int = 0
     model: str = ""
     tokens: int = 0
@@ -115,12 +124,18 @@ async def generate_with_fallback(
     system: str,
     user: str,
     schema: dict,
+    images: list[tuple[str, bytes]] | None = None,
 ) -> tuple[Generation, str, int]:
     """Coba model profil, lalu cadangan bila tidak tersedia. Setiap panggilan dicatat."""
     for model in dict.fromkeys(models):
         started = time.monotonic()
         try:
-            generation = await llm.generate(model, system, user, schema)
+            # Penyedia lama tanpa dukungan gambar tetap bisa dipakai bila tidak ada gambar
+            generation = await (
+                llm.generate(model, system, user, schema, images=images)
+                if images
+                else llm.generate(model, system, user, schema)
+            )
         except ModelUnavailable as exc:
             logger.warning("Model %s tidak tersedia: %s", model, exc)
             await _record(session, caller, agent_id, llm.name, model, (0, 0), started, "error")
@@ -162,6 +177,7 @@ async def run_agent(
     materials: list[tuple[str, str]] | None = None,
     reviewing: bool = False,
     check_inputs: bool = True,
+    attachments: list[ImageInput] | None = None,
 ) -> RunResult:
     """
     `materials` adalah bahan dari langkah sebelumnya. Pemeriksaan tetap memanggil model walau
@@ -226,9 +242,20 @@ async def run_agent(
             )
         )[:MAX_EXCERPTS]
     )
-    user = user_prompt(brief, labelled, excerpts, materials)
+    # Lampiran lebih dulu, lalu halaman pengetahuan bergambar yang terpilih (kontrak 16.6)
+    images = list(attachments or [])
+    images += await page_images(excerpts, len(images))
+    if images:
+        system = system_prompt(role, reviewing, with_images=True)
+    user = user_prompt(
+        brief,
+        labelled,
+        excerpts,
+        materials,
+        [(image.label, image.title, image.excerpt) for image in images],
+    )
     preview = f"{system}\n\n{user}"
-    if not excerpts and not reviewing:
+    if not excerpts and not reviewing and not images:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
@@ -250,12 +277,20 @@ async def run_agent(
         system,
         user,
         REVIEW_SCHEMA if reviewing else RESPONSE_SCHEMA,
+        [(image.label, image.data) for image in images],
     )
 
     data = generation.data
     status = data.get("status") if data.get("status") in STATUSES else "done"
     sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+    sources = [*sources, *finding_sources(data, len(excerpts))]
     output, cited = apply_citations(str(data.get("output") or ""), sources, excerpts)
+    findings = (
+        clean_findings(data, images, excerpts, cited, agent.acceptance_criteria) if images else []
+    )
+    if images:
+        await save_readings(session, data, images, excerpts)
+        await session.commit()
     notes = str(data.get("notes") or "")
     if status == "done" and not cited:
         notes = (
@@ -268,6 +303,7 @@ async def run_agent(
         notes=notes,
         prompt_preview=preview,
         citations=[to_hit(chunk, terms) for chunk in cited],
+        findings=findings,
         cost=cost,
         model=model,
         tokens=generation.input_tokens + generation.output_tokens,

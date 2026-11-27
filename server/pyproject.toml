@@ -22,6 +22,9 @@ dependencies = [
     "google-genai>=2.27.0",
     "pypdf>=5.0.0",
     "python-docx>=1.1.0",
+    # Halaman PDF bergambar dan berkas gambar (E1c); pypdfium2 Apache/BSD, Pillow HPND
+    "pypdfium2>=5.0.0",
+    "pillow>=11.0.0",
     "python-multipart>=0.0.18",
 ]
 

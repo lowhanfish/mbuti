@@ -10,7 +10,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.base import Base
 from app.models.base import created_at, uuid_pk
@@ -52,6 +52,8 @@ class TaskStep(Base):
     tries = Column(Integer, nullable=False, default=0)
     input_notes = Column(Text, nullable=False, default="")
     output = Column(Text, nullable=False, default="")
+    # Temuan atas gambar (E1c), bentuk `Finding` di kontrak 16.6
+    findings = Column(JSONB, nullable=False, default=list, server_default="[]")
     verdict = Column(String(10), nullable=True)
     model = Column(String(60), nullable=False, default="")
     cost = Column(Integer, nullable=False, default=0)

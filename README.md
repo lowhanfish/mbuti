@@ -85,7 +85,8 @@ kuota model tidak cepat habis:
 celery -A app.workers.celery_app worker -Q execution --concurrency=1 -n eksekusi@%h --loglevel=info
 ```
 
-Penjadwal mengirim ulang tugas yang pesannya hilang, mis. setelah worker atau Redis mati:
+Penjadwal mengirim ulang tugas yang pesannya hilang (mis. setelah worker atau Redis mati) dan tiap jam membuang
+lampiran tugas yang tidak jadi dipakai:
 
 ```bash
 celery -A app.workers.celery_app beat --loglevel=info

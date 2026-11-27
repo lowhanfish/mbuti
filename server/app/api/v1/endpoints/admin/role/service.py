@@ -16,6 +16,7 @@ from app.api.v1.endpoints.admin.role.schema import (
     TrialRequest,
     TrialResult,
 )
+from app.api.v1.endpoints.admin.tugas import attachments
 from app.core.exceptions import ConflictException, NotFoundException, UnprocessableEntityException
 from app.models import (
     Agent,
@@ -25,6 +26,7 @@ from app.models import (
     FlowPosition,
     Membership,
     Task,
+    TaskAttachment,
     TaskStep,
     Unit,
     User,
@@ -33,6 +35,7 @@ from app.models.agent.formation import OPEN_REVISION_STATUSES
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
+from app.services.engine.images import attachment_images
 from app.services.engine.runner import Caller, run_agent
 from app.services.formation.versions import (
     WORK_FIELDS,
@@ -356,6 +359,9 @@ async def run_trial(
 ) -> TrialResult:
     """Uji coba: role bekerja sekali tanpa menjadi tugas dan tanpa menjalankan relasi."""
     agent = await _get(session, actor.organization_id, role_id)
+    # Lampiran dipakai tanpa diikat, jadi boleh dipakai ulang untuk uji coba berikutnya
+    ids = await attachments.claim(session, actor.organization_id, body.attachment_ids, None)
+    images = await attachment_images(session, actor.organization_id, ids)
     result = await run_agent(
         session,
         Caller(actor.organization_id, actor.user.id, "trial"),
@@ -364,7 +370,20 @@ async def run_trial(
         {key: value for key, value in body.inputs.items() if value},
         get_llm_provider(),
         get_embedding_provider(),
+        attachments=images,
+    )
+    used = (
+        [
+            attachments.to_item(a, None).model_dump(mode="json")
+            for a in await session.scalars(select(TaskAttachment).where(TaskAttachment.id.in_(ids)))
+        ]
+        if ids
+        else []
     )
     return TrialResult(
-        **{**asdict(result), "citations": [hit_to_schema(hit) for hit in result.citations]}
+        **{
+            **asdict(result),
+            "citations": [hit_to_schema(hit) for hit in result.citations],
+            "attachments": used,
+        }
     )

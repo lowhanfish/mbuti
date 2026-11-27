@@ -11,7 +11,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.base import Base
 from app.models.base import created_at, created_by, updated_at, uuid_pk
@@ -108,6 +108,12 @@ class DocumentVersion(Base):
     progress = Column(Integer, nullable=False, default=0)
     error_message = Column(String(300), nullable=True)
     attempts = Column(Integer, nullable=False, default=0)
+    # text, pdf, atau image (E1c)
+    media_kind = Column(String(6), nullable=False, default="text", server_default="text")
+    visual_pages = Column(Integer, nullable=False, default=0, server_default="0")
+    visual_pages_over_limit = Column(Integer, nullable=False, default=0, server_default="0")
+    # Tanggal dan lokasi pengambilan foto, bila ada
+    exif = Column(JSONB, nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     uploaded_by_member_id = Column(

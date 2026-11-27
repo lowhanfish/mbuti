@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halaman, kontrak API, serta backend E1a dan E1b selesai; backend E1c berikutnya.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halaman, kontrak API, serta backend E1a–E1c selesai; backend E1d berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -746,7 +746,7 @@ alat dokumen, data, browser, dan media berstatus *segera*.
   `GET /pengetahuan/{id}/versions/{vid}/pages/{page}/image?box=y0,x0,y1,x1`; usulan temuan internet
   `POST`/`GET /pengetahuan/usulan`, `POST /pengetahuan/usulan/{id}/setujui` dan `/tolak`.
 - Tugas: `POST /tugas/lampiran` (multipart) → `attachment_id`, dipakai lewat `attachment_ids` di `POST /tugas/create`
-  dan `POST /role/{id}/trial`; `GET /tugas/{id}/lampiran/{aid}?box=…`. `web_search` di update role dan buat tugas.
+  dan `POST /role/{id}/trial`; `GET /tugas/lampiran/{aid}/pages/{page}?box=…`. `web_search` di update role dan buat tugas.
 
 **Kebijakan dan urutan rujukan (E1b)**
 
@@ -830,7 +830,14 @@ Kemajuan:
       atau lewat masa berlaku tidak ikut pencarian (tanggal menurut zona waktu organisasi); hasil pencarian dan
       potongan prompt disusun aturan → tanya jawab → dokumen dengan judul kelompok. Uji:
       `tests/integration/test_policies.py` dan uji unit urutan rujukan; pytest penuh 241 lulus.
-- [ ] E1c backend dan uji.
+- [x] E1c backend dan uji (27 November 2026): pypdfium2 dan Pillow dipasang; halaman PDF dipilah
+      `text`/`scan`/`visual`, halaman berat dirender ke WebP dan dibuat embedding multimodal (maks 40 per berkas);
+      unggah gambar PNG/JPG/WEBP dengan EXIF; endpoint gambar halaman dan potongan `box`; tabel `task_attachments`,
+      unggah lampiran (PDF maks 20 halaman), pengikatan ke tugas, pembersih lampiran tak terpakai tiap jam;
+      lampiran dan halaman bergambar dikirim ke Gemini (maks 6 gambar, resolusi sedang); temuan diperiksa server
+      dan disimpan di `task_steps.findings`; bacaan halaman disimpan ke `visual_text`. Alamat gambar lampiran menjadi
+      `/tugas/lampiran/{aid}/pages/{page}`. Uji: `tests/integration/test_images.py`, `tests/unit/test_visual.py`; pytest penuh 258 lulus
+      (satu pesan galat yang diharapkan diperbarui lalu diuji ulang).
 - [ ] E1d backend dan uji.
 
 #### Pertanyaan terbuka fase E

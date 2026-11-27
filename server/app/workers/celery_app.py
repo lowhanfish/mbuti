@@ -50,7 +50,11 @@ celery_app.conf.update(
         "recover-stalled-tasks": {
             "task": "app.workers.execution.recover_stalled",
             "schedule": 300.0,
-        }
+        },
+        "purge-unused-attachments": {
+            "task": "app.workers.system.purge_attachments",
+            "schedule": 3600.0,
+        },
     },
 )
 

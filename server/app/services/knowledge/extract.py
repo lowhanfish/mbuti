@@ -17,8 +17,12 @@ MIME_TYPES = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "txt": "text/plain",
     "md": "text/markdown",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "webp": "image/webp",
 }
-UNSUPPORTED = "Jenis berkas belum didukung. Gunakan PDF berteks, DOCX, TXT, atau MD."
+IMAGE_EXTENSIONS = ("png", "jpg", "webp")
+UNSUPPORTED = "Jenis berkas belum didukung. Gunakan PDF, DOCX, TXT, MD, atau gambar PNG, JPG, WEBP."
 NO_TEXT = "Berkas tidak berisi teks. Hasil pindai belum didukung."
 BROKEN = "Berkas rusak atau tidak bisa dibaca."
 MAX_PAGES = 500
@@ -42,7 +46,16 @@ class Section:
 def detect_type(file_name: str, data: bytes) -> str:
     """Ekstensi yang didukung, setelah dicocokkan dengan isi berkas."""
     extension = PurePosixPath(file_name.lower()).suffix.lstrip(".")
+    if extension == "jpeg":
+        extension = "jpg"
     if extension == "pdf" and data.startswith(b"%PDF-"):
+        return extension
+    # Gambar dikenali dari tanda tangan isinya, bukan hanya nama berkas
+    if extension == "png" and data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return extension
+    if extension == "jpg" and data.startswith(b"\xff\xd8\xff"):
+        return extension
+    if extension == "webp" and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return extension
     if extension == "docx" and data.startswith(b"PK"):
         try:

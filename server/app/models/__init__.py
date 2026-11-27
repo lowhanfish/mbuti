@@ -15,7 +15,7 @@ from app.models.auth import AuthToken, RefreshSession, User
 from app.models.biaya import LlmCall, OrganizationSettings
 from app.models.organisasi import Membership, Organization, Unit
 from app.models.pengetahuan import Document, DocumentChunk, DocumentSection, DocumentVersion
-from app.models.tugas import Approval, Citation, Task, TaskEvent, TaskStep
+from app.models.tugas import Approval, Citation, Task, TaskAttachment, TaskEvent, TaskStep
 
 __all__ = [
     "Agent",
@@ -39,6 +39,7 @@ __all__ = [
     "OrganizationSettings",
     "RefreshSession",
     "Task",
+    "TaskAttachment",
     "TaskEvent",
     "TaskStep",
     "ToolRequest",

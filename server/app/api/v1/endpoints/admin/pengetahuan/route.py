@@ -1,7 +1,7 @@
 """/api/v1/admin/pengetahuan."""
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,16 @@ from app.core.exceptions import (
     UnprocessableEntityException,
     validation_message,
 )
+
+
+def image_response(data: bytes) -> Response:
+    """Gambar WebP untuk tampilan; disimpan peramban sebentar, tidak boleh ditebak jenisnya."""
+    return Response(
+        data,
+        media_type="image/webp",
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600"},
+    )
+
 
 router = APIRouter(prefix="/pengetahuan", tags=["Pengetahuan"])
 
@@ -227,6 +237,22 @@ async def download_version(
         content_disposition_type="attachment",
         headers={"X-Content-Type-Options": "nosniff"},
     )
+
+
+@router.get("/{document_id}/versions/{version_id}/pages/{page_no}/image", response_class=Response)
+async def page_image(
+    document_id: str,
+    version_id: str,
+    page_no: int,
+    box: str = "",
+    member: CurrentMember = Depends(get_current_member),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Gambar halaman bergambar, atau potongannya bila `box` diisi (kontrak 16.5)."""
+    data = await service.page_image(
+        session, member.organization_id, document_id, version_id, page_no, box
+    )
+    return image_response(data)
 
 
 @router.put(

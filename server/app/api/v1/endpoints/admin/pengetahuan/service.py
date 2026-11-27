@@ -43,7 +43,13 @@ from app.models import (
 from app.models.base import utcnow
 from app.services.appearance import UNIT_COLOR_HEX
 from app.services.knowledge import storage
-from app.services.knowledge.extract import MIME_TYPES, ExtractionError, detect_type
+from app.services.knowledge.extract import (
+    IMAGE_EXTENSIONS,
+    MIME_TYPES,
+    ExtractionError,
+    detect_type,
+)
+from app.services.knowledge.image_files import read_image
 from app.services.knowledge.scope import visible_to
 from app.services.knowledge.search import local_today, policy_in_force, search_documents
 from app.services.llm.embedding import get_embedding_provider
@@ -112,7 +118,9 @@ async def _versions(
             progress=version.progress,
             error_message=version.error_message if version.status == "failed" else None,
             uploaded_by_name=uploader_name,
-            media_kind="pdf" if version.mime_type == "application/pdf" else "text",
+            media_kind=version.media_kind,
+            visual_pages=version.visual_pages,
+            visual_pages_over_limit=version.visual_pages_over_limit,
             created_at=version.created_at,
         )
         result.setdefault(version.document_id, []).append((version, item))
@@ -327,7 +335,45 @@ async def _sections(session: AsyncSession, version: DocumentVersion | None) -> l
         .where(DocumentSection.version_id == version.id)
         .order_by(DocumentSection.page_no)
     )
-    return [Section(page_no=s.page_no, heading=s.heading, text=s.text) for s in rows]
+    return [
+        Section(
+            page_no=s.page_no,
+            heading=s.heading,
+            text=s.text,
+            render=s.render,
+            image_url=page_image_url(version.document_id, version.id, s.page_no)
+            if s.image_path
+            else None,
+            visual_text=s.visual_text,
+        )
+        for s in rows
+    ]
+
+
+def page_image_url(document_id: uuid.UUID, version_id: uuid.UUID, page_no: int) -> str:
+    return f"/api/v1/admin/pengetahuan/{document_id}/versions/{version_id}/pages/{page_no}/image"
+
+
+async def page_image(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    document_id: str,
+    version_id: str,
+    page_no: int,
+    box: str,
+) -> bytes:
+    """Gambar halaman (atau potongannya) dari versi mana pun, termasuk dokumen yang diarsipkan."""
+    version = await _version(session, organization_id, document_id, version_id)
+    image_path = await session.scalar(
+        select(DocumentSection.image_path).where(
+            DocumentSection.version_id == version.id,
+            DocumentSection.page_no == page_no,
+            DocumentSection.image_path.is_not(None),
+        )
+    )
+    if image_path is None:
+        raise NotFoundException("Halaman ini tidak punya gambar.")
+    return await read_image(image_path, box)
 
 
 async def _detail(session: AsyncSession, document: Document) -> DocumentDetail:
@@ -423,9 +469,14 @@ def read_upload(file_name: str, data: bytes) -> tuple[str, str]:
     name = PurePosixPath(file_name.replace("\\", "/")).name
     name = "".join(c for c in name if c.isprintable()).strip()[-200:] or "berkas"
     try:
-        return detect_type(name, data), name
+        extension = detect_type(name, data)
     except ExtractionError as exc:
         raise UnprocessableEntityException(str(exc)) from exc
+    if extension in IMAGE_EXTENSIONS and len(data) > settings.MAX_IMAGE_BYTES:
+        raise UnprocessableEntityException(
+            f"Ukuran gambar melebihi {settings.MAX_IMAGE_BYTES // (1024 * 1024)} MB."
+        )
+    return extension, name
 
 
 async def _enqueue(session: AsyncSession, version_id: uuid.UUID) -> None:
@@ -482,6 +533,9 @@ async def _add_version(
     version = DocumentVersion(
         id=uuid.uuid4(),
         document_id=document.id,
+        media_kind="image"
+        if extension in IMAGE_EXTENSIONS
+        else ("pdf" if extension == "pdf" else "text"),
         version_no=max((v.version_no for v in existing), default=0) + 1,
         file_name=name,
         storage_path=relative,
@@ -603,6 +657,16 @@ async def delete_document(
     paths = list(
         await session.scalars(
             select(DocumentVersion.storage_path).where(DocumentVersion.document_id == document.id)
+        )
+    )
+    # Gambar halaman ikut dibuang
+    paths += list(
+        await session.scalars(
+            select(DocumentSection.image_path)
+            .join(DocumentVersion, DocumentVersion.id == DocumentSection.version_id)
+            .where(
+                DocumentVersion.document_id == document.id, DocumentSection.image_path.is_not(None)
+            )
         )
     )
     await session.execute(delete(Document).where(Document.id == document.id))

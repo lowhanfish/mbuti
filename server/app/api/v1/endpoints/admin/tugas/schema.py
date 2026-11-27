@@ -21,6 +21,9 @@ class TaskCreate(RequestModel):
     # Tanggal tanpa jam: berlaku sampai akhir hari itu
     due_at: datetime.date | None = None
     budget_limit: int = Field(strict=True)
+    # Lampiran dari POST /tugas/lampiran (E1c) dan pilihan internet (E1d)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=10)
+    web_search: Literal["role", "off"] = "role"
 
     @field_validator("title")
     @classmethod
@@ -35,6 +38,21 @@ class TaskCreate(RequestModel):
     @classmethod
     def empty_date(cls, value):
         return None if value == "" else value
+
+
+class AttachmentItem(BaseModel):
+    id: str
+    file_name: str
+    mime_type: str
+    size_bytes: int
+    width: int
+    height: int
+    page_count: int
+    # Alamat gambar tiap halaman
+    pages: list[str]
+    exif: dict | None
+    uploaded_by_name: str | None
+    created_at: datetime.datetime
 
 
 class Step(BaseModel):
@@ -94,7 +112,7 @@ class InputValue(BaseModel):
 class TaskDetail(TaskItem):
     inputs: list[InputValue]
     # Lampiran (E1c) dan pilihan internet (E1d)
-    attachments: list[dict] = []
+    attachments: list[AttachmentItem] = []
     web_search: str = "role"
     steps: list[Step]
     approvals: list[ApprovalItem]

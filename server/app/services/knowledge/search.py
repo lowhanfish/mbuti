@@ -86,6 +86,10 @@ class Chunk:
     score: int
     # policy, qa, atau document (kontrak 16.4)
     source_kind: str = "document"
+    # Halaman bergambar (E1c): seksi, gambar WebP, dan bacaan tersimpan
+    section_id: uuid.UUID | None = None
+    image_path: str | None = None
+    visual_text: str = ""
 
 
 @dataclass
@@ -99,6 +103,7 @@ class Hit:
     snippet: str
     score: int
     source_kind: str = "document"
+    image_url: str | None = None
 
 
 def tokenize(query: str) -> list[str]:
@@ -214,6 +219,9 @@ async def rank_chunks(
             DocumentChunk.text,
             DocumentSection.page_no,
             DocumentSection.heading,
+            DocumentSection.id.label("section_id"),
+            DocumentSection.image_path,
+            DocumentSection.visual_text,
             DocumentVersion.id.label("version_id"),
             DocumentVersion.version_no,
             Document.id.label("document_id"),
@@ -237,6 +245,9 @@ async def rank_chunks(
             text=row.text,
             score=round(scores[row.id] / best * 100),
             source_kind=row.category if row.category in ("policy", "qa") else "document",
+            section_id=row.section_id,
+            image_path=row.image_path,
+            visual_text=row.visual_text,
         )
         for row in sorted(rows, key=lambda r: (-scores[r.id], r.page_no))
     ]
@@ -250,9 +261,15 @@ def to_hit(chunk: Chunk, terms: list[str]) -> Hit:
         version_no=chunk.version_no,
         page_no=chunk.page_no,
         heading=chunk.heading,
-        snippet=snippet_around(chunk.text, terms),
+        snippet=snippet_around(chunk.visual_text or chunk.text or chunk.heading, terms),
         score=chunk.score,
         source_kind=chunk.source_kind,
+        image_url=(
+            f"/api/v1/admin/pengetahuan/{chunk.document_id}/versions/{chunk.version_id}"
+            f"/pages/{chunk.page_no}/image"
+            if chunk.image_path
+            else None
+        ),
     )
 
 

@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol
@@ -36,7 +37,14 @@ class Generation:
 class LlmProvider(Protocol):
     name: str
 
-    async def generate(self, model: str, system: str, user: str, schema: dict) -> Generation: ...
+    async def generate(
+        self,
+        model: str,
+        system: str,
+        user: str,
+        schema: dict,
+        images: Sequence[tuple[str, bytes]] = (),
+    ) -> Generation: ...
 
 
 class GeminiLlm:
@@ -45,16 +53,38 @@ class GeminiLlm:
     def __init__(self, pool: KeyPool | None = None):
         self._pool = pool
 
-    async def generate(self, model: str, system: str, user: str, schema: dict) -> Generation:
+    async def generate(
+        self,
+        model: str,
+        system: str,
+        user: str,
+        schema: dict,
+        images: Sequence[tuple[str, bytes]] = (),
+    ) -> Generation:
         config = types.GenerateContentConfig(
             system_instruction=system,
             response_mime_type="application/json",
             response_schema=schema,
         )
+        contents: object = user
+        if images:
+            # Gambar WebP dikirim bersama teks; resolusi sedang agar hemat token (kontrak 16.6)
+            config.media_resolution = types.MediaResolution.MEDIA_RESOLUTION_MEDIUM
+            contents = [
+                user,
+                *(
+                    part
+                    for label, data in images
+                    for part in (
+                        types.Part.from_text(text=f"Gambar {label}:"),
+                        types.Part.from_bytes(data=data, mime_type="image/webp"),
+                    )
+                ),
+            ]
 
         async def call(client):
             return await client.aio.models.generate_content(
-                model=model, contents=user, config=config
+                model=model, contents=contents, config=config
             )
 
         try:
@@ -90,7 +120,14 @@ class MockLlm:
 
     name = "mock"
 
-    async def generate(self, model: str, system: str, user: str, schema: dict) -> Generation:
+    async def generate(
+        self,
+        model: str,
+        system: str,
+        user: str,
+        schema: dict,
+        images: Sequence[tuple[str, bytes]] = (),
+    ) -> Generation:
         if "skills" in schema.get("properties", {}):
             return Generation(_mock_formation(user), len(system + user) // 4, 600)
         numbers = [int(n) for n in re.findall(r'<dokumen nomor="(\d+)"', user)]
@@ -100,7 +137,27 @@ class MockLlm:
             "sources": numbers[:1],
             "notes": "Dijawab penyedia tiruan.",
         }
-        return Generation(data, len(system + user) // 4, 120)
+        if images:
+            # Satu temuan per gambar, merujuk potongan pertama bila ada
+            data["status"] = "done"
+            data["output"] = data["output"] or "Hasil tiruan dari gambar."
+            data["findings"] = [
+                {
+                    "image": label,
+                    "title": f"Temuan tiruan pada {label}",
+                    "description": "Bagian ini belum sesuai pedoman.",
+                    "severity": "perlu_perbaikan",
+                    "box": [100, 100, 400, 900],
+                    "source": numbers[0] if numbers else None,
+                    "recommendation": "Perbaiki sesuai pedoman.",
+                    "criterion": "",
+                }
+                for label, _ in images
+            ]
+            data["page_readings"] = [
+                {"image": label, "text": f"Bacaan tiruan {label}."} for label, _ in images
+            ]
+        return Generation(data, len(system + user) // 4 + 300 * len(images), 120)
 
 
 _DUTY = re.compile(

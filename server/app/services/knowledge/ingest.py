@@ -9,14 +9,22 @@ import asyncio
 import datetime
 import logging
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models import Document, DocumentChunk, DocumentSection, DocumentVersion
+from app.core.config import settings
+from app.models import Document, DocumentChunk, DocumentSection, DocumentVersion, LlmCall
 from app.models.base import utcnow
-from app.services.knowledge import storage
-from app.services.knowledge.extract import ExtractionError, extract_sections, split_text
+from app.services.knowledge import storage, visual
+from app.services.knowledge.extract import (
+    IMAGE_EXTENSIONS,
+    NO_TEXT,
+    ExtractionError,
+    extract_sections,
+    split_text,
+)
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.gemini_keys import GeminiUnavailable
 from app.services.organisation import lock_organization
@@ -60,7 +68,41 @@ async def _claim(session: AsyncSession, version_id: uuid.UUID) -> DocumentVersio
     return version
 
 
-async def _prepare_chunks(session: AsyncSession, version: DocumentVersion) -> None:
+@dataclass
+class _Page:
+    page_no: int
+    heading: str
+    text: str
+    render: str = "text"
+    image: bytes | None = None
+    width: int | None = None
+    height: int | None = None
+
+
+def _read_pages(extension: str, data: bytes) -> tuple[list[_Page], dict | None]:
+    """Halaman berteks dan bergambar beserta gambarnya (sinkron, dijalankan di thread)."""
+    if extension in IMAGE_EXTENSIONS:
+        image, width, height, exif = visual.prepare_image(data)
+        return [_Page(1, "Gambar", "", "visual", image, width, height)], exif
+    if extension != "pdf":
+        return [
+            _Page(s.page_no, s.heading, s.text) for s in extract_sections(extension, data)
+        ], None
+    planned = visual.plan_pdf(data)
+    if not planned:
+        raise ExtractionError(NO_TEXT)
+    pages: list[_Page] = []
+    for item in planned:
+        page = _Page(item.page_no, item.heading, item.text, item.render)
+        if item.render != "text":
+            page.image, page.width, page.height = visual.render_page(data, item.page_no)
+        pages.append(page)
+    return pages, None
+
+
+async def _prepare_chunks(
+    session: AsyncSession, version: DocumentVersion, document: Document
+) -> None:
     """Baca berkas menjadi seksi dan potongan, sekali untuk tiap versi."""
     if await session.scalar(
         select(DocumentSection.id).where(DocumentSection.version_id == version.id).limit(1)
@@ -68,19 +110,32 @@ async def _prepare_chunks(session: AsyncSession, version: DocumentVersion) -> No
         return
     extension = version.storage_path.rsplit(".", 1)[-1]
     data = await asyncio.to_thread(storage.path_of(version.storage_path).read_bytes)
-    sections = await asyncio.to_thread(extract_sections, extension, data)
+    pages, exif = await asyncio.to_thread(_read_pages, extension, data)
 
     chunks: list[DocumentChunk] = []
-    for section in sections:
+    saved: list[str] = []
+    heavy = 0
+    for page in pages:
+        heading = page.heading
+        if extension in IMAGE_EXTENSIONS:
+            heading = document.title
         row = DocumentSection(
             id=uuid.uuid4(),
             version_id=version.id,
-            page_no=section.page_no,
-            heading=section.heading[:200],
-            text=section.text,
+            page_no=page.page_no,
+            heading=heading[:200],
+            text=page.text,
+            render=page.render,
+            width=page.width,
+            height=page.height,
         )
+        if page.image is not None:
+            row.image_path = await asyncio.to_thread(
+                storage.save, document.organization_id, "webp", page.image
+            )
+            saved.append(row.image_path)
         session.add(row)
-        for piece in split_text(section.text, CHUNK_SIZE, CHUNK_OVERLAP):
+        for piece in split_text(page.text, CHUNK_SIZE, CHUNK_OVERLAP):
             chunks.append(
                 DocumentChunk(
                     section_id=row.id,
@@ -90,17 +145,36 @@ async def _prepare_chunks(session: AsyncSession, version: DocumentVersion) -> No
                     text=piece,
                 )
             )
+        if page.image is not None:
+            heavy += 1
+            # Di atas batas, gambarnya disimpan tanpa embedding
+            if heavy <= settings.VISION_PAGES_PER_DOCUMENT:
+                chunks.append(
+                    DocumentChunk(
+                        section_id=row.id,
+                        version_id=version.id,
+                        chunk_no=len(chunks) + 1,
+                        kind="page_image",
+                        heading=row.heading,
+                        text=page.text[:CHUNK_SIZE],
+                    )
+                )
     if len(chunks) > MAX_CHUNKS:
+        for path in saved:
+            storage.delete(path)
         raise ExtractionError("Dokumen terlalu panjang. Pecah menjadi beberapa berkas.")
     await session.flush()
     session.add_all(chunks)
-    version.page_count = len(sections)
+    version.page_count = len(pages)
+    version.visual_pages = min(heavy, settings.VISION_PAGES_PER_DOCUMENT)
+    version.visual_pages_over_limit = max(0, heavy - settings.VISION_PAGES_PER_DOCUMENT)
+    version.exif = exif
     version.progress = 5
     await session.commit()
 
 
 async def _embed_chunks(
-    session: AsyncSession, version: DocumentVersion, title: str, provider: EmbeddingProvider
+    session: AsyncSession, version: DocumentVersion, document: Document, provider: EmbeddingProvider
 ) -> None:
     total = await session.scalar(
         select(func.count())
@@ -109,14 +183,39 @@ async def _embed_chunks(
     )
     pending = (
         await session.execute(
-            select(DocumentChunk.id, DocumentChunk.heading, DocumentChunk.text)
+            select(
+                DocumentChunk.id,
+                DocumentChunk.kind,
+                DocumentChunk.heading,
+                DocumentChunk.text,
+                DocumentSection.image_path,
+            )
+            .join(DocumentSection, DocumentSection.id == DocumentChunk.section_id)
             .where(DocumentChunk.version_id == version.id, DocumentChunk.embedding.is_(None))
             .order_by(DocumentChunk.chunk_no)
         )
     ).all()
     done = total - len(pending)
     for number, chunk in enumerate(pending, start=1):
-        vector = await provider.embed_document(f"{title} — {chunk.heading}", chunk.text)
+        if chunk.kind == "page_image":
+            image = await asyncio.to_thread(storage.path_of(chunk.image_path).read_bytes)
+            caption = f"{document.title} — {chunk.heading} {chunk.text}"
+            vector = await provider.embed_image(image, "image/webp", caption)
+            # Dicatat agar pemakaian kuota gambar terlihat di Pengaturan (kontrak 16.8)
+            session.add(
+                LlmCall(
+                    organization_id=document.organization_id,
+                    kind="vision_ingest",
+                    provider=settings.EMBEDDING_PROVIDER,
+                    model=settings.EMBEDDING_MODEL,
+                    status="ok",
+                    cost=0,
+                )
+            )
+        else:
+            vector = await provider.embed_document(
+                f"{document.title} — {chunk.heading}", chunk.text
+            )
         await session.execute(
             update(DocumentChunk).where(DocumentChunk.id == chunk.id).values(embedding=vector)
         )
@@ -185,8 +284,8 @@ async def ingest_version(
             return
         document = await session.get(Document, version.document_id)
         try:
-            await _prepare_chunks(session, version)
-            await _embed_chunks(session, version, document.title, provider)
+            await _prepare_chunks(session, version, document)
+            await _embed_chunks(session, version, document, provider)
             await _finish(session, version, document)
             return
         except GeminiUnavailable as exc:

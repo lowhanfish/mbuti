@@ -1816,7 +1816,7 @@ export type MediaKind = "text" | "pdf" | "image";
 | Method | Path | Akses | Body | `data` |
 |---|---|---|---|---|
 | POST | `/admin/tugas/lampiran` | Anggota+ | multipart: `file` | `TaskAttachment` (201) |
-| GET | `/admin/tugas/{id}/lampiran/{aid}/pages/{page}` | Semua | query `box` seperti 16.5 | gambar (biner) |
+| GET | `/admin/tugas/lampiran/{aid}/pages/{page}` | Semua | query `box` seperti 16.5 | gambar WebP (biner); juga untuk lampiran yang belum terikat tugas |
 
 ```ts
 export type WebSearchMode = "role" | "off";

@@ -13,11 +13,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.exceptions import AppException, ConflictException
-from app.models import Agent, AgentRelation, Citation, Task, TaskStep
+from app.models import Agent, AgentRelation, Citation, Task, TaskAttachment, TaskStep
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
 from app.services.engine import flow, routing
+from app.services.engine.images import ImageInput, attachment_images
 from app.services.engine.runner import Caller, RunResult, evaluate_condition, run_agent
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
@@ -282,6 +283,22 @@ async def _expand_consults(
         return True
 
 
+async def _attachments(session: AsyncSession, task: Task, step: TaskStep) -> list[ImageInput]:
+    """Lampiran tugas untuk role pertama, dan untuk penerima relasi yang membawa konteks."""
+    if step.via_relation_id is not None:
+        relation = await session.get(AgentRelation, step.via_relation_id)
+        if relation is None or relation.payload_spec != "result_context":
+            return []
+    ids = list(
+        await session.scalars(
+            select(TaskAttachment.id)
+            .where(TaskAttachment.task_id == task.id)
+            .order_by(TaskAttachment.created_at)
+        )
+    )
+    return await attachment_images(session, task.organization_id, ids)
+
+
 async def _materials(session: AsyncSession, step: TaskStep) -> list[tuple[str, str]]:
     """Bahan dari langkah sebelumnya yang diberikan kepada role."""
     materials: list[tuple[str, str]] = []
@@ -394,6 +411,7 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             await session.commit()
             return
         step.output = result.output
+        step.findings = result.findings
         step.model = result.model
         step.tokens = result.tokens
         step.status = "done"
@@ -555,6 +573,7 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
             current = await session.get(TaskStep, step.id)
             materials = await _materials(session, current)
             entry = current.parent_step_id is None and current.kind == "work"
+            images = await _attachments(session, task, current) if current.kind == "work" else []
             result = await run_agent(
                 session,
                 _caller(task, "step", step.id),
@@ -566,6 +585,7 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
                 materials=[("Judul tugas", task.title), *materials],
                 reviewing=current.kind == "review",
                 check_inputs=entry,
+                attachments=images,
             )
     except ConflictException:
         async with sessions() as session:

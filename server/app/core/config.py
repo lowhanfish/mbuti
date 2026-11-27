@@ -166,6 +166,14 @@ class Settings(BaseSettings):
     # ==========================
     UPLOAD_DIR: Path = SERVER_DIR / "uploads"
     MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
+    # Gambar (pengetahuan dan lampiran tugas) dan PDF lampiran (E1c)
+    MAX_IMAGE_BYTES: int = 10 * 1024 * 1024
+    # Halaman berat per berkas yang dibuat embedding gambarnya
+    VISION_PAGES_PER_DOCUMENT: int = 40
+    # Gambar yang dikirim ke model per langkah atau uji coba
+    MAX_IMAGES_PER_STEP: int = 6
+    MAX_ATTACHMENTS: int = 10
+    MAX_ATTACHMENT_PAGES: int = 20
 
     # ==========================
     # PEMBENTUKAN ROLE (E1a)
@@ -178,6 +186,7 @@ class Settings(BaseSettings):
     # ==========================
     RATE_TRIAL_PER_MINUTE: int = 10
     RATE_FORMATION_PER_MINUTE: int = 10
+    RATE_ATTACHMENT_PER_MINUTE: int = 30
     RATE_UPLOAD_PER_MINUTE: int = 20
     RATE_TASK_PER_MINUTE: int = 20
     RATE_SEARCH_PER_MINUTE: int = 60

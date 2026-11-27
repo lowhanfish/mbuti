@@ -8,6 +8,7 @@ from app.models.base import uuid_pk
 # Ukuran vektor `gemini-embedding-2` yang dipakai; mengubahnya butuh olah ulang semua dokumen
 EMBEDDING_DIMENSION = 768
 SEARCH_EXPRESSION = "to_tsvector('indonesian'::regconfig, heading || ' ' || text)"
+CHUNK_KINDS = ("text", "page_image")
 
 
 class DocumentSection(Base):
@@ -25,6 +26,13 @@ class DocumentSection(Base):
     page_no = Column(Integer, nullable=False)
     heading = Column(String(200), nullable=False)
     text = Column(Text, nullable=False)
+    # text dibaca lokal; scan dan visual punya gambar halaman yang dibaca Gemini (E1c)
+    render = Column(String(6), nullable=False, default="text", server_default="text")
+    image_path = Column(String(200), nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    # Bacaan Gemini atas gambar halaman, disimpan saat pertama kali dipakai tugas
+    visual_text = Column(Text, nullable=False, default="", server_default="")
 
 
 class DocumentChunk(Base):
@@ -45,6 +53,8 @@ class DocumentChunk(Base):
         nullable=False,
         index=True,
     )
+    # text, atau page_image: embedding multimodal satu halaman bergambar
+    kind = Column(String(10), nullable=False, default="text", server_default="text")
     chunk_no = Column(Integer, nullable=False)
     # Judul seksi disalin agar ikut dalam pencarian kata kunci
     heading = Column(String(200), nullable=False)

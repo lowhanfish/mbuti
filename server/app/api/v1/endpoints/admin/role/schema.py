@@ -155,6 +155,8 @@ class RoleItem(BaseModel):
 
 class TrialRequest(RequestModel):
     brief: str = Field(default="", max_length=4000)
+    # Lampiran dari POST /tugas/lampiran; boleh dipakai ulang (E1c)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=10)
     inputs: dict[str, Annotated[str, Field(max_length=2000)]] = Field(
         default_factory=dict, max_length=20
     )

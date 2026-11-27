@@ -1,6 +1,7 @@
 """/api/v1/admin/tugas."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -11,13 +12,59 @@ from app.api.deps import (
     require_access,
 )
 from app.api.v1.common import ApiResponse, Paging, paging
-from app.api.v1.endpoints.admin.tugas import service
-from app.api.v1.endpoints.admin.tugas.schema import TaskCreate, TaskDetail, TaskItem, TaskList
+from app.api.v1.endpoints.admin.pengetahuan.route import image_response
+from app.api.v1.endpoints.admin.tugas import attachments, service
+from app.api.v1.endpoints.admin.tugas.schema import (
+    AttachmentItem,
+    TaskCreate,
+    TaskDetail,
+    TaskItem,
+    TaskList,
+)
+from app.core.config import settings
+from app.core.exceptions import UnprocessableEntityException
 
 router = APIRouter(prefix="/tugas", tags=["Tugas"])
 require_creator = require_access(
     "owner", "admin", "member", message="Pemantau tidak dapat membuat tugas."
 )
+
+
+@router.post(
+    "/lampiran",
+    response_model=ApiResponse[AttachmentItem],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[limited("lampiran", "RATE_ATTACHMENT_PER_MINUTE")],
+)
+async def upload_attachment(
+    file: UploadFile | None = File(default=None),
+    member: CurrentMember = Depends(
+        require_access(
+            "owner", "admin", "member", message="Pemantau tidak dapat mengunggah lampiran."
+        )
+    ),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[AttachmentItem]:
+    if file is None or not file.filename:
+        raise UnprocessableEntityException("Pilih berkas lampiran.")
+    data = await file.read(settings.MAX_IMAGE_BYTES + 1)
+    item = await attachments.upload(session, member, file.filename, data)
+    return ApiResponse(statusCode=201, message="Lampiran diterima.", data=item)
+
+
+@router.get("/lampiran/{attachment_id}/pages/{page_no}", response_class=Response)
+async def attachment_page(
+    attachment_id: str,
+    page_no: int,
+    box: str = "",
+    member: CurrentMember = Depends(get_current_member),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Gambar satu halaman lampiran, atau potongannya (kontrak 16.6)."""
+    data = await attachments.page_image(
+        session, member.organization_id, attachment_id, page_no, box
+    )
+    return image_response(data)
 
 
 @router.get("/read", response_model=TaskList)
