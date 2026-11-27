@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 26 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -12,7 +12,7 @@ Berkas ini satu-satunya rencana aktif. Centang butir setelah hasilnya diverifika
 
 1. **Frontend dulu, backend kemudian.** Seluruh layar dibangun dan disepakati dengan data contoh. Bentuk data di frontend menjadi kontrak API yang kemudian diikuti backend.
 2. **Agen bekerja dari dokumen.** Setiap hasil kerja menyertakan rujukan ke dokumen dan halaman atau bagian. Jika aturan tidak ada di dokumen, agen mengatakannya, bukan menebak.
-3. **Manusia tetap memegang keputusan.** Setiap alur bisa diberi titik persetujuan manusia. Agen tidak mengirim apa pun keluar sistem pada versi pertama.
+3. **Manusia tetap memegang keputusan.** Setiap alur bisa diberi titik persetujuan manusia. Agen tidak mengirim apa pun keluar sistem pada versi pertama. Fase E melonggarkannya untuk role yang diberi alat.
 4. **Selalu ada batas.** Batas putaran revisi, jumlah langkah, dan biaya per tugas mencegah agen saling melempar pekerjaan tanpa henti.
 5. **Pola kode mengikuti edusetara** (`github.com/lowhanfish/edusetara`, commit acuan `38f214d`), kecuali bagian yang disebut di bagian 3.
 6. **Tanpa Docker.** Backend memakai `venv` dan `uvicorn`; layanan lain dipasang langsung di mesin.
@@ -259,7 +259,7 @@ Status langkah: `queued` → `running` → `done` / `revise_requested` / `failed
    - `escalate` atau `requires_approval`: tugas berhenti dengan status `waiting_approval` sampai manusia memutuskan.
    - Tidak ada relasi keluar: tugas selesai.
 4. Pengaman (`engine/guards.py`): batas langkah per tugas (bawaan 20), batas biaya per tugas dan per bulan per organisasi, batas waktu per panggilan model, percobaan ulang dengan jeda untuk galat sementara, dan idempoten per langkah agar langkah tidak diproses dua kali.
-5. Versi pertama tidak memberi agen alat lain (internet, email, berkas di luar sistem).
+5. Versi pertama tidak memberi agen alat lain (internet, email, berkas di luar sistem). Fase E menambahkan alat, pencarian internet, dan kerja di aplikasi luar.
 
 Biaya dalam rupiah dihitung dari token memakai tabel harga per model dan kurs di konfigurasi server. Rincian perilaku mesin ada di `admin/API_CONTRACT.md` bagian 12.
 
@@ -436,10 +436,6 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
 - [ ] Ketentuan layanan dan kebijakan privasi.
-- [ ] Keterampilan role yang luwes: deskripsi bebas dari tenant, kartu keterampilan yang disusun AI, alat jadi, dan
-      ruang kerja terisolasi; juga brankas akun, OTP otomatis, tugas terjadwal, dan WhatsApp. Arah awal dicatat di
-      bagian "Keterampilan role", "Pembentukan role", dan "Role bekerja mandiri di aplikasi luar" di bawah;
-      rinciannya belum disepakati.
 
 #### D1. Akun mandiri: rancangan (disepakati 26 November 2026)
 
@@ -511,124 +507,164 @@ Kemajuan:
       batas laju per jam, dan `tests/integration/test_accounts.py`. Pengirim email sungguhan dipilih sebelum
       pemasangan di server.
 
-#### Keterampilan role: arah awal (dicatat 27 November 2026, rincian belum disepakati)
+### Fase E — Role sebagai pekerja (disepakati 27 November 2026)
 
-Tenant MBUTI beragam (perusahaan konten, instansi pemerintah, sekolah, dan lainnya), jadi keterampilan role tidak
-boleh kaku berupa daftar pilihan tetap. Saat ini role hanya menghasilkan teks terstruktur dan tidak punya alat
-(bagian 7 butir 5).
+Role MBUTI adalah **pekerja virtual yang mewakili orang tertentu**. Ia dibentuk lewat analisis dan tanya jawab,
+punya keterampilan yang luwes, bisa bekerja sendiri di aplikasi luar, dan menjalankan tugas sekali maupun tugas
+rutin. Fase ini melonggarkan dua batas versi pertama, untuk role yang diberi alat: agen boleh memakai alat
+(bagian 7 butir 5) dan boleh bekerja di aplikasi di luar MBUTI (bagian 1 butir 3). Persetujuan manusia tetap bisa
+dipasang di setiap alur.
 
-**Alur yang dituju**
+Fase E dan fase D berjalan terpisah: fase D mengurus SaaS (multi-organisasi, paket, kuota, panel pengelola), fase E
+mengurus kemampuan role. Rincian tiap tahap E disepakati dulu sebelum dikerjakan, dengan urutan kerja seperti D1:
+halaman dengan data contoh → kontrak API → backend → uji.
 
-1. Saat membuat role, tenant menulis keterampilannya dengan bahasa biasa. Contoh: *"Rina, editor video. Bisa
-   memotong video wawancara, menambah teks dan musik, lalu membuat versi pendek untuk Reels."*
-2. AI menyusun **kartu keterampilan**: kemampuan yang dipahami, bahan yang dibutuhkan (berkas mentah, logo, panduan
-   gaya), langkah kerja (SOP) yang diusulkan termasuk titik persetujuan manusia, dan alat yang dipakai di belakang
-   layar. Nama alat tidak perlu diketahui tenant.
-3. Tenant memeriksa dan mengubah kartu, lalu menyimpannya. Role bekerja sesuai kartu, dan hasil alat tetap melewati
-   relasi yang ada (periksa, persetujuan, eskalasi).
-4. Keterampilan yang belum bisa dijalankan (misalnya "menelepon klien") ditandai **belum didukung**, diberi
-   pengganti bila ada (misalnya naskah telepon), dan dicatat sebagai permintaan untuk pengelola platform.
+#### Prinsip fase E
 
-**Cara menjalankan keterampilan**
+1. **Umum untuk semua jenis tenant.** MBUTI dipakai instansi pemerintah maupun swasta (air minum, pertambangan,
+   properti, konten, pendidikan, dan lainnya). Tidak boleh ada fitur yang hanya masuk akal untuk satu sektor. Hal
+   khusus sektor masuk lewat dokumen, templat, dan paket industri. Pemerintahan (Perbub tata naskah, e-kinerja,
+   SIASN, SIPD) hanya salah satu contoh.
+2. **Luwes, tidak kaku.** Tenant menulis dengan bahasa biasa; AI yang menerjemahkannya menjadi keterampilan, alat,
+   dan jadwal, lalu menampilkan hasilnya untuk disetujui.
+3. **Utamakan perangkat lunak open source** untuk semua alat yang dipasang dan dijalankan sendiri, dengan lisensi
+   yang aman untuk SaaS (MIT, Apache, BSD, MPL, LGPL). AGPL dihindari. Lisensi dicek setiap ada alat baru dan dicatat
+   di tabel alat di bawah. Perangkat lunak berbayar atau berlisensi khusus tidak dipakai.
+4. **Model AI lewat API.** Prinsip open source tidak berlaku untuk model: Gemini dipakai lewat API (penyedia lain
+   bisa ditambah lewat `LLMProvider`).
+5. **Angka dihitung program, bukan model.** Role menyusun struktur dan rumus; program yang menghitung.
+6. **Hemat kuota.** Gemini masih tier gratis dan dipakai bersama Toto-L: pekerjaan yang bisa dikerjakan lokal tidak
+   memakai API, dan uji hanya dengan dokumen contoh atau publik.
 
-- **Alat jadi** (didahulukan): aman, hasilnya konsisten, biayanya mudah dihitung.
-- **Ruang kerja terisolasi** (cadangan): AI menulis dan menjalankan skrip di ruang yang sudah berisi ffmpeg,
-  LibreOffice, Python, dan Remotion. Dibatasi per paket, dengan batas waktu, memori, dan biaya. Karena proyek ini
-  tanpa Docker, cara isolasinya perlu diputuskan (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
+#### 1. Pembentukan role: analisis, tanya jawab, Final
 
-**Contoh isi katalog alat**
+1. **Bahan dari pembuat role:** uraian jabatan (tupoksi, job description, SOP jabatan) dalam PDF atau DOCX; daftar
+   alat, aplikasi, dan kemampuan (misalnya Word, Excel, Visual Studio Code, JavaScript, ERP, aplikasi kinerja);
+   deskripsi bebas tentang pekerjaan dan orang yang diwakili.
+2. **Analisis AI** menyusun **kartu keterampilan**: ringkasan tugas, kemampuan, alat yang dipakai (dipetakan ke
+   katalog alat; nama alat tidak perlu diketahui tenant), langkah kerja termasuk titik persetujuan manusia, bahan yang
+   dibutuhkan, dan hal yang masih kabur atau bertentangan.
+3. **Sesi tanya jawab.** Role bertanya kepada pembuatnya (*"Pak, laporan bulanan ini dikirim ke siapa dan formatnya
+   seperti apa?"*), pembuat menjawab, rancangan diperbarui, dan berulang sampai jelas. Role tidak sekadar menurut:
+   alat yang kurang, bahan yang tidak lengkap, atau instruksi yang bertentangan dengan uraian jabatan disampaikan.
+4. **Final.** Sebelum Final, role berstatus *draf* dan tidak menerima tugas. Tanya jawab disimpan sebagai pengetahuan
+   role dan ikut dipakai saat bekerja.
+5. **Ubah setelah Final** membuka tanya jawab baru dan perlu Final lagi. Versi lama tetap tercatat.
+6. Keterampilan yang belum bisa dijalankan ditandai **belum didukung**, diberi pengganti bila ada, dan dicatat sebagai
+   permintaan untuk pengelola platform.
 
-| Kelompok | Contoh | Dikerjakan oleh |
-|---|---|---|
-| Dokumen | DOCX/XLSX/PPTX/ODT ke PDF dan sebaliknya; gabung, pisah, kompres, tanda air, isi formulir PDF; isi templat surat milik tenant | LibreOffice tanpa layar, pypdf/pikepdf, python-docx |
-| Data | Membuat dan mengisi spreadsheet, rumus, grafik sederhana, laporan tabel, SPJ | openpyxl, lalu LibreOffice menghitung ulang rumus |
-| Media | Video dari templat atau potongan video yang diunggah (Remotion, ffmpeg), gambar atau poster | Worker render terpisah |
-| Pembacaan | OCR dokumen hasil scan | Gemini multimodal atau Tesseract |
-| Integrasi (paling akhir) | Webhook/API milik tenant: aplikasi persuratan, CMS, Google Drive | Alat bertipe webhook dengan batasan keamanan ketat |
+#### 2. Keterampilan dan alat
 
-**Prinsip**
-
-- Angka tidak dihitung oleh model. Role menyusun struktur dan rumus, dan program yang menghitung.
-- Templat baku milik tenant (kop surat, format SPJ) dihormati: role hanya mengisi kolom yang ditandai.
+- **Alat jadi** didahulukan: aman, hasilnya konsisten, biayanya mudah dihitung.
+- **Ruang kerja terisolasi** sebagai cadangan: AI menulis dan menjalankan skrip di ruang berisi FFmpeg, LibreOffice,
+  Python, dan alat video. Dibatasi per paket, dengan batas waktu, memori, dan biaya.
+- Alat berat (render video, OCR massal, ruang kerja) memakai antrean worker sendiri.
 - Berkas dari tenant dianggap tidak tepercaya: makro dimatikan, konversi di proses terpisah dengan batas waktu dan
   memori, folder per organisasi.
-- Alat berat (render video, OCR massal, ruang kerja) punya antrean worker sendiri dan masuk hitungan kuota paket.
-  Alat dokumen dasar cocok untuk semua paket.
+- Templat milik tenant (kop surat, format laporan) dihormati: role mengisi kolom yang ditandai.
+- **Paket industri:** saat mendaftar, tenant memilih jenis organisasi, lalu MBUTI menyiapkan contoh unit, role,
+  relasi, templat, dan keterampilan untuk disesuaikan. Paket bisa terus ditambah (pemerintahan, air minum,
+  pertambangan, properti, konten, pendidikan, dan lainnya).
 
-**Paket industri.** Saat mendaftar, tenant memilih jenis organisasi. MBUTI lalu menyiapkan contoh unit, role,
-relasi, templat SOP, dan keterampilan yang cocok untuk disesuaikan, sehingga tenant tidak mulai dari kosong.
+Katalog alat (semua open source):
 
-**Yang berubah di sistem**
+| Kelompok | Isi | Perangkat lunak (lisensi) |
+|---|---|---|
+| Dokumen | DOCX/XLSX/PPTX/ODT ke PDF dan sebaliknya; gabung, pisah, kompres, tanda air, isi formulir PDF; isi templat dokumen organisasi. Hasil tetap `.docx`/`.xlsx` yang bisa dibuka di Word dan Excel | LibreOffice tanpa layar (MPL), pypdf (BSD), pikepdf (MPL), python-docx (MIT) |
+| Data | Membuat dan mengisi spreadsheet, rumus, grafik sederhana, laporan tabel | openpyxl (MIT), lalu LibreOffice menghitung ulang rumus |
+| Media | Video dari templat (pengganti Remotion, yang bukan open source murni), potong, gabung, takarir, gambar, poster | Revideo atau Motion Canvas (MIT), FFmpeg (LGPL), MoviePy (MIT), Pillow (HPND), Inkscape (GPL, dijalankan sebagai program terpisah) |
+| Pembacaan | OCR hasil scan | Tesseract (Apache) atau PaddleOCR (Apache); halaman kompleks lewat Gemini (lihat bagian 3) |
+| Browser | Membuka dan mengisi aplikasi luar | Playwright (Apache), Chromium (BSD) |
+| Integrasi | Webhook atau API milik tenant (CMS, penyimpanan berkas, ERP) | Dikerjakan paling akhir, dengan batasan ketat |
 
-- Profil role mendapat bagian keterampilan: deskripsi bebas dari tenant dan kartu keterampilan.
-- Mesin agen boleh meminta pemanggilan alat. Server yang menjalankannya, dan berkas hasilnya disimpan sebagai
-  lampiran tugas.
-- Kuota paket mencakup waktu render dan pemakaian ruang kerja.
+#### 3. Pengetahuan
 
-**Pertanyaan terbuka**
+- Lingkup dokumen **organisasi, unit, dan role sudah ada** (bagian 6.3). Aturan seperti Perbub tata naskah atau SOP K3
+  sudah bisa diunggah sebagai pengetahuan organisasi.
+- **Pustaka kebijakan dan aturan organisasi**, terpisah dari SOP biasa: peraturan, kebijakan perusahaan, standar mutu,
+  panduan merek. Dicek lebih dulu saat role bekerja.
+- **Aturan menjadi templat:** AI mengenali jenis dokumen, susunan, penomoran, dan tata letak dari aturan yang
+  diunggah, lalu menyusun templat DOCX yang diisi alat dokumen.
+- **Pencarian internet** per role (boleh atau tidak), memakai pencarian Google bawaan Gemini, dengan tautan sumber.
+  Temuan yang berguna bisa diusulkan untuk disimpan sebagai pengetahuan organisasi.
+- **Urutan rujukan:** aturan organisasi → hasil tanya jawab → dokumen umum → internet. Bila berbeda, aturan organisasi
+  yang dipakai.
+- **PDF kompleks** (tabel, grafik, diagram, hasil scan), mengikuti cara Toto-L
+  (`TotO-L-py/backend/app/ai/providers.py`, `get_multimodal_embedding`; diadaptasi, tanpa bergantung pada Toto-L):
+  - halaman teks biasa dibaca lokal lalu dibuat embedding teks (seperti sekarang);
+  - halaman berat dideteksi, dibuat **embedding multimodal per halaman** dengan `gemini-embedding-2`, dan gambar
+    halamannya disimpan;
+  - saat halaman itu terpilih, gambarnya dikirim ke Gemini bersama prompt, dan rujukan menampilkan potongan gambar
+    bagian halaman yang dipakai.
 
-- Cara isolasi ruang kerja tanpa Docker.
-- Lisensi Remotion untuk pemakaian SaaS: syarat terbaru perlu dicek di situs Remotion sebelum dipilih.
-- Tempat menyimpan berkas besar (terkait butir penyimpanan berkas di luar disk server).
-- Pemasangan LibreOffice (sekitar 600 MB–1 GB), ffmpeg, dan Chromium perlu izin karena disk terbatas.
+#### 4. Mode penyusunan
 
-#### Pembentukan role: analisis dan tanya jawab sebelum final (dicatat 27 November 2026, rincian belum disepakati)
+Per role, bisa diganti per tugas:
 
-Role tidak langsung ditetapkan begitu formulir diisi. AI menganalisis dulu, bertanya bila ada yang belum jelas, dan
-role baru berlaku setelah pembuatnya menekan **Final**.
+- **Dari data:** hanya memakai dokumen, catatan, dan hasil tugas yang ada.
+- **Lengkapi:** memakai data yang ada, bagian yang kosong disusun sendiri.
+- **Susun bebas:** membuat dokumen utuh sesuai perintah dan format walaupun tanpa data masukan (misalnya laporan
+  jaringan bulanan).
 
-1. **Bahan dari pembuat role**
-   - Berkas tugas dan fungsi (misalnya PDF uraian tugas jabatan), SOP, atau manual yang terkait.
-   - Daftar alat, aplikasi, dan kemampuan yang dipakai role, misalnya Word, Excel, Visual Studio Code, JavaScript,
-     aplikasi kinerja harian, atau SIASN.
-   - Deskripsi bebas tentang pekerjaan dan orang yang diwakili role.
-2. **Analisis AI.** AI membaca semua bahan lalu menyusun rancangan: ringkasan tugas, kartu keterampilan, alat yang
-   akan dipakai (dipetakan ke katalog alat), langkah kerja, dan hal yang masih kabur atau saling bertentangan.
-3. **Sesi tanya jawab.** Role bertanya kepada pembuatnya, misalnya *"Pak, laporan bulanan ini dikirim ke siapa dan
-   formatnya seperti apa?"*. Pembuat menjawab, lalu rancangan diperbarui. Tanya jawab berulang sampai semuanya jelas.
-   Role tidak sekadar menurut: bila ada tugas yang tidak didukung alatnya, bahan yang kurang, atau instruksi yang
-   bertentangan dengan berkas tugas dan fungsi, role menyampaikannya.
-4. **Final.** Tombol **Final** menandai bahwa pekerjaan dan alat role sudah matang. Sebelum final, role berstatus
-   *draf* dan tidak bisa menerima tugas. Tanya jawab disimpan sebagai bagian dari pengetahuan role, sehingga
-   jawabannya ikut dipakai saat bekerja.
-5. **Ubah setelah final.** Mengubah bahan atau alat membuka sesi tanya jawab baru, lalu perlu final lagi. Versi lama
-   tetap tercatat.
+Linimasa internal mencatat mode setiap hasil; tanda ini tidak tercetak di dokumen. Lampiran: berkas yang sudah ada
+dipakai, atau dibuatkan role dalam PDF, DOCX, atau XLSX.
 
-#### Role bekerja mandiri di aplikasi luar: arah awal (dicatat 27 November 2026, rincian belum disepakati)
+#### 5. Bekerja di aplikasi luar
 
-Role dipercaya sebagai pekerja yang mewakili orang tertentu, dan bisa bekerja sendiri di aplikasi luar (aplikasi
-kinerja harian, sistem kepegawaian, aplikasi laporan) tanpa dikonfirmasi berulang kali. SIASN dan SIPD hanya contoh.
+- **Brankas akun per role:** alamat aplikasi, username, password, dan sumber OTP per aplikasi. Membuka atau mengubah
+  isinya memerlukan OTP pemiliknya. Isinya tidak pernah ditampilkan ke model AI; hanya alat yang memakainya, dan
+  setiap pemakaian masuk jejak audit.
+- **OTP authenticator** (seperti Google Authenticator): kunci rahasianya disimpan di brankas saat OTP diaktifkan,
+  lalu MBUTI membuat kodenya sendiri tanpa konfirmasi.
+- **OTP lewat email atau SMS:** role meminta kodenya ke pemilik lewat WhatsApp (bagian 7), lalu langsung memakainya.
+  Setiap pengguna manusia menyimpan satu nomor HP. Membaca kotak masuk atau meneruskan SMS otomatis bisa ditambah nanti.
+- **Browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang.
+- Hasil dilaporkan di MBUTI (linimasa dan notifikasi) dengan tangkapan layar sebagai bukti.
 
-1. **Brankas akun per role.** Isinya alamat aplikasi, username, password, dan cara mendapatkan OTP untuk tiap aplikasi.
-   Membuka atau mengubah isi brankas memerlukan OTP dari pemiliknya.
-2. **OTP**, diatur sekali per aplikasi. Ada dua jenis:
-   - **Kode authenticator** (seperti Google Authenticator, misalnya SIASN): kunci rahasianya disimpan di brankas saat
-     OTP diaktifkan, sama seperti mengatur authenticator di browser. MBUTI langsung membuat kodenya sendiri setiap kali
-     diminta, **tanpa konfirmasi WhatsApp** atau tindakan pemilik.
-   - **Kode yang dikirim lewat email atau SMS**: role bertanya ke pemilik lewat **WhatsApp**. Setiap pengguna manusia
-     menyimpan satu nomor HP. Role mengirim pesan, misalnya *"Pak, saya butuh kode konfirmasi yang masuk ke email Bapak
-     untuk masuk ke aplikasi X"*. Pemilik membalas dengan kode itu, dan role langsung memakainya lalu melanjutkan tugas.
-     WhatsApp hanya dipakai untuk konfirmasi seperti ini. Membaca kotak masuk atau meneruskan SMS secara otomatis bisa
-     ditambahkan nanti bila diminta.
-3. **Alat browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang dan meminta OTP.
-4. **Tugas terjadwal** per role, misalnya setiap hari kerja pukul 16.05 mengisi worksheet kinerja harian, atau setiap
-   akhir bulan membuat laporan jaringan. Hasilnya dilaporkan di MBUTI (linimasa dan notifikasi), disertai tangkapan layar.
-5. **Mode penyusunan** per role, dan bisa diganti per tugas:
-   - *Dari data*: hanya memakai dokumen, catatan, dan hasil tugas yang ada.
-   - *Lengkapi*: memakai data yang ada, lalu bagian yang kosong disusun sendiri.
-   - *Susun bebas*: membuat dokumen utuh sesuai perintah dan format walaupun tanpa data masukan.
-   Linimasa internal mencatat mode tiap hasil; tanda ini tidak tercetak di dokumen.
-6. **Lampiran otomatis.** Berkas yang sudah ada dipakai; bila belum ada, role membuatkannya dalam PDF, DOCX, atau XLSX.
-7. **WhatsApp hanya untuk konfirmasi**: meminta kode yang dikirim lewat email atau SMS, dan menerima balasannya.
-   Perintah, catatan, dan laporan tetap lewat MBUTI.
+#### 6. Tugas sekali dan tugas rutin
 
-Pertanyaan terbuka:
+- **Tugas sekali:** "Buatkan surat ini, laporkan kalau selesai." Berjalan sekali lalu selesai.
+- **Tugas rutin:** jadwal ditulis dengan bahasa biasa (*"Isi laporan harian setiap Senin–Jumat pukul 16.05, jangan
+  saat libur"*). AI mengubahnya menjadi jadwal dan menampilkan putaran berikutnya untuk disetujui.
+  - Pilihan: harian, hari kerja, mingguan, bulanan (tanggal tertentu atau hari kerja terakhir), triwulan, tanggal
+    tertentu; batas akhir bila perlu; bisa dijeda dan dilanjutkan.
+  - **Kalender:** libur nasional dan cuti bersama (diperbarui tiap tahun), kalender kerja tenant (shift, enam hari
+    kerja, libur perusahaan, libur daerah), dan cuti pemilik role.
+  - **Gagal:** coba ulang dengan jeda, beri tahu pemilik, lalu diisi susulan atau dilewati sesuai pilihan saat
+    membuat jadwal.
+  - **Riwayat putaran:** tanggal, hasil, lampiran, dan bukti setiap putaran.
+- Penjadwal (Celery beat) sudah ada; yang ditambah tabel jadwal, kalender, dan halamannya.
 
-- ~~Jalur WhatsApp~~ **Diputuskan 27 November 2026:** selama uji coba memakai pustaka WhatsApp **tidak resmi** (gratis;
-  nomor berisiko diblokir). WhatsApp Business Platform resmi dari Meta (berbayar per percakapan) belum dipakai.
-  Pengerjaan WhatsApp **ditunda**, dikerjakan belakangan setelah diminta. Telegram bisa menjadi saluran tambahan.
-- Satu nomor WhatsApp untuk semua role di satu organisasi, atau satu nomor per role.
-- Cara penyimpanan brankas (enkripsi dan kunci per organisasi).
+#### 7. WhatsApp
+
+Hanya untuk **konfirmasi kode** (meminta OTP yang dikirim lewat email atau SMS dan menerima balasannya). Perintah,
+catatan, dan laporan tetap lewat MBUTI. Selama uji coba memakai pustaka tidak resmi (Baileys, MIT; nomor berisiko
+diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi saluran tambahan.
+**Pengerjaannya ditunda sampai diminta.**
+
+#### Tahapan
+
+- [ ] **E1. Pembentukan role dan pengetahuan:** bahan uraian jabatan dan daftar alat, analisis AI, kartu
+      keterampilan, tanya jawab, Final, versi role; pustaka kebijakan dan aturan; pencarian internet per role;
+      PDF kompleks dengan embedding multimodal.
+- [ ] **E2. Tugas rutin:** jadwal dari bahasa biasa, kalender libur dan kalender kerja tenant, cuti pemilik role,
+      coba ulang dan susulan, riwayat putaran.
+- [ ] **E3. Alat dokumen dan data:** konversi dan olah PDF, templat dokumen dari aturan organisasi, spreadsheet, mode
+      penyusunan, lampiran otomatis.
+- [ ] **E4. Bekerja di aplikasi luar:** brankas akun per role, browser dengan sesi tersimpan, OTP authenticator.
+- [ ] **E5. Media dan ruang kerja:** video dan gambar dari alat open source, ruang kerja terisolasi.
+- [ ] **E6. WhatsApp untuk konfirmasi kode** (ditunda sampai diminta).
+- [ ] Paket industri, disusun bertahap seiring E1–E5.
+
+#### Pertanyaan terbuka fase E
+
+1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
+2. Tempat menyimpan berkas besar (video, lampiran); terkait butir penyimpanan berkas di fase D.
+3. Enkripsi brankas dan kunci per organisasi.
+4. Nomor WhatsApp: satu per organisasi atau satu per role.
+5. Izin memasang LibreOffice (sekitar 600 MB–1 GB), FFmpeg, dan Chromium, karena disk pengembangan terbatas.
+6. Pemakaian kuota Gemini tier gratis untuk analisis role, pencarian internet, embedding multimodal, dan tugas rutin.
+7. Revideo atau Motion Canvas untuk video dari templat (dipilih saat E5).
 
 ## 12. Risiko
 
@@ -640,9 +676,12 @@ Pertanyaan terbuka:
 | Kantor 3D berat | Geometri sederhana, instancing, tampilan 2D cadangan |
 | Kontrak frontend dan backend berbeda | Kontrak ditulis dari mock dan ditinjau di A8; uji kontrak di B6 |
 | Hak cipta karakter | Karakter dan nama buatan sendiri |
-| Dokumen hasil scan tidak terbaca | Ditandai "belum didukung" pada versi pertama |
+| Dokumen hasil scan tidak terbaca | Ditandai "belum didukung" pada versi pertama; fase E memakai OCR dan embedding multimodal |
 | Gemini masih tier gratis (batas permintaan rendah, kuota dipakai bersama Toto-L) | Worker eksekusi berjalan satu per satu, antre ulang dengan jeda saat 429, rotasi kunci, mode `mock` selama pengembangan |
 | Ketentuan tier gratis Google mengizinkan isi permintaan dipakai untuk pengembangan produk mereka | Uji coba hanya dengan dokumen contoh atau dokumen publik; SOP internal sungguhan menunggu tier berbayar |
+| Akun aplikasi luar diblokir atau terkunci karena diisi otomatis | Sesi tersimpan, jeda antar-aksi, batas percobaan masuk, pemilik diberi tahu saat gagal |
+| Nomor WhatsApp tidak resmi diblokir | Hanya untuk konfirmasi kode; Telegram dan notifikasi MBUTI sebagai cadangan |
+| Lisensi perangkat lunak pihak ketiga | Utamakan open source berlisensi aman untuk SaaS; tabel alat dan lisensinya di fase E |
 
 ## 13. Keputusan terbuka
 
