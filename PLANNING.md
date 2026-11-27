@@ -578,13 +578,15 @@ kinerja harian, sistem kepegawaian, aplikasi laporan) tanpa dikonfirmasi berulan
 
 1. **Brankas akun per role.** Isinya alamat aplikasi, username, password, dan cara mendapatkan OTP untuk tiap aplikasi.
    Membuka atau mengubah isi brankas memerlukan OTP dari pemiliknya.
-2. **OTP otomatis**, diatur sekali per aplikasi:
-   - Aplikasi authenticator: kunci rahasia disimpan di brankas, lalu MBUTI membuat kodenya sendiri.
-   - Email: kotak masuk dihubungkan (Gmail API atau IMAP) dengan saringan pengirim.
-   - SMS: diteruskan dari HP pemilik ke webhook MBUTI (aplikasi penerus SMS di Android, otomasi Shortcuts di iPhone).
-   - Cadangan untuk semua jenis: **tanya pemilik lewat WhatsApp.** Setiap pengguna manusia menyimpan satu nomor HP.
-     Role mengirim pesan, misalnya *"Pak, saya butuh kode konfirmasi yang masuk ke email Bapak untuk masuk ke aplikasi
-     X"*. Pemilik membalas dengan kode itu, dan role langsung memakainya lalu melanjutkan tugas.
+2. **OTP**, diatur sekali per aplikasi. Ada dua jenis:
+   - **Kode authenticator** (seperti Google Authenticator, misalnya SIASN): kunci rahasianya disimpan di brankas saat
+     OTP diaktifkan, sama seperti mengatur authenticator di browser. MBUTI langsung membuat kodenya sendiri setiap kali
+     diminta, **tanpa konfirmasi WhatsApp** atau tindakan pemilik.
+   - **Kode yang dikirim lewat email atau SMS**: role bertanya ke pemilik lewat **WhatsApp**. Setiap pengguna manusia
+     menyimpan satu nomor HP. Role mengirim pesan, misalnya *"Pak, saya butuh kode konfirmasi yang masuk ke email Bapak
+     untuk masuk ke aplikasi X"*. Pemilik membalas dengan kode itu, dan role langsung memakainya lalu melanjutkan tugas.
+     WhatsApp hanya dipakai untuk konfirmasi seperti ini. Membaca kotak masuk atau meneruskan SMS secara otomatis bisa
+     ditambahkan nanti bila diminta.
 3. **Alat browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang dan meminta OTP.
 4. **Tugas terjadwal** per role, misalnya setiap hari kerja pukul 16.05 mengisi worksheet kinerja harian, atau setiap
    akhir bulan membuat laporan jaringan. Hasilnya dilaporkan ke pemilik lewat WhatsApp, disertai tangkapan layar.
