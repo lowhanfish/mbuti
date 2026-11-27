@@ -3,7 +3,7 @@
 import datetime
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.api.v1.common import ApiListResponse, RequestModel
 
@@ -12,6 +12,39 @@ DocumentType = Literal[
     "sop", "manual", "pedoman", "templat", "regulasi", "uraian_jabatan", "lainnya"
 ]
 DocumentCategory = Literal["knowledge", "policy", "formation", "qa", "web"]
+PolicyKind = Literal["peraturan", "kebijakan", "standar_mutu", "panduan_merek", "lainnya"]
+
+
+class PolicyFields(RequestModel):
+    """Keterangan dokumen di pustaka Kebijakan & Aturan (kontrak 16.4)."""
+
+    kind: PolicyKind = "lainnya"
+    reference_no: str = Field(default="", max_length=100)
+    issuer: str = Field(default="", max_length=150)
+    effective_from: datetime.date | None = None
+    effective_until: datetime.date | None = None
+    status: Literal["berlaku", "dicabut"] = "berlaku"
+
+    @model_validator(mode="after")
+    def check_dates(self) -> "PolicyFields":
+        if (
+            self.effective_from
+            and self.effective_until
+            and self.effective_until < self.effective_from
+        ):
+            raise ValueError("Tanggal akhir berlaku tidak boleh sebelum tanggal mulai.")
+        return self
+
+
+class PolicyInfo(BaseModel):
+    kind: str
+    reference_no: str
+    issuer: str
+    effective_from: datetime.date | None
+    effective_until: datetime.date | None
+    status: str
+    # Berstatus berlaku dan hari ini (zona waktu organisasi) di dalam masa berlaku
+    in_force: bool
 
 
 class DocumentMeta(RequestModel):
@@ -20,6 +53,8 @@ class DocumentMeta(RequestModel):
     doc_type: DocumentType = "lainnya"
     scope: DocumentScope
     scope_id: str | None = None
+    # Hanya untuk dokumen kebijakan; diabaikan untuk kategori lain
+    policy: PolicyFields | None = None
 
     @field_validator("title")
     @classmethod
@@ -85,7 +120,7 @@ class DocumentItem(BaseModel):
     version_count: int
     category: str
     # Terisi untuk kebijakan (E1b) dan temuan internet (E1d)
-    policy: dict | None = None
+    policy: PolicyInfo | None = None
     source_url: str | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime

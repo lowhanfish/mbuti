@@ -95,6 +95,8 @@ class Citation(Base):
     heading = Column(String(200), nullable=False)
     snippet = Column(String(400), nullable=False)
     score = Column(Integer, nullable=False)
+    # policy, qa, atau document saat dirujuk (kontrak 16.4)
+    source_kind = Column(String(12), nullable=False, default="document", server_default="document")
 
 
 class TaskEvent(Base):

@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halaman, kontrak API, dan backend E1a selesai; backend E1b berikutnya.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halaman, kontrak API, serta backend E1a dan E1b selesai; backend E1c berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -824,8 +824,12 @@ Kemajuan:
       versi 1 manual untuk role yang sudah ada); katalog alat; analisis dan putaran tanya jawab di antrean `execution`;
       endpoint pembentukan, versi, dan alat; uraian jabatan oleh penanggung jawab; dokumen tanya jawab; pemakaian
       hari ini. Kolom E1b–E1d lain dikirim dengan nilai bawaan agar frontend mode API tidak rusak. Uji:
-      `tests/integration/test_formation.py`, `tests/unit/test_tool_catalog.py`; pytest penuh 245 lulus.
-- [ ] E1b backend dan uji.
+      `tests/integration/test_formation.py`, `tests/unit/test_tool_catalog.py`; pytest penuh 238 uji lulus.
+- [x] E1b backend dan uji (27 November 2026): kolom kebijakan pada `documents` (jenis, nomor, penetap, masa
+      berlaku, status) dan `citations.source_kind`; unggah dan ubah kebijakan; kebijakan yang dicabut, belum berlaku,
+      atau lewat masa berlaku tidak ikut pencarian (tanggal menurut zona waktu organisasi); hasil pencarian dan
+      potongan prompt disusun aturan → tanya jawab → dokumen dengan judul kelompok. Uji:
+      `tests/integration/test_policies.py` dan uji unit urutan rujukan; pytest penuh 241 lulus.
 - [ ] E1c backend dan uji.
 - [ ] E1d backend dan uji.
 

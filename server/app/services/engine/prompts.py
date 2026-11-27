@@ -42,6 +42,8 @@ CONDITION_SYSTEM = (
     "jelas memenuhi kondisi, dan beri alasan satu kalimat."
 )
 
+GROUP_TITLES = {"policy": "ATURAN ORGANISASI", "qa": "HASIL TANYA JAWAB", "document": "DOKUMEN"}
+
 OUTPUT_FORMAT = {
     "text": "Teks bebas yang rapi.",
     "template": "Ikuti templat berikut apa adanya, isi bagian kosongnya.",
@@ -121,7 +123,10 @@ def system_prompt(role: RoleBrief, reviewing: bool = False) -> str:
         "kurang. Jangan mengarang nama, jabatan, alamat, nomor, angka, atau tanggal. Data "
         "pelengkap yang tidak tersedia ditulis sebagai isian kosong bertanda, mis. "
         "[alamat kantor].",
-        "5. Selain itu jawab `done`. Tulis dalam bahasa Indonesia.",
+        "5. Potongan dikelompokkan: ATURAN ORGANISASI, lalu HASIL TANYA JAWAB, lalu DOKUMEN. "
+        "Bila isinya berbeda, yang dipakai adalah aturan organisasi, lalu hasil tanya jawab; "
+        "sebutkan perbedaannya di `notes`.",
+        "6. Selain itu jawab `done`. Tulis dalam bahasa Indonesia.",
     ]
     if reviewing:
         lines += [
@@ -148,7 +153,12 @@ def user_prompt(
     # Bahan dari langkah sebelumnya: hasil, catatan pemeriksaan, dan masukan konsultasi
     for title, text in materials or []:
         lines += [f'<bahan judul="{_data(title)}">', _data(text), "</bahan>", ""]
+    group = None
     for number, chunk in enumerate(excerpts, start=1):
+        # Potongan sudah tersusun menurut urutan rujukan; judul kelompok ditulis sekali
+        if GROUP_TITLES.get(chunk.source_kind, "DOKUMEN") != group:
+            group = GROUP_TITLES.get(chunk.source_kind, "DOKUMEN")
+            lines.append(group)
         lines += [
             f'<dokumen nomor="{number}">',
             f"{_data(chunk.document_title)} (versi {chunk.version_no}, halaman {chunk.page_no}) "

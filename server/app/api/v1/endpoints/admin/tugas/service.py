@@ -222,6 +222,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
                         heading=c.heading,
                         snippet=c.snippet,
                         score=c.score,
+                        source_kind=c.source_kind,
                     )
                     for c in citations
                     if c.step_id == step.id

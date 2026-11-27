@@ -3,24 +3,64 @@ Pencarian gabungan: kata kunci (`tsvector`) dan kemiripan makna (pgvector),
 digabung dengan reciprocal rank fusion. Hanya versi aktif yang sudah siap yang dicari.
 """
 
+import datetime
 import hashlib
 import json
 import logging
 import re
 import uuid
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo
 
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import func, literal, select, text
+from sqlalchemy import and_, func, literal, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.config import settings
-from app.models import Document, DocumentChunk, DocumentSection, DocumentVersion
+from app.models import Document, DocumentChunk, DocumentSection, DocumentVersion, Organization
+from app.models.base import utcnow
 from app.services.llm.embedding import EmbeddingProvider
 
 logger = logging.getLogger("mbuti.search")
+
+# Urutan rujukan (kontrak 16.4): kebijakan organisasi, hasil tanya jawab, lalu dokumen
+REFERENCE_TIER = {"policy": 0, "qa": 1, "document": 2}
+
+
+async def local_today(session: AsyncSession, organization_id: uuid.UUID) -> datetime.date:
+    """Tanggal hari ini menurut zona waktu organisasi."""
+    timezone = await session.scalar(
+        select(Organization.timezone).where(Organization.id == organization_id)
+    )
+    return utcnow().astimezone(ZoneInfo(timezone or "Asia/Makassar")).date()
+
+
+def policy_in_force(document: Document, today: datetime.date) -> bool:
+    return (
+        document.policy_status == "berlaku"
+        and (document.effective_from is None or document.effective_from <= today)
+        and (document.effective_until is None or document.effective_until >= today)
+    )
+
+
+def in_force(today: datetime.date) -> ColumnElement[bool]:
+    """Kebijakan yang dicabut, belum berlaku, atau lewat masa berlaku tidak ikut dicari."""
+    return or_(
+        Document.category != "policy",
+        and_(
+            Document.policy_status == "berlaku",
+            or_(Document.effective_from.is_(None), Document.effective_from <= today),
+            or_(Document.effective_until.is_(None), Document.effective_until >= today),
+        ),
+    )
+
+
+def reference_order(items: list) -> list:
+    """Susun hasil menurut urutan rujukan; di dalam kelompok tetap menurut relevansi."""
+    return sorted(items, key=lambda item: REFERENCE_TIER.get(item.source_kind, 2))
+
 
 CANDIDATES = 24
 RRF_K = 60
@@ -113,6 +153,7 @@ async def rank_chunks(
         Document.deleted_at.is_(None),
         DocumentVersion.is_active.is_(True),
         DocumentVersion.status == "ready",
+        in_force(await local_today(session, organization_id)),
     ]
     if visibility is not None:
         filters.append(visibility)
@@ -229,4 +270,4 @@ async def search_documents(
     pages: dict[tuple[uuid.UUID, int], Hit] = {}
     for chunk in chunks:
         pages.setdefault((chunk.version_id, chunk.page_no), to_hit(chunk, terms))
-    return list(pages.values())[:limit]
+    return reference_order(list(pages.values())[:limit])

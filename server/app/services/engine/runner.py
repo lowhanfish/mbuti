@@ -27,7 +27,7 @@ from app.services.engine.prompts import (
     user_prompt,
 )
 from app.services.knowledge.scope import visible_to
-from app.services.knowledge.search import Hit, rank_chunks, to_hit, tokenize
+from app.services.knowledge.search import Hit, rank_chunks, reference_order, to_hit, tokenize
 from app.services.llm.catalog import cost_in_rupiah
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import (
@@ -210,20 +210,22 @@ async def run_agent(
             *(text[:400] for _, text in materials or []),
         ]
     )[:2000]
-    excerpts = (
-        await rank_chunks(
-            session,
-            caller.organization_id,
-            query,
-            embedder,
-            visible_to(
-                literal(agent.knowledge_scope),
-                literal(agent.id, UUID(as_uuid=True)),
-                literal(agent.unit_id, UUID(as_uuid=True)),
-            ),
-            settings.RETRIEVAL_MAX_DISTANCE,
-        )
-    )[:MAX_EXCERPTS]
+    excerpts = reference_order(
+        (
+            await rank_chunks(
+                session,
+                caller.organization_id,
+                query,
+                embedder,
+                visible_to(
+                    literal(agent.knowledge_scope),
+                    literal(agent.id, UUID(as_uuid=True)),
+                    literal(agent.unit_id, UUID(as_uuid=True)),
+                ),
+                settings.RETRIEVAL_MAX_DISTANCE,
+            )
+        )[:MAX_EXCERPTS]
+    )
     user = user_prompt(brief, labelled, excerpts, materials)
     preview = f"{system}\n\n{user}"
     if not excerpts and not reviewing:

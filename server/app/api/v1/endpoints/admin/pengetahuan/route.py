@@ -19,6 +19,7 @@ from app.api.v1.endpoints.admin.pengetahuan.schema import (
     DocumentItem,
     DocumentList,
     DocumentMeta,
+    PolicyFields,
     SearchHit,
     VersionDetail,
 )
@@ -95,6 +96,12 @@ async def create_document(
     doc_type: str = Form(default=""),
     scope: str = Form(default=""),
     scope_id: str = Form(default=""),
+    category: str = Form(default=""),
+    policy_kind: str = Form(default=""),
+    reference_no: str = Form(default=""),
+    issuer: str = Form(default=""),
+    effective_from: str = Form(default=""),
+    effective_until: str = Form(default=""),
     member: CurrentMember = Depends(get_current_member),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[DocumentItem]:
@@ -117,10 +124,22 @@ async def create_document(
             doc_type=doc_type or "lainnya",
             scope=scope,
             scope_id=scope_id or None,
+            # Pustaka Kebijakan & Aturan (kontrak 16.4); status awal selalu berlaku
+            policy=PolicyFields(
+                kind=policy_kind or "lainnya",
+                reference_no=reference_no,
+                issuer=issuer,
+                effective_from=effective_from or None,
+                effective_until=effective_until or None,
+            )
+            if category == "policy"
+            else None,
         )
     except ValidationError as exc:
         raise UnprocessableEntityException(validation_message(exc.errors())) from exc
-    item = await service.create_document(session, member, meta, file_name, data)
+    item = await service.create_document(
+        session, member, meta, file_name, data, "policy" if category == "policy" else "knowledge"
+    )
     return ApiResponse(statusCode=201, message="Dokumen diterima dan sedang diolah.", data=item)
 
 

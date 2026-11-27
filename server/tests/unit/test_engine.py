@@ -12,7 +12,7 @@ from app.services.engine.prompts import (
     system_prompt,
     user_prompt,
 )
-from app.services.knowledge.search import Chunk
+from app.services.knowledge.search import Chunk, reference_order
 from app.services.llm import catalog
 
 
@@ -97,3 +97,19 @@ def test_prices_follow_their_start_date(monkeypatch):
 @pytest.mark.parametrize("model", ["LLM_MODEL_FAST", "LLM_MODEL_BALANCED", "LLM_MODEL_THOROUGH"])
 def test_default_models_are_in_the_catalog(model):
     assert type(catalog.settings).model_fields[model].default in catalog.CATALOG
+
+
+def test_excerpts_follow_reference_order_and_are_grouped():
+    document = chunk(1)
+    policy = chunk(2)
+    policy.source_kind = "policy"
+    answer = chunk(3)
+    answer.source_kind = "qa"
+
+    ordered = reference_order([document, policy, answer])
+    prompt = user_prompt("arahan", [], ordered)
+
+    assert [c.source_kind for c in ordered] == ["policy", "qa", "document"]
+    assert prompt.index("ATURAN ORGANISASI") < prompt.index('nomor="1"')
+    assert prompt.index("HASIL TANYA JAWAB") < prompt.index('nomor="2"')
+    assert prompt.index("DOKUMEN\n") < prompt.index('nomor="3"')

@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import hashlib
 import logging
 import uuid
@@ -17,6 +18,8 @@ from app.api.v1.endpoints.admin.pengetahuan.schema import (
     DocumentItem,
     DocumentMeta,
     IngestionSummary,
+    PolicyFields,
+    PolicyInfo,
     SearchHit,
     Section,
     Version,
@@ -42,7 +45,7 @@ from app.services.appearance import UNIT_COLOR_HEX
 from app.services.knowledge import storage
 from app.services.knowledge.extract import MIME_TYPES, ExtractionError, detect_type
 from app.services.knowledge.scope import visible_to
-from app.services.knowledge.search import search_documents
+from app.services.knowledge.search import local_today, policy_in_force, search_documents
 from app.services.llm.embedding import get_embedding_provider
 from app.services.organisation import lock_organization, require_unit
 from app.workers.ingestion import process_version
@@ -140,7 +143,33 @@ def _items_query(*filters):
     )
 
 
-def _to_item(row, active: Version | None) -> DocumentItem:
+def _policy(document: Document, today: datetime.date) -> PolicyInfo | None:
+    if document.category != "policy" or document.policy_status is None:
+        return None
+    return PolicyInfo(
+        kind=document.policy_kind or "lainnya",
+        reference_no=document.reference_no,
+        issuer=document.issuer,
+        effective_from=document.effective_from,
+        effective_until=document.effective_until,
+        status=document.policy_status,
+        in_force=policy_in_force(document, today),
+    )
+
+
+def _policy_columns(policy: PolicyFields | None) -> dict:
+    policy = policy or PolicyFields()
+    return {
+        "policy_kind": policy.kind,
+        "reference_no": " ".join(policy.reference_no.split()),
+        "issuer": " ".join(policy.issuer.split()),
+        "effective_from": policy.effective_from,
+        "effective_until": policy.effective_until,
+        "policy_status": policy.status,
+    }
+
+
+def _to_item(row, active: Version | None, today: datetime.date) -> DocumentItem:
     document: Document = row.Document
     scope_id = scope_name = scope_color = None
     if document.scope == "unit" and document.unit_id:
@@ -162,6 +191,7 @@ def _to_item(row, active: Version | None) -> DocumentItem:
         active_version=active,
         version_count=row.version_count,
         category=document.category,
+        policy=_policy(document, today),
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -170,7 +200,8 @@ def _to_item(row, active: Version | None) -> DocumentItem:
 async def _item(session: AsyncSession, document_id: uuid.UUID) -> DocumentItem:
     row = (await session.execute(_items_query(Document.id == document_id))).one()
     active = (await _versions(session, [document_id], active_only=True)).get(document_id)
-    return _to_item(row, active[0][1] if active else None)
+    today = await local_today(session, row.Document.organization_id)
+    return _to_item(row, active[0][1] if active else None, today)
 
 
 async def read_documents(
@@ -235,8 +266,9 @@ async def read_documents(
         )
     ).all()
     versions = await _versions(session, [r.Document.id for r in rows], active_only=True)
+    today = await local_today(session, organization_id)
     items = [
-        _to_item(r, versions[r.Document.id][0][1] if r.Document.id in versions else None)
+        _to_item(r, versions[r.Document.id][0][1] if r.Document.id in versions else None, today)
         for r in rows
     ]
     return total, items, summary
@@ -302,7 +334,9 @@ async def _detail(session: AsyncSession, document: Document) -> DocumentDetail:
     row = (await session.execute(_items_query(Document.id == document.id))).one()
     versions = (await _versions(session, [document.id])).get(document.id, [])
     active = next((pair for pair in versions if pair[0].is_active), None)
-    item = _to_item(row, active[1] if active else None)
+    item = _to_item(
+        row, active[1] if active else None, await local_today(session, document.organization_id)
+    )
     return DocumentDetail(
         **item.model_dump(),
         versions=[pair[1] for pair in versions],
@@ -474,7 +508,10 @@ async def create_document(
     meta: DocumentMeta,
     file_name: str,
     data: bytes,
+    category: str = "knowledge",
 ) -> DocumentItem:
+    if meta.doc_type == "uraian_jabatan":
+        category = "formation"
     organization_id = actor.organization_id
     read_upload(file_name, data)
     await lock_organization(session, organization_id)
@@ -484,7 +521,8 @@ async def create_document(
         title=meta.title,
         description=meta.description,
         doc_type=meta.doc_type,
-        category="formation" if meta.doc_type == "uraian_jabatan" else "knowledge",
+        category=category,
+        **(_policy_columns(meta.policy) if category == "policy" else {}),
         created_by=actor.user.id,
         **await _scope_columns(session, organization_id, meta.scope, meta.scope_id),
     )
@@ -534,6 +572,9 @@ async def update_document(
     document = await _get(session, organization_id, document_id)
     _not_system(document)
     columns = await _scope_columns(session, organization_id, meta.scope, meta.scope_id)
+    # Kategori tidak berubah lewat update; keterangan kebijakan hanya untuk dokumen kebijakan
+    if document.category == "policy" and meta.policy is not None:
+        columns.update(_policy_columns(meta.policy))
     for field, value in {
         "title": meta.title,
         "description": meta.description,

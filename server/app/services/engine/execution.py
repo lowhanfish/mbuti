@@ -412,6 +412,7 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
                     heading=hit.heading,
                     snippet=hit.snippet[:400],
                     score=hit.score,
+                    source_kind=hit.source_kind,
                 )
             )
         agent = await session.get(Agent, step.agent_id)

@@ -2,6 +2,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -32,6 +33,15 @@ class Document(Base):
         CheckConstraint(
             "category IN ('knowledge', 'policy', 'formation', 'qa', 'web')", name="category"
         ),
+        CheckConstraint(
+            "policy_kind IS NULL OR policy_kind IN "
+            "('peraturan', 'kebijakan', 'standar_mutu', 'panduan_merek', 'lainnya')",
+            name="policy_kind",
+        ),
+        CheckConstraint(
+            "policy_status IS NULL OR policy_status IN ('berlaku', 'dicabut')",
+            name="policy_status",
+        ),
     )
 
     id = uuid_pk()
@@ -46,6 +56,13 @@ class Document(Base):
     doc_type = Column(String(20), nullable=False, default="lainnya")
     # knowledge, policy (E1b), formation (uraian jabatan), qa (hasil tanya jawab), web (E1d)
     category = Column(String(12), nullable=False, default="knowledge", server_default="knowledge")
+    # Pustaka Kebijakan & Aturan (E1b); kosong untuk kategori lain
+    policy_kind = Column(String(20), nullable=True)
+    reference_no = Column(String(100), nullable=False, default="", server_default="")
+    issuer = Column(String(150), nullable=False, default="", server_default="")
+    effective_from = Column(Date, nullable=True)
+    effective_until = Column(Date, nullable=True)
+    policy_status = Column(String(10), nullable=True)
     scope = Column(String(12), nullable=False)
     unit_id = Column(
         UUID(as_uuid=True), ForeignKey("units.id", ondelete="SET NULL"), nullable=True, index=True
