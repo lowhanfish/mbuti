@@ -437,7 +437,8 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
 - [ ] Ketentuan layanan dan kebijakan privasi.
 - [ ] Keterampilan role yang luwes: deskripsi bebas dari tenant, kartu keterampilan yang disusun AI, alat jadi, dan
-      ruang kerja terisolasi. Arah awal dicatat di bagian "Keterampilan role" di bawah; rinciannya belum disepakati.
+      ruang kerja terisolasi; juga brankas akun, OTP otomatis, tugas terjadwal, dan WhatsApp. Arah awal dicatat di
+      bagian "Keterampilan role" dan "Role bekerja mandiri di aplikasi luar" di bawah; rinciannya belum disepakati.
 
 #### D1. Akun mandiri: rancangan (disepakati 26 November 2026)
 
@@ -569,6 +570,40 @@ relasi, templat SOP, dan keterampilan yang cocok untuk disesuaikan, sehingga ten
 - Lisensi Remotion untuk pemakaian SaaS: syarat terbaru perlu dicek di situs Remotion sebelum dipilih.
 - Tempat menyimpan berkas besar (terkait butir penyimpanan berkas di luar disk server).
 - Pemasangan LibreOffice (sekitar 600 MB–1 GB), ffmpeg, dan Chromium perlu izin karena disk terbatas.
+
+#### Role bekerja mandiri di aplikasi luar: arah awal (dicatat 27 November 2026, rincian belum disepakati)
+
+Role dipercaya sebagai pekerja yang mewakili orang tertentu, dan bisa bekerja sendiri di aplikasi luar (aplikasi
+kinerja harian, sistem kepegawaian, aplikasi laporan) tanpa dikonfirmasi berulang kali. SIASN dan SIPD hanya contoh.
+
+1. **Brankas akun per role.** Isinya alamat aplikasi, username, password, dan cara mendapatkan OTP untuk tiap aplikasi.
+   Membuka atau mengubah isi brankas memerlukan OTP dari pemiliknya.
+2. **OTP otomatis**, diatur sekali per aplikasi:
+   - Aplikasi authenticator: kunci rahasia disimpan di brankas, lalu MBUTI membuat kodenya sendiri.
+   - Email: kotak masuk dihubungkan (Gmail API atau IMAP) dengan saringan pengirim.
+   - SMS: diteruskan dari HP pemilik ke webhook MBUTI (aplikasi penerus SMS di Android, otomasi Shortcuts di iPhone).
+   - Cadangan untuk semua jenis: **tanya pemilik lewat WhatsApp.** Setiap pengguna manusia menyimpan satu nomor HP.
+     Role mengirim pesan, misalnya *"Pak, saya butuh kode konfirmasi yang masuk ke email Bapak untuk masuk ke aplikasi
+     X"*. Pemilik membalas dengan kode itu, dan role langsung memakainya lalu melanjutkan tugas.
+3. **Alat browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang dan meminta OTP.
+4. **Tugas terjadwal** per role, misalnya setiap hari kerja pukul 16.05 mengisi worksheet kinerja harian, atau setiap
+   akhir bulan membuat laporan jaringan. Hasilnya dilaporkan ke pemilik lewat WhatsApp, disertai tangkapan layar.
+5. **Mode penyusunan** per role, dan bisa diganti per tugas:
+   - *Dari data*: hanya memakai dokumen, catatan, dan hasil tugas yang ada.
+   - *Lengkapi*: memakai data yang ada, lalu bagian yang kosong disusun sendiri.
+   - *Susun bebas*: membuat dokumen utuh sesuai perintah dan format walaupun tanpa data masukan.
+   Linimasa internal mencatat mode tiap hasil; tanda ini tidak tercetak di dokumen.
+6. **Lampiran otomatis.** Berkas yang sudah ada dipakai; bila belum ada, role membuatkannya dalam PDF, DOCX, atau XLSX.
+7. **WhatsApp sebagai saluran kerja** antara role dan pemiliknya: perintah, catatan singkat kegiatan, permintaan OTP,
+   dan laporan hasil.
+
+Pertanyaan terbuka:
+
+- Jalur WhatsApp: WhatsApp Business Platform resmi dari Meta (berbayar per percakapan, butuh nomor bisnis dan templat
+  pesan untuk memulai percakapan) atau pustaka tidak resmi (gratis, tetapi nomor berisiko diblokir). Telegram bisa
+  menjadi saluran tambahan yang gratis.
+- Satu nomor WhatsApp untuk semua role di satu organisasi, atau satu nomor per role.
+- Cara penyimpanan brankas (enkripsi dan kunci per organisasi).
 
 ## 12. Risiko
 
