@@ -436,6 +436,8 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
 - [ ] Ketentuan layanan dan kebijakan privasi.
+- [ ] Keterampilan role yang luwes: deskripsi bebas dari tenant, kartu keterampilan yang disusun AI, alat jadi, dan
+      ruang kerja terisolasi. Arah awal dicatat di bagian "Keterampilan role" di bawah; rinciannya belum disepakati.
 
 #### D1. Akun mandiri: rancangan (disepakati 26 November 2026)
 
@@ -506,6 +508,67 @@ Kemajuan:
       `organizations.status` dan `users.terms_accepted_at`, pengirim email lewat Celery (`console` atau `smtp`),
       batas laju per jam, dan `tests/integration/test_accounts.py`. Pengirim email sungguhan dipilih sebelum
       pemasangan di server.
+
+#### Keterampilan role: arah awal (dicatat 27 November 2026, rincian belum disepakati)
+
+Tenant MBUTI beragam (perusahaan konten, instansi pemerintah, sekolah, dan lainnya), jadi keterampilan role tidak
+boleh kaku berupa daftar pilihan tetap. Saat ini role hanya menghasilkan teks terstruktur dan tidak punya alat
+(bagian 7 butir 5).
+
+**Alur yang dituju**
+
+1. Saat membuat role, tenant menulis keterampilannya dengan bahasa biasa. Contoh: *"Rina, editor video. Bisa
+   memotong video wawancara, menambah teks dan musik, lalu membuat versi pendek untuk Reels."*
+2. AI menyusun **kartu keterampilan**: kemampuan yang dipahami, bahan yang dibutuhkan (berkas mentah, logo, panduan
+   gaya), langkah kerja (SOP) yang diusulkan termasuk titik persetujuan manusia, dan alat yang dipakai di belakang
+   layar. Nama alat tidak perlu diketahui tenant.
+3. Tenant memeriksa dan mengubah kartu, lalu menyimpannya. Role bekerja sesuai kartu, dan hasil alat tetap melewati
+   relasi yang ada (periksa, persetujuan, eskalasi).
+4. Keterampilan yang belum bisa dijalankan (misalnya "menelepon klien") ditandai **belum didukung**, diberi
+   pengganti bila ada (misalnya naskah telepon), dan dicatat sebagai permintaan untuk pengelola platform.
+
+**Cara menjalankan keterampilan**
+
+- **Alat jadi** (didahulukan): aman, hasilnya konsisten, biayanya mudah dihitung.
+- **Ruang kerja terisolasi** (cadangan): AI menulis dan menjalankan skrip di ruang yang sudah berisi ffmpeg,
+  LibreOffice, Python, dan Remotion. Dibatasi per paket, dengan batas waktu, memori, dan biaya. Karena proyek ini
+  tanpa Docker, cara isolasinya perlu diputuskan (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
+
+**Contoh isi katalog alat**
+
+| Kelompok | Contoh | Dikerjakan oleh |
+|---|---|---|
+| Dokumen | DOCX/XLSX/PPTX/ODT ke PDF dan sebaliknya; gabung, pisah, kompres, tanda air, isi formulir PDF; isi templat surat milik tenant | LibreOffice tanpa layar, pypdf/pikepdf, python-docx |
+| Data | Membuat dan mengisi spreadsheet, rumus, grafik sederhana, laporan tabel, SPJ | openpyxl, lalu LibreOffice menghitung ulang rumus |
+| Media | Video dari templat atau potongan video yang diunggah (Remotion, ffmpeg), gambar atau poster | Worker render terpisah |
+| Pembacaan | OCR dokumen hasil scan | Gemini multimodal atau Tesseract |
+| Integrasi (paling akhir) | Webhook/API milik tenant: aplikasi persuratan, CMS, Google Drive | Alat bertipe webhook dengan batasan keamanan ketat |
+
+**Prinsip**
+
+- Angka tidak dihitung oleh model. Role menyusun struktur dan rumus, dan program yang menghitung.
+- Templat baku milik tenant (kop surat, format SPJ) dihormati: role hanya mengisi kolom yang ditandai.
+- Berkas dari tenant dianggap tidak tepercaya: makro dimatikan, konversi di proses terpisah dengan batas waktu dan
+  memori, folder per organisasi.
+- Alat berat (render video, OCR massal, ruang kerja) punya antrean worker sendiri dan masuk hitungan kuota paket.
+  Alat dokumen dasar cocok untuk semua paket.
+
+**Paket industri.** Saat mendaftar, tenant memilih jenis organisasi. MBUTI lalu menyiapkan contoh unit, role,
+relasi, templat SOP, dan keterampilan yang cocok untuk disesuaikan, sehingga tenant tidak mulai dari kosong.
+
+**Yang berubah di sistem**
+
+- Profil role mendapat bagian keterampilan: deskripsi bebas dari tenant dan kartu keterampilan.
+- Mesin agen boleh meminta pemanggilan alat. Server yang menjalankannya, dan berkas hasilnya disimpan sebagai
+  lampiran tugas.
+- Kuota paket mencakup waktu render dan pemakaian ruang kerja.
+
+**Pertanyaan terbuka**
+
+- Cara isolasi ruang kerja tanpa Docker.
+- Lisensi Remotion untuk pemakaian SaaS: syarat terbaru perlu dicek di situs Remotion sebelum dipilih.
+- Tempat menyimpan berkas besar (terkait butir penyimpanan berkas di luar disk server).
+- Pemasangan LibreOffice (sekitar 600 MB–1 GB), ffmpeg, dan Chromium perlu izin karena disk terbatas.
 
 ## 12. Risiko
 
