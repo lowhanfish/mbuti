@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 berikutnya.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati, halaman dengan data contoh berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -596,6 +596,13 @@ Katalog alat (semua open source):
     halamannya disimpan;
   - saat halaman itu terpilih, gambarnya dikirim ke Gemini bersama prompt, dan rujukan menampilkan potongan gambar
     bagian halaman yang dipakai.
+  - Toto-L memakai PyMuPDF (AGPL), jadi hanya caranya yang diambil: MBUTI memakai pypdfium2 (Apache/BSD) untuk
+    merender dan memeriksa halaman, dan Pillow (HPND) untuk memotong dan mengecilkan gambar.
+- **Membaca gambar:** role bisa membaca gambar yang dilampirkan ke tugas maupun yang ada di pengetahuan (desain, foto
+  lapangan, kuitansi, grafik, tangkapan layar) lewat Gemini multimodal, sama seperti halaman PDF kompleks. Contoh:
+  *"Amir, lihat desain ini, apa yang kurang?"*, atau role auditor yang memeriksa foto dan nota terhadap daftar
+  periksa. Hasilnya berupa daftar temuan, kotak bernomor di atas gambar, rujukan ke pedoman, dan rekomendasi.
+  Mendesain ulang (berkas SVG/HTML yang bisa diedit, atau gambar baru dari model lewat API) masuk E5.
 
 #### 4. Mode penyusunan
 
@@ -620,6 +627,12 @@ dipakai, atau dibuatkan role dalam PDF, DOCX, atau XLSX.
   Setiap pengguna manusia menyimpan satu nomor HP. Membaca kotak masuk atau meneruskan SMS otomatis bisa ditambah nanti.
 - **Browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang.
 - Hasil dilaporkan di MBUTI (linimasa dan notifikasi) dengan tangkapan layar sebagai bukti.
+- **Kapasitas Playwright:** satu proses Chromium dengan banyak context terisolasi (satu per role per aplikasi); sesi
+  disimpan sebagai storage state dan context ditutup setelah tugas selesai. Perkiraan: Chromium ±150–250 MB, satu
+  context ±50–300 MB tergantung berat aplikasinya. Tugas browser masuk antrean dengan batas jumlah yang jalan
+  bersamaan (per server dan per tenant), dan jadwal yang sama disebar otomatis (misalnya 16.00–16.30). Untuk 21 role:
+  minimum 2 vCPU/4 GB (2–3 browser bersamaan), disarankan 4 vCPU/8 GB (5 browser bersamaan). Angka ini perlu diukur
+  di aplikasi sungguhan.
 
 #### 6. Tugas sekali dan tugas rutin
 
@@ -646,7 +659,7 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
 
 - [ ] **E1. Pembentukan role dan pengetahuan:** bahan uraian jabatan dan daftar alat, analisis AI, kartu
       keterampilan, tanya jawab, Final, versi role; pustaka kebijakan dan aturan; pencarian internet per role;
-      PDF kompleks dengan embedding multimodal.
+      PDF kompleks dan gambar dengan Gemini multimodal, termasuk lampiran gambar pada tugas.
 - [ ] **E2. Tugas rutin:** jadwal dari bahasa biasa, kalender libur dan kalender kerja tenant, cuti pemilik role,
       coba ulang dan susulan, riwayat putaran.
 - [ ] **E3. Alat dokumen dan data:** konversi dan olah PDF, templat dokumen dari aturan organisasi, spreadsheet, mode
@@ -656,6 +669,153 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
 - [ ] **E6. WhatsApp untuk konfirmasi kode** (ditunda sampai diminta).
 - [ ] Paket industri, disusun bertahap seiring E1–E5.
 
+#### E1. Pembentukan role dan pengetahuan: rancangan (disepakati 27 November 2026)
+
+Dibagi empat bagian: **E1a** pembentukan role, **E1b** pustaka kebijakan dan urutan rujukan, **E1c** PDF kompleks dan
+gambar, **E1d** pencarian internet. Halaman keempatnya dibuat sekaligus dengan data contoh, kontrak API ditulis
+sekali, lalu backend dan uji dikerjakan per bagian (commit dan push tiap bagian).
+
+**Alur layar**
+
+1. **Buat role** menawarkan dua jalan: *Bentuk dengan analisis* (disarankan; isi nama, jabatan, unit, lalu masuk ke
+   halaman pembentukan) atau *Isi manual* (seperti sekarang, langsung menjadi versi 1). Role yang dibuat sebelum E1
+   dianggap versi 1 manual yang sudah Final.
+2. Halaman pembentukan `/admin/role/[id]/bentuk` dengan empat langkah **Bahan → Kartu → Tanya jawab → Final**; detail
+   role mendapat tab **Pembentukan** dan **Versi**.
+   - **Bahan:** unggah uraian jabatan (PDF/DOCX, boleh lebih dari satu; masuk Pengetahuan dengan jenis
+     `uraian_jabatan` berlingkup role itu dan diolah seperti dokumen lain), daftar alat dan kemampuan (teks bebas
+     atau chip), deskripsi bebas tentang pekerjaan dan orang yang diwakili, dan penanggung jawab. **Analisis** aktif
+     setelah bahan selesai diolah; uraian jabatan boleh dilewati bila deskripsinya cukup.
+   - **Kartu keterampilan** (hasil analisis, bisa diubah langsung): ringkasan tugas dan tujuan; daftar keterampilan
+     (nama, uraian, langkah kerja dengan titik persetujuan manusia, bahan, hasil, alat); setiap alat dipetakan ke
+     katalog dengan status *tersedia*, *segera* (E3–E5), *pengganti* (dengan catatan), atau *belum didukung* (otomatis
+     dicatat sebagai permintaan alat); kotak **Temuan** untuk hal yang kabur, bertentangan, alat yang kurang, atau
+     bahan yang tidak lengkap, dengan rujukan ke uraian jabatan.
+   - **Tanya jawab:** tampilan percakapan; role mengajukan paling banyak 5 pertanyaan per putaran (*wajib* atau
+     *opsional*), pembuat menjawab, memilih *Lewati* atau *Tidak tahu*, atau menambah catatan sendiri. Role boleh
+     berkeberatan bila instruksi bertentangan dengan uraian jabatan. *Kirim jawaban* memperbarui kartu (bagian yang
+     berubah disorot) lalu mengajukan putaran berikutnya, sampai role menyatakan jelas atau pembuat memilih
+     *Cukup, ke Final*.
+   - **Final:** pratinjau isian kerja (tujuan, instruksi, isian tugas, format hasil, kriteria diterima, lingkup
+     pengetahuan, izin internet); pertanyaan wajib yang belum terjawab menahan Final kecuali pembuat menulis alasan;
+     catatan perubahan; status sesudahnya *aktif* atau *dijeda*. Hasilnya versi N.
+3. **Versi:** daftar versi (nomor, sumber pembentukan/manual/pulihkan, siapa, kapan, catatan) dan perbandingan dua
+   versi. *Ubah setelah Final* membuat revisi draf; **versi Final terakhir tetap bekerja selama revisi disusun**.
+   *Pulihkan* membuat revisi draf dari versi lama. Ubahan di tab Instruksi atau Profil juga menjadi revisi; AI
+   memeriksanya dan bertanya hanya bila perlu, sehingga ubahan kecil bisa langsung Final.
+4. **Pengetahuan** mendapat tab *Dokumen* dan *Kebijakan & Aturan*; halaman PDF berat dan berkas gambar tampil dengan
+   gambar kecil.
+5. **Tugas:** Buat tugas dan Uji coba mendapat *Lampiran* (PNG, JPG, WEBP, PDF) dan pilihan *Internet* (ikut role atau
+   mati). Detail tugas menampilkan penampil gambar dengan kotak bernomor dan daftar temuan yang saling tertaut;
+   rujukan diberi tanda sumber *Aturan*, *Tanya jawab*, *Dokumen*, *Internet*, atau *Gambar*.
+6. Pembentukan dan tanya jawab boleh dilakukan admin ke atas dan penanggung jawab role.
+
+**Model data**
+
+| Tabel atau kolom | Isi |
+|---|---|
+| `agent_revisions` (baru) | agent_id, version_no, status (`draft`, `analyzing`, `questioning`, `ready`, `final`, `superseded`, `discarded`), source (`formation`, `manual`, `restore`), materials JSON, card JSON (ringkasan, temuan), snapshot JSON (semua isian kerja), round_no, change_note, finalized_at, finalized_by_member_id, error_message |
+| `agent_skills` (baru) | revision_id, key, name, description, steps JSON (dengan titik persetujuan), inputs, outputs, tools JSON (kunci katalog), support (`supported`, `upcoming`, `substitute`, `unsupported`), substitute_note, sort_order |
+| `agent_formation_messages` (baru) | revision_id, round_no, author (`agent`, `member`), kind (`question`, `answer`, `objection`, `note`), question_id, required, text, refs JSON, skipped |
+| `tool_requests` (baru) | organization_id, agent_id, revision_id, skill_name, requested, status (`open`, `planned`, `done`, `declined`); nanti dibaca panel pengelola platform |
+| `agents` | + active_revision_id, web_search (bawaan mati). Kolom kerja yang ada tetap dibaca mesin sebagai salinan versi Final aktif; Final menyalin snapshot ke sana |
+| `documents` | + category (`knowledge`, `policy`, `formation`, `qa`, `web`); untuk kebijakan: policy_kind (peraturan, kebijakan, standar mutu, panduan merek, lainnya), reference_no, issuer, effective_from, effective_until, policy_status (`berlaku`, `dicabut`); source_url untuk temuan internet. doc_type + `uraian_jabatan` |
+| `document_versions` | + media_kind (`text`, `pdf`, `image`) |
+| `document_sections` | + render (`text`, `scan`, `visual`), image_path, width, height, visual_text |
+| `document_chunks` | + kind (`text`, `page_image`); embedding gambar halaman memakai kolom dan indeks HNSW yang sama (768) |
+| `task_attachments` (baru) | organization_id, task_id (kosong sebelum tugas dibuat), file_name, storage_path, mime_type, size_bytes, sha256, width, height, page_count, exif JSON (tanggal dan lokasi pengambilan), uploaded_by_member_id, expires_at |
+| `tasks` | + web_search (`role`, `off`) |
+| `citations` | chunk_id boleh kosong; + source_kind (`policy`, `qa`, `document`, `web`, `image`, `attachment`), url, title, attachment_id, region JSON (kotak 0–1000) |
+| `artifacts` | + findings JSON: no, title, description, severity (`info`, `perlu_perbaikan`, `penting`), attachment_id atau version_id+page_no, box, source, recommendation |
+| `llm_calls` | + purpose (`task`, `trial`, `formation`, `vision_ingest`, `web_search`) |
+| `knowledge_proposals` (baru) | url, title, excerpt, proposed_by, status, decided_by |
+
+Katalog alat ditulis di kode (`app/services/tools/catalog.py`): kunci, nama, kelompok, status, dan kata pengenal untuk
+pemetaan ("word", "docx", "ms word"…). Di E1 yang tersedia baru baca dokumen, baca gambar, dan pencarian internet;
+alat dokumen, data, browser, dan media berstatus *segera*.
+
+**Endpoint** (prefix `/api/v1/admin`)
+
+- Pembentukan: `GET /role/{id}/pembentukan`, `POST …/pembentukan/mulai`, `PUT …/pembentukan/bahan`,
+  `POST …/pembentukan/analisis` (202, dimuat ulang selama `analyzing`), `PUT …/pembentukan/kartu`,
+  `POST …/pembentukan/jawab`, `POST …/pembentukan/final` (`409` bila bahan masih diolah atau ada pertanyaan wajib
+  tanpa alasan), `POST …/pembentukan/batal`. Uraian jabatan diunggah lewat `POST /pengetahuan/create`.
+- Versi: `GET /role/{id}/versi`, `GET /role/{id}/versi/{vid}`, `POST /role/{id}/versi/{vid}/pulihkan`.
+- Alat: `GET /alat/katalog`, `GET /alat/permintaan`.
+- Pengetahuan: saringan `category` di `read`; kolom kebijakan di `create`/`update`;
+  `GET /pengetahuan/{id}/versions/{vid}/pages/{page}/image?box=y0,x0,y1,x1`; usulan temuan internet
+  `POST`/`GET /pengetahuan/usulan`, `POST /pengetahuan/usulan/{id}/setujui` dan `/tolak`.
+- Tugas: `POST /tugas/lampiran` (multipart) → `attachment_id`, dipakai lewat `attachment_ids` di `POST /tugas/create`
+  dan `POST /role/{id}/trial`; `GET /tugas/{id}/lampiran/{aid}?box=…`. `web_search` di update role dan buat tugas.
+
+**Kebijakan dan urutan rujukan (E1b)**
+
+- Pencarian bertingkat: kebijakan organisasi → hasil tanya jawab role → dokumen dalam lingkup → internet. Kebijakan
+  `dicabut` atau lewat masa berlaku tidak ikut.
+- Prompt mengelompokkan potongan di bawah ATURAN ORGANISASI, HASIL TANYA JAWAB, DOKUMEN, INTERNET; bila berbeda, aturan
+  organisasi dipakai dan perbedaannya disebut di `notes`. Rujukan tetap dibuat server.
+- Saat Final, server menyusun dokumen sistem "Hasil tanya jawab – {nama} v{N}" (`category=qa`, lingkup role,
+  hanya-baca, satu bagian per pertanyaan) lalu dibuat embedding-nya. Versi lama diarsipkan.
+
+**PDF kompleks dan gambar (E1c)**
+
+- Halaman dipilah dengan pypdf dan pypdfium2: `text` (diolah seperti sekarang, tanpa Gemini), `scan` (teks sedikit
+  atau rusak), `visual` (banyak gambar atau garis). Halaman `scan`/`visual` dirender ke WebP (sisi panjang ±1600 px)
+  di `uploads/<org>/pages/<version>/<page>.webp` dan dibuat satu embedding multimodal per halaman.
+- Berkas gambar (PNG, JPG, WEBP, maks 10 MB) bisa diunggah sebagai pengetahuan: diperkecil sampai 2048 px, satu
+  embedding multimodal, EXIF disimpan sebagai metadata.
+- `VISION_PAGES_PER_DOCUMENT` bawaan 40 halaman berat per berkas; sisanya disimpan sebagai gambar tanpa embedding.
+- Tanpa transkripsi saat unggah: bacaan Gemini atas halaman yang pertama kali dipakai disimpan ke `visual_text` agar
+  ikut pencarian kata kunci berikutnya.
+- Saat bekerja, halaman bergambar yang terpilih dan lampiran tugas dikirim sebagai gambar (PDF lampiran maks 20
+  halaman); `MAX_IMAGES_PER_STEP` bawaan 6; `media_resolution` sedang. `LlmProvider.generate` mendapat `images` dan
+  `web`; `mock` ikut diperluas.
+- Keluaran terstruktur mendapat `findings` dan `regions` dengan kotak 0–1000 (`[y0, x0, y1, x1]`); server memeriksa
+  rentang dan gambar yang ditunjuk, kotak tidak sah dibuang. Temuan pemeriksa ditautkan ke `criteria_results`.
+- Kotak bernomor digambar frontend sebagai lapisan SVG; potongan rujukan dibuat server lewat `?box=`. Lampiran
+  diteruskan lewat relasi bila `payload_spec` berisi konteks.
+- Batas lampiran: 10 berkas × 10 MB per tugas.
+
+**Pencarian internet (E1d)**
+
+- Per role *mati* (bawaan) atau *boleh*; tugas bisa mematikannya. Dipicu hanya bila diizinkan dan dokumen internal
+  kurang (skor teratas di bawah ambang) atau arahan meminta informasi terkini; maks 1 per langkah dan
+  `WEB_SEARCH_PER_DAY` per organisasi.
+- Dua panggilan: alat `google_search` Gemini menghasilkan temuan dan grounding metadata (tautan dibuat server dari
+  metadata), lalu temuannya menjadi potongan `W1…` di panggilan utama yang terstruktur. Bila model mendukung
+  gabungan alat dan keluaran terstruktur (dicek saat E1d), cukup satu panggilan.
+- Rujukan internet menampilkan judul, domain, dan tautan; *Usulkan sebagai pengetahuan* → disetujui admin → dokumen
+  organisasi `category=web`.
+
+**Perkiraan kuota Gemini** (batas harian tier gratis untuk model, embedding, dan grounding dicek saat mulai)
+
+| Kegiatan | Panggilan |
+|---|---|
+| Analisis awal | 1 generasi (teliti, cadangan seimbang); masuk 10–25 rb, keluar 3–5 rb token |
+| Tiap putaran tanya jawab (biasanya 2–4) | 1 generasi; masuk 10–30 rb, keluar 2–4 rb token |
+| Final | 1 generasi + embedding dokumen tanya jawab (±5–15 potongan) |
+| Satu role sampai Final | ±4–7 generasi + ±10–30 embedding |
+| 21 role | ±85–150 generasi + ±200–600 embedding, dicicil beberapa hari |
+| PDF kompleks saat unggah | 1 embedding multimodal per halaman berat (maks 40 per berkas) |
+| Membaca halaman atau gambar saat tugas | Tanpa panggilan tambahan; token +±300–1.100 per gambar |
+| Pencarian internet | +1 generasi dan +1 grounding per langkah yang memicunya |
+
+Pengaman: analisis dan tanya jawab lewat antrean `execution` (satu per satu), antre ulang dengan jeda saat 429,
+`FORMATION_ROUNDS_MAX` bawaan 6, `llm_calls.purpose`, dan pemakaian hari ini per jenis di Pengaturan > Model AI. Uji
+memakai `mock` serta contoh fiktif atau publik di `server/contoh/`.
+
+**Pustaka baru:** pypdfium2 (Apache/BSD) dan Pillow (HPND), dipasang dengan izin saat E1c setelah sisa disk dicek.
+Tidak ada perangkat lunak sistem.
+
+Kemajuan:
+
+- [ ] Halaman dengan data contoh untuk E1a–E1d (`MOCK_DB_VERSION` 11).
+- [ ] Kontrak API (`admin/API_CONTRACT.md` bagian 16).
+- [ ] E1a backend dan uji.
+- [ ] E1b backend dan uji.
+- [ ] E1c backend dan uji.
+- [ ] E1d backend dan uji.
+
 #### Pertanyaan terbuka fase E
 
 1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
@@ -663,7 +823,7 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
 3. Enkripsi brankas dan kunci per organisasi.
 4. Nomor WhatsApp: satu per organisasi atau satu per role.
 5. Izin memasang LibreOffice (sekitar 600 MB–1 GB), FFmpeg, dan Chromium, karena disk pengembangan terbatas.
-6. Pemakaian kuota Gemini tier gratis untuk analisis role, pencarian internet, embedding multimodal, dan tugas rutin.
+6. Pemakaian kuota Gemini tier gratis untuk tugas rutin (perkiraan untuk E1 ada di rancangan E1).
 7. Revideo atau Motion Canvas untuk video dari templat (dipilih saat E5).
 
 ## 12. Risiko
