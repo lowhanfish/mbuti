@@ -168,9 +168,16 @@ class Settings(BaseSettings):
     MAX_UPLOAD_BYTES: int = 20 * 1024 * 1024
 
     # ==========================
+    # PEMBENTUKAN ROLE (E1a)
+    # ==========================
+    # Batas putaran tanya jawab sebelum role harus di-Final
+    FORMATION_ROUNDS_MAX: int = 6
+
+    # ==========================
     # BATAS LAJU (per menit, per pengguna)
     # ==========================
     RATE_TRIAL_PER_MINUTE: int = 10
+    RATE_FORMATION_PER_MINUTE: int = 10
     RATE_UPLOAD_PER_MINUTE: int = 20
     RATE_TASK_PER_MINUTE: int = 20
     RATE_SEARCH_PER_MINUTE: int = 60

@@ -91,6 +91,8 @@ class MockLlm:
     name = "mock"
 
     async def generate(self, model: str, system: str, user: str, schema: dict) -> Generation:
+        if "skills" in schema.get("properties", {}):
+            return Generation(_mock_formation(user), len(system + user) // 4, 600)
         numbers = [int(n) for n in re.findall(r'<dokumen nomor="(\d+)"', user)]
         data = {
             "status": "done" if numbers else "not_in_documents",
@@ -99,6 +101,79 @@ class MockLlm:
             "notes": "Dijawab penyedia tiruan.",
         }
         return Generation(data, len(system + user) // 4, 120)
+
+
+_DUTY = re.compile(
+    r"\b(menyusun|membuat|memeriksa|mengisi|merekap|melaporkan|menjawab|mendesain|merancang|"
+    r"mencatat|menyiapkan|mengelola|memverifikasi)\b",
+    re.IGNORECASE,
+)
+
+
+def _mock_formation(user: str) -> dict:
+    """Pembentukan role tiruan: keterampilan dari kalimat berkata kerja, satu putaran pertanyaan."""
+    duties = []
+    for line in re.split(r"\n|(?<=\.)\s+", user):
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", line).strip().rstrip(".")
+        if 12 <= len(line) <= 200 and _DUTY.search(line) and ":" not in line[:25]:
+            if line not in duties:
+                duties.append(line)
+    duties = duties[:5] or ["Mengerjakan tugas utama sesuai arahan"]
+    tools_line = re.search(r"Alat dan kemampuan yang ditulis pembuat: (.*)", user)
+    tools = (
+        []
+        if not tools_line or "(tidak ada)" in tools_line.group(1)
+        else [t.strip() for t in tools_line.group(1).split(",") if t.strip()]
+    )
+    answering = "<jawaban>" in user
+    skills = [
+        {
+            "name": " ".join(duty.split()[:5]),
+            "description": duty,
+            "steps": [
+                {"text": "Periksa bahan dan arahan", "approval": False},
+                {"text": "Susun hasil sesuai aturan organisasi", "approval": False},
+                {"text": "Serahkan ke penanggung jawab", "approval": True},
+            ],
+            "inputs": ["Arahan tugas"],
+            "outputs": ["Hasil kerja"],
+            "tools": tools if index == 0 else [],
+        }
+        for index, duty in enumerate(duties)
+    ]
+    questions = (
+        []
+        if answering
+        else [
+            {
+                "text": "Hasil pekerjaan utama dikirim ke siapa, dan formatnya seperti apa?",
+                "required": True,
+            },
+            {"text": "Ada contoh hasil yang dianggap bagus?", "required": False},
+        ]
+    )
+    objections = (
+        ["Saya keberatan mengirim hasil tanpa persetujuan penanggung jawab."]
+        if not answering and "langsung kirim" in user.lower()
+        else []
+    )
+    return {
+        "summary": f"Ditemukan {len(skills)} keterampilan dari bahan.",
+        "goal": "Mengerjakan tugas sesuai uraian jabatan dengan hasil yang siap disetujui.",
+        "skills": skills,
+        "findings": [{"kind": "unclear", "text": "Tenggat pekerjaan belum disebut.", "ref": ""}],
+        "questions": questions,
+        "objections": objections,
+        "work": {
+            "instructions": "\n".join(f"{i}. {s['name']}" for i, s in enumerate(skills, 1)),
+            "inputs": [{"label": "Arahan tugas", "type": "long_text", "required": True}],
+            "output_format": "text",
+            "output_template": "",
+            "acceptance_criteria": ["Hasil sesuai aturan organisasi"],
+        },
+        "satisfied": answering,
+        "note": "Rancangan sudah jelas." if answering else "",
+    }
 
 
 @lru_cache

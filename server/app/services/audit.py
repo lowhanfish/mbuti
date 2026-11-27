@@ -59,6 +59,24 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("PUT", "/role/update/{role_id}"): Action("role.ubah", "Mengubah role"),
     ("DELETE", "/role/delete/{role_id}"): Action("role.hapus", "Menghapus role"),
     ("POST", "/role/{role_id}/trial"): Action("role.ujicoba", "Menguji coba role"),
+    ("POST", "/role/{role_id}/pembentukan/mulai"): Action("role.bentuk", "Memulai revisi role"),
+    ("PUT", "/role/{role_id}/pembentukan/bahan"): Action(
+        "role.bentuk", "Menyimpan bahan pembentukan"
+    ),
+    ("POST", "/role/{role_id}/pembentukan/analisis"): Action(
+        "role.bentuk", "Menjalankan analisis role"
+    ),
+    ("PUT", "/role/{role_id}/pembentukan/kartu"): Action(
+        "role.bentuk", "Mengubah kartu keterampilan"
+    ),
+    ("POST", "/role/{role_id}/pembentukan/jawab"): Action(
+        "role.bentuk", "Menjawab tanya jawab role"
+    ),
+    ("POST", "/role/{role_id}/pembentukan/batal"): Action("role.bentuk", "Membuang revisi role"),
+    ("POST", "/role/{role_id}/pembentukan/final"): Action("role.final", "Mem-Final versi role"),
+    ("POST", "/role/{role_id}/versi/{version_id}/pulihkan"): Action(
+        "role.pulihkan", "Memulihkan versi role"
+    ),
     ("POST", "/relasi/create"): Action("relasi.buat", "Membuat relasi"),
     ("PUT", "/relasi/update/{relation_id}"): Action("relasi.ubah", "Mengubah relasi"),
     ("DELETE", "/relasi/delete/{relation_id}"): Action("relasi.hapus", "Menghapus relasi"),

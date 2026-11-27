@@ -23,6 +23,7 @@ celery_app = Celery(
         "app.workers.mail",
         "app.workers.ingestion",
         "app.workers.execution",
+        "app.workers.formation",
     ],
 )
 
@@ -37,6 +38,7 @@ celery_app.conf.update(
     task_routes={
         "app.workers.ingestion.*": {"queue": "ingestion"},
         "app.workers.execution.*": {"queue": "execution"},
+        "app.workers.formation.*": {"queue": "execution"},
     },
     # Pekerjaan baru dianggap selesai setelah dikerjakan, dan diambil satu per satu.
     task_acks_late=True,

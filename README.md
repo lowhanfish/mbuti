@@ -78,7 +78,8 @@ Dua worker dan penjadwal Celery, masing-masing di terminal sendiri. Worker perta
 celery -A app.workers.celery_app worker -Q default,ingestion --concurrency=2 -n umum@%h --loglevel=info
 ```
 
-Worker kedua mengerjakan tugas, satu langkah pada satu waktu agar kuota model tidak cepat habis:
+Worker kedua mengerjakan tugas serta analisis dan tanya jawab pembentukan role, satu pekerjaan pada satu waktu agar
+kuota model tidak cepat habis:
 
 ```bash
 celery -A app.workers.celery_app worker -Q execution --concurrency=1 -n eksekusi@%h --loglevel=info

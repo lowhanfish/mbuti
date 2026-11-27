@@ -16,6 +16,8 @@ def test_tasks_are_routed_to_their_queue() -> None:
 
     assert router.route({}, "app.workers.ingestion.contoh")["queue"].name == "ingestion"
     assert router.route({}, "app.workers.execution.contoh")["queue"].name == "execution"
+    # Pembentukan role berbagi antrean dengan eksekusi agar panggilan model tetap satu per satu
+    assert router.route({}, "app.workers.formation.contoh")["queue"].name == "execution"
     assert router.route({}, "app.workers.system.ping")["queue"].name == "default"
 
 

@@ -8,7 +8,10 @@ from pydantic import BaseModel, field_validator
 from app.api.v1.common import ApiListResponse, RequestModel
 
 DocumentScope = Literal["organization", "unit", "agent"]
-DocumentType = Literal["sop", "manual", "pedoman", "templat", "regulasi", "lainnya"]
+DocumentType = Literal[
+    "sop", "manual", "pedoman", "templat", "regulasi", "uraian_jabatan", "lainnya"
+]
+DocumentCategory = Literal["knowledge", "policy", "formation", "qa", "web"]
 
 
 class DocumentMeta(RequestModel):
@@ -48,6 +51,10 @@ class Version(BaseModel):
     progress: int
     error_message: str | None
     uploaded_by_name: str | None
+    # Halaman bergambar mulai E1c; sampai saat itu nol
+    media_kind: str = "text"
+    visual_pages: int = 0
+    visual_pages_over_limit: int = 0
     created_at: datetime.datetime
 
 
@@ -55,6 +62,10 @@ class Section(BaseModel):
     page_no: int
     heading: str
     text: str
+    # Halaman bergambar mulai E1c
+    render: str = "text"
+    image_url: str | None = None
+    visual_text: str = ""
 
 
 class VersionDetail(Version):
@@ -72,6 +83,10 @@ class DocumentItem(BaseModel):
     scope_color: str | None
     active_version: Version | None
     version_count: int
+    category: str
+    # Terisi untuk kebijakan (E1b) dan temuan internet (E1d)
+    policy: dict | None = None
+    source_url: str | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -102,6 +117,8 @@ class SearchHit(BaseModel):
     heading: str
     snippet: str
     score: int
+    source_kind: str = "document"
+    image_url: str | None = None
 
 
 def hit_to_schema(hit) -> SearchHit:

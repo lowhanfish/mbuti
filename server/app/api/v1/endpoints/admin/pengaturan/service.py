@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,11 +15,13 @@ from app.api.v1.endpoints.admin.pengaturan.schema import (
     ModelSettings,
     ModelUpdate,
     Usage,
+    UsageToday,
 )
 from app.api.v1.endpoints.admin.role.service import live_agents
 from app.core.config import settings
 from app.core.exceptions import UnprocessableEntityException
-from app.models import Agent
+from app.models import Agent, LlmCall, Organization
+from app.models.base import utcnow
 from app.services import budget
 from app.services.llm import key_status
 from app.services.llm.catalog import CATALOG, estimated_step_cost
@@ -45,6 +48,30 @@ async def _api_keys() -> list[ApiKeyInfo]:
             )
         ]
     return [ApiKeyInfo(**info) for info in await key_status.read_status(names)]
+
+
+# Jenis pemakaian di layar menurut `llm_calls.kind` (kontrak 16.8)
+PURPOSES = ("task", "trial", "formation", "vision_ingest", "web_search")
+KIND_TO_PURPOSE = {"step": "task", "condition": "task"}
+
+
+async def usage_today(session: AsyncSession, organization_id) -> list[UsageToday]:
+    """Panggilan model hari ini (zona waktu organisasi) per jenis, termasuk yang gagal."""
+    organization = await session.get(Organization, organization_id)
+    local = utcnow().astimezone(ZoneInfo(organization.timezone))
+    start = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    rows = await session.execute(
+        select(LlmCall.kind, func.count(), func.coalesce(func.sum(LlmCall.cost), 0))
+        .where(LlmCall.organization_id == organization_id, LlmCall.created_at >= start)
+        .group_by(LlmCall.kind)
+    )
+    totals = {purpose: [0, 0] for purpose in PURPOSES}
+    for kind, calls, cost in rows:
+        purpose = KIND_TO_PURPOSE.get(kind, kind)
+        if purpose in totals:
+            totals[purpose][0] += calls
+            totals[purpose][1] += cost
+    return [UsageToday(purpose=p, calls=c, cost=v) for p, (c, v) in totals.items()]
 
 
 async def read_models(session: AsyncSession, actor: CurrentMember) -> ModelSettings:
@@ -79,6 +106,7 @@ async def read_models(session: AsyncSession, actor: CurrentMember) -> ModelSetti
         embedding=EmbeddingInfo(
             model=settings.EMBEDDING_MODEL, dimension=settings.EMBEDDING_DIMENSION
         ),
+        usage_today=await usage_today(session, actor.organization_id),
         updated_at=current.updated_at,
     )
 

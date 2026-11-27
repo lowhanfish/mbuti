@@ -20,6 +20,7 @@ from app.core.exceptions import ConflictException, NotFoundException, Unprocessa
 from app.models import (
     Agent,
     AgentRelation,
+    AgentRevision,
     Document,
     FlowPosition,
     Membership,
@@ -28,10 +29,17 @@ from app.models import (
     Unit,
     User,
 )
+from app.models.agent.formation import OPEN_REVISION_STATUSES
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
 from app.services.engine.runner import Caller, run_agent
+from app.services.formation.versions import (
+    WORK_FIELDS,
+    new_revision,
+    record_manual_version,
+    snapshot_of,
+)
 from app.services.knowledge.scope import visible_to
 from app.services.llm.embedding import get_embedding_provider
 from app.services.llm.generation import get_llm_provider
@@ -77,6 +85,22 @@ def _items_query(organization_id: uuid.UUID):
         .correlate(Agent)
         .scalar_subquery()
     )
+    active_version_no = (
+        select(AgentRevision.version_no)
+        .where(AgentRevision.id == Agent.active_revision_id)
+        .correlate(Agent)
+        .scalar_subquery()
+    )
+    revision_status = (
+        select(AgentRevision.status)
+        .where(
+            AgentRevision.agent_id == Agent.id,
+            AgentRevision.status.in_(OPEN_REVISION_STATUSES),
+        )
+        .limit(1)
+        .correlate(Agent)
+        .scalar_subquery()
+    )
     return (
         select(
             Agent,
@@ -86,6 +110,8 @@ def _items_query(organization_id: uuid.UUID):
             relation_count.label("relation_count"),
             document_count.label("document_count"),
             task_count.label("task_count"),
+            active_version_no.label("active_version_no"),
+            revision_status.label("revision_status"),
         )
         .outerjoin(Unit, Unit.id == Agent.unit_id)
         .outerjoin(owner, owner.id == Agent.owner_member_id)
@@ -112,6 +138,9 @@ def _to_item(row) -> RoleItem:
         model_profile=agent.model_profile,
         owner_member_id=str(agent.owner_member_id) if agent.owner_member_id else None,
         avatar=agent.avatar,
+        web_search=agent.web_search,
+        active_version_no=row.active_version_no or 0,
+        revision_status=row.revision_status,
         unit_name=row.unit_name,
         unit_color=UNIT_COLOR_HEX.get(row.unit_color) if row.unit_color else None,
         owner_name=row.owner_name,
@@ -190,19 +219,31 @@ async def create_role(session: AsyncSession, actor: CurrentMember, body: RoleCre
     # Antre dengan penghapusan unit agar role tidak masuk ke unit yang sedang dihapus
     await lock_organization(session, organization_id)
     unit_id = await require_unit(session, organization_id, body.unit_id, "Unit tidak ditemukan.")
+    formation = body.mode == "formation"
     agent = Agent(
         organization_id=organization_id,
         name=body.name,
         title=body.title,
         unit_id=unit_id,
         goal=body.goal,
-        status=body.status,
+        # Role yang dibentuk lewat analisis baru menerima tugas setelah Final
+        status="draft" if formation else body.status,
         owner_member_id=actor.membership.id,
         avatar=avatar_from_seed(body.name),
+        web_search=False,
         created_by=actor.user.id,
     )
     _check_active(agent)
     session.add(agent)
+    await session.flush()
+    if formation:
+        await new_revision(
+            session, agent, source="formation", status="draft", base=None, user_id=actor.user.id
+        )
+    else:
+        await record_manual_version(
+            session, agent, actor.membership.id, actor.user.id, "Dibuat dengan isian manual."
+        )
     await session.commit()
     return await read_role(session, organization_id, str(agent.id))
 
@@ -217,10 +258,12 @@ async def _get(session: AsyncSession, organization_id: uuid.UUID, role_id: str) 
 
 
 async def update_role(
-    session: AsyncSession, organization_id: uuid.UUID, role_id: str, body: RoleUpdate
+    session: AsyncSession, actor: CurrentMember, role_id: str, body: RoleUpdate
 ) -> RoleItem:
+    organization_id = actor.organization_id
     await lock_organization(session, organization_id)
     agent = await _get(session, organization_id, role_id)
+    before = snapshot_of(agent)
     changes = body.model_dump(exclude_unset=True)
     if "unit_id" in changes:
         changes["unit_id"] = await require_unit(
@@ -237,7 +280,16 @@ async def update_role(
         changes["input_spec"] = [f.model_dump(exclude_none=True) for f in body.input_spec]
     for field, value in changes.items():
         setattr(agent, field, value)
+    if agent.status == "active" and agent.active_revision_id is None:
+        raise ConflictException("Role belum Final. Selesaikan pembentukan role terlebih dahulu.")
     _check_active(agent)
+    # Ubahan isian kerja tercatat sebagai versi manual baru yang langsung Final (16.3)
+    if agent.active_revision_id is not None and any(
+        before[field] != getattr(agent, field) for field in WORK_FIELDS
+    ):
+        await record_manual_version(
+            session, agent, actor.membership.id, actor.user.id, "Diubah langsung di detail role."
+        )
     await session.commit()
     return await read_role(session, organization_id, str(agent.id))
 
@@ -245,9 +297,14 @@ async def update_role(
 async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id: str) -> None:
     await lock_organization(session, organization_id)
     agent = await _get(session, organization_id, role_id)
+    # Uraian jabatan dan hasil tanya jawab tidak menghalangi; keduanya ikut diarsipkan
     if await session.scalar(
         select(Document.id)
-        .where(Document.agent_id == agent.id, Document.deleted_at.is_(None))
+        .where(
+            Document.agent_id == agent.id,
+            Document.deleted_at.is_(None),
+            Document.category.not_in(("formation", "qa")),
+        )
         .limit(1)
     ):
         raise ConflictException(
@@ -266,6 +323,19 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
         )
     now = utcnow()
     agent.deleted_at = now
+    await session.execute(
+        update(Document)
+        .where(Document.agent_id == agent.id, Document.deleted_at.is_(None))
+        .values(deleted_at=now)
+    )
+    await session.execute(
+        update(AgentRevision)
+        .where(
+            AgentRevision.agent_id == agent.id,
+            AgentRevision.status.in_(OPEN_REVISION_STATUSES),
+        )
+        .values(status="discarded", job=None)
+    )
     await session.execute(
         update(AgentRelation)
         .where(

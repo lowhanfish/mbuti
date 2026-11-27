@@ -1948,7 +1948,7 @@ Pencarian:
   domain dibuat server dari metadata itu**, bukan dari teks model; (2) temuan masuk prompt utama sebagai potongan
   `W1…` di bawah `INTERNET`, sesudah semua sumber organisasi. Bila model mendukung alat dan keluaran terstruktur
   sekaligus, cukup satu panggilan (dicek saat E1d).
-- Panggilan pencarian dicatat di `llm_calls` dengan `purpose: "web_search"`, ikut `cost_used` tugas dan anggaran
+- Panggilan pencarian dicatat di `llm_calls` dengan `kind: "web_search"`, ikut `cost_used` tugas dan anggaran
   bulanan. Linimasa mencatat bahwa role mencari di internet.
 - Hasil yang hanya bertumpu pada internet tidak boleh berstatus `not_in_documents`; `notes` menyebut bahwa sumbernya
   di luar dokumen organisasi.
@@ -1977,9 +1977,10 @@ export interface UsageToday {
 }
 ```
 
-`llm_calls` mendapat kolom `purpose`. Langkah tugas = `task`; uji coba = `trial`; analisis dan putaran tanya jawab =
-`formation`; embedding gambar halaman = `vision_ingest`; pencarian internet = `web_search`. Embedding teks dokumen
-dan pertanyaan tidak dihitung di sini.
+Jenisnya dibaca dari kolom `llm_calls.kind` yang sudah ada: `step` dan `condition` = `task`; `trial`; analisis dan
+putaran tanya jawab = `formation`; embedding gambar halaman = `vision_ingest` dan pencarian internet = `web_search`
+(kolom diperlebar saat E1c dan E1d). Panggilan yang gagal ikut dihitung. Embedding teks dokumen dan pertanyaan tidak
+dihitung di sini.
 
 ### 16.9 Pengaturan server baru
 

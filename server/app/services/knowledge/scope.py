@@ -23,9 +23,14 @@ def visible_to(
             colleague.deleted_at.is_(None),
         )
     ).correlate_except(colleague)
-    return or_(
+    by_scope = or_(
         Document.scope == "organization",
         knowledge_scope == "organization",
         Document.agent_id == agent_id,
         and_(knowledge_scope == "unit", or_(Document.unit_id == unit_id, from_colleague)),
     )
+    # Uraian jabatan dan hasil tanya jawab hanya dibaca role pemiliknya (kontrak 16.4)
+    own_formation = or_(
+        Document.category.not_in(("formation", "qa")), Document.agent_id == agent_id
+    )
+    return and_(by_scope, own_formation)

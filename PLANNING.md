@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halamannya dan kontrak API-nya selesai; backend E1a berikutnya.
+Diperbarui: 27 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; rancangan E1 disepakati dan halaman, kontrak API, dan backend E1a selesai; backend E1b berikutnya.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -727,7 +727,7 @@ sekali, lalu backend dan uji dikerjakan per bagian (commit dan push tiap bagian)
 | `tasks` | + web_search (`role`, `off`) |
 | `citations` | chunk_id boleh kosong; + source_kind (`policy`, `qa`, `document`, `web`, `image`, `attachment`), url, title, attachment_id, region JSON (kotak 0–1000) |
 | `artifacts` | + findings JSON: no, title, description, severity (`info`, `perlu_perbaikan`, `penting`), attachment_id atau version_id+page_no, box, source, recommendation |
-| `llm_calls` | + purpose (`task`, `trial`, `formation`, `vision_ingest`, `web_search`) |
+| `llm_calls` | kolom `kind` yang sudah ada mendapat nilai `formation`, `vision_ingest`, `web_search` (dipakai sebagai jenis pemakaian) |
 | `knowledge_proposals` (baru) | url, title, excerpt, proposed_by, status, decided_by |
 
 Katalog alat ditulis di kode (`app/services/tools/catalog.py`): kunci, nama, kelompok, status, dan kata pengenal untuk
@@ -802,7 +802,7 @@ alat dokumen, data, browser, dan media berstatus *segera*.
 | Pencarian internet | +1 generasi dan +1 grounding per langkah yang memicunya |
 
 Pengaman: analisis dan tanya jawab lewat antrean `execution` (satu per satu), antre ulang dengan jeda saat 429,
-`FORMATION_ROUNDS_MAX` bawaan 6, `llm_calls.purpose`, dan pemakaian hari ini per jenis di Pengaturan > Model AI. Uji
+`FORMATION_ROUNDS_MAX` bawaan 6, jenis pemakaian di `llm_calls.kind`, dan pemakaian hari ini per jenis di Pengaturan > Model AI. Uji
 memakai `mock` serta contoh fiktif atau publik di `server/contoh/`.
 
 **Pustaka baru:** pypdfium2 (Apache/BSD) dan Pillow (HPND), dipasang dengan izin saat E1c setelah sisa disk dicek.
@@ -819,7 +819,12 @@ Kemajuan:
 - [x] Kontrak API (27 November 2026, `admin/API_CONTRACT.md` bagian 16): pembentukan dan versi role, katalog dan
       permintaan alat, kebijakan dan urutan rujukan, gambar halaman, lampiran dan temuan, pencarian internet dan usulan,
       pemakaian kuota, pengaturan `.env` baru, batas laju, dan jejak audit.
-- [ ] E1a backend dan uji.
+- [x] E1a backend dan uji (27 November 2026): tabel `agent_revisions`, `agent_skills`, `agent_formation_messages`,
+      `tool_requests`, kolom `agents.web_search`/`active_revision_id` dan `documents.category` (migrasi juga membuat
+      versi 1 manual untuk role yang sudah ada); katalog alat; analisis dan putaran tanya jawab di antrean `execution`;
+      endpoint pembentukan, versi, dan alat; uraian jabatan oleh penanggung jawab; dokumen tanya jawab; pemakaian
+      hari ini. Kolom E1b–E1d lain dikirim dengan nilai bawaan agar frontend mode API tidak rusak. Uji:
+      `tests/integration/test_formation.py`, `tests/unit/test_tool_catalog.py`; pytest penuh 245 lulus.
 - [ ] E1b backend dan uji.
 - [ ] E1c backend dan uji.
 - [ ] E1d backend dan uji.

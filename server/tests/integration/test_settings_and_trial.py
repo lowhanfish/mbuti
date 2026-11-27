@@ -28,6 +28,9 @@ TRIAL_KEYS = {
     "citations",
     "cost",
     "model",
+    "attachments",
+    "findings",
+    "web_sources",
 }
 
 

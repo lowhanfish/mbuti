@@ -1,5 +1,15 @@
 from app.models.agent.agent import Agent
 from app.models.agent.flow import FlowHuman, FlowPosition
+from app.models.agent.formation import AgentFormationMessage, AgentRevision, AgentSkill, ToolRequest
 from app.models.agent.relation import AgentRelation
 
-__all__ = ["Agent", "AgentRelation", "FlowHuman", "FlowPosition"]
+__all__ = [
+    "Agent",
+    "AgentFormationMessage",
+    "AgentRelation",
+    "AgentRevision",
+    "AgentSkill",
+    "FlowHuman",
+    "FlowPosition",
+    "ToolRequest",
+]

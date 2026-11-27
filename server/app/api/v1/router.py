@@ -6,6 +6,8 @@ from app.api.v1.endpoints.admin.audit.route import router as audit_router
 from app.api.v1.endpoints.admin.dashboard.route import router as dashboard_router
 from app.api.v1.endpoints.admin.kantor.route import router as kantor_router
 from app.api.v1.endpoints.admin.organisasi.route import router as organisasi_router
+from app.api.v1.endpoints.admin.pembentukan.route import router as pembentukan_router
+from app.api.v1.endpoints.admin.pembentukan.route import tools_router
 from app.api.v1.endpoints.admin.pengaturan.route import router as pengaturan_router
 from app.api.v1.endpoints.admin.pengetahuan.route import router as pengetahuan_router
 from app.api.v1.endpoints.admin.pengguna.route import router as pengguna_router
@@ -23,7 +25,9 @@ admin_router = APIRouter(prefix="/admin", dependencies=[Depends(audit_trail, sco
 admin_router.include_router(organisasi_router)
 admin_router.include_router(unit_router)
 admin_router.include_router(pengguna_router)
+admin_router.include_router(pembentukan_router)
 admin_router.include_router(role_router)
+admin_router.include_router(tools_router)
 admin_router.include_router(relasi_router)
 admin_router.include_router(pengetahuan_router)
 admin_router.include_router(pengaturan_router)

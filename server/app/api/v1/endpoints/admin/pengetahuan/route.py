@@ -23,7 +23,11 @@ from app.api.v1.endpoints.admin.pengetahuan.schema import (
     VersionDetail,
 )
 from app.core.config import settings
-from app.core.exceptions import UnprocessableEntityException, validation_message
+from app.core.exceptions import (
+    ForbiddenException,
+    UnprocessableEntityException,
+    validation_message,
+)
 
 router = APIRouter(prefix="/pengetahuan", tags=["Pengetahuan"])
 
@@ -43,6 +47,7 @@ async def read_documents(
     doc_type: str = "",
     status: str = "",
     agent_id: str = "",
+    category: str = "",
     page: Paging = Depends(paging(50)),
     member: CurrentMember = Depends(get_current_member),
     session: AsyncSession = Depends(get_db),
@@ -57,6 +62,7 @@ async def read_documents(
         status,
         agent_id,
         page,
+        category,
     )
     return DocumentList(total=total, skip=page.skip, limit=page.limit, data=data, summary=summary)
 
@@ -89,9 +95,17 @@ async def create_document(
     doc_type: str = Form(default=""),
     scope: str = Form(default=""),
     scope_id: str = Form(default=""),
-    member: CurrentMember = Depends(require_manager),
+    member: CurrentMember = Depends(get_current_member),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[DocumentItem]:
+    # Penanggung jawab role boleh mengunggah uraian jabatan role itu sendiri (kontrak 16.1)
+    if member.access_role not in ("owner", "admin") and not (
+        member.access_role == "member"
+        and doc_type == "uraian_jabatan"
+        and scope == "agent"
+        and await service.owns_role(session, member, scope_id)
+    ):
+        raise ForbiddenException("Hanya pemilik atau admin yang dapat melakukan perubahan ini.")
     file_name, data = await _content(file, "Pilih berkas yang akan diunggah.")
     if scope not in ("organization", "unit", "agent"):
         raise UnprocessableEntityException("Lingkup dokumen tidak valid.")

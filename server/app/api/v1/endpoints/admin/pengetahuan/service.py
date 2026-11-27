@@ -55,6 +55,12 @@ DUPLICATE_FILE = "Berkas ini sama persis dengan versi yang sudah ada."
 QUEUE_DOWN = "Antrean pengolahan tidak tersedia. Unggah ulang setelah layanan pulih."
 
 
+CATEGORIES = ("knowledge", "policy", "formation", "qa", "web")
+SYSTEM_DOCUMENT = (
+    "Hasil tanya jawab disusun sistem dan tidak bisa diubah. Ubah lewat pembentukan role."
+)
+
+
 def _live(organization_id: uuid.UUID):
     return (Document.organization_id == organization_id, Document.deleted_at.is_(None))
 
@@ -103,6 +109,7 @@ async def _versions(
             progress=version.progress,
             error_message=version.error_message if version.status == "failed" else None,
             uploaded_by_name=uploader_name,
+            media_kind="pdf" if version.mime_type == "application/pdf" else "text",
             created_at=version.created_at,
         )
         result.setdefault(version.document_id, []).append((version, item))
@@ -154,6 +161,7 @@ def _to_item(row, active: Version | None) -> DocumentItem:
         scope_color=scope_color,
         active_version=active,
         version_count=row.version_count,
+        category=document.category,
         created_at=document.created_at,
         updated_at=document.updated_at,
     )
@@ -175,10 +183,15 @@ async def read_documents(
     status: str,
     agent_id: str,
     page: Paging,
+    category: str = "",
 ) -> tuple[int, list[DocumentItem], IngestionSummary]:
     base = [*_live(organization_id)]
     if agent_id:
         base.append(await _agent_filter(session, organization_id, agent_id))
+    # Satu atau beberapa kategori dipisah koma; nilai yang tidak dikenal diabaikan (16.4)
+    categories = [c for c in category.split(",") if c in CATEGORIES]
+    if categories:
+        base.append(Document.category.in_(categories))
     active = aliased(DocumentVersion)
     on_active = (active.document_id == Document.id) & active.is_active.is_(True)
 
@@ -237,6 +250,25 @@ async def search(
         session, organization_id, query.strip()[:300], get_embedding_provider(), visibility
     )
     return [hit_to_schema(hit) for hit in hits]
+
+
+def _not_system(document: Document) -> None:
+    if document.category == "qa":
+        raise ConflictException(SYSTEM_DOCUMENT)
+
+
+async def owns_role(session: AsyncSession, member: CurrentMember, role_id: str) -> bool:
+    """Anggota ini penanggung jawab role tersebut di organisasinya."""
+    try:
+        wanted = uuid.UUID(role_id)
+    except ValueError:
+        return False
+    owner = await session.scalar(
+        select(Agent.owner_member_id).where(
+            Agent.id == wanted, *live_agents(member.organization_id)
+        )
+    )
+    return owner == member.membership.id
 
 
 async def _get(
@@ -452,6 +484,7 @@ async def create_document(
         title=meta.title,
         description=meta.description,
         doc_type=meta.doc_type,
+        category="formation" if meta.doc_type == "uraian_jabatan" else "knowledge",
         created_by=actor.user.id,
         **await _scope_columns(session, organization_id, meta.scope, meta.scope_id),
     )
@@ -467,6 +500,7 @@ async def add_version(
 ) -> tuple[DocumentDetail, int]:
     await lock_organization(session, actor.organization_id)
     document = await _get(session, actor.organization_id, document_id)
+    _not_system(document)
     version_id = await _add_version(session, actor, document, file_name, data)
     await _enqueue(session, version_id)
     detail = await _detail(session, document)
@@ -498,6 +532,7 @@ async def update_document(
 ) -> DocumentDetail:
     await lock_organization(session, organization_id)
     document = await _get(session, organization_id, document_id)
+    _not_system(document)
     columns = await _scope_columns(session, organization_id, meta.scope, meta.scope_id)
     for field, value in {
         "title": meta.title,
@@ -516,6 +551,7 @@ async def delete_document(
     """True bila diarsipkan, False bila dihapus permanen."""
     await lock_organization(session, organization_id)
     document = await _get(session, organization_id, document_id)
+    _not_system(document)
     # Dokumen yang pernah dirujuk hasil tugas diarsipkan agar rujukannya tetap bisa dibuka
     if await session.scalar(
         select(Citation.id).where(Citation.document_id == document.id).limit(1)
@@ -533,3 +569,8 @@ async def delete_document(
     for path in paths:
         storage.delete(path)
     return False
+
+
+# Dipakai pembentukan role untuk menyimpan hasil tanya jawab sebagai dokumen (kontrak 16.1)
+add_file_version = _add_version
+enqueue_version = _enqueue

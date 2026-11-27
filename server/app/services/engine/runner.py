@@ -106,7 +106,7 @@ async def _record(
     return cost
 
 
-async def _generate(
+async def generate_with_fallback(
     session: AsyncSession,
     caller: Caller,
     agent_id: uuid.UUID,
@@ -239,7 +239,7 @@ async def run_agent(
     agent_id, profile = agent.id, agent.model_profile
     # Transaksi ditutup agar koneksi database tidak menggantung selama model menulis
     await session.commit()
-    generation, model, cost = await _generate(
+    generation, model, cost = await generate_with_fallback(
         session,
         caller,
         agent_id,
@@ -287,7 +287,7 @@ async def evaluate_condition(
     """Dinilai model profil cepat. Kembalikan (terpenuhi, alasan, biaya)."""
     models = (await budget.read_settings(session, caller.organization_id)).models
     await session.commit()
-    generation, _, cost = await _generate(
+    generation, _, cost = await generate_with_fallback(
         session,
         caller,
         agent_id,

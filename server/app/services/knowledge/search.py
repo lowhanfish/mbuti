@@ -44,6 +44,8 @@ class Chunk:
     heading: str
     text: str
     score: int
+    # policy, qa, atau document (kontrak 16.4)
+    source_kind: str = "document"
 
 
 @dataclass
@@ -56,6 +58,7 @@ class Hit:
     heading: str
     snippet: str
     score: int
+    source_kind: str = "document"
 
 
 def tokenize(query: str) -> list[str]:
@@ -174,6 +177,7 @@ async def rank_chunks(
             DocumentVersion.version_no,
             Document.id.label("document_id"),
             Document.title,
+            Document.category,
         )
         .join(DocumentSection, DocumentSection.id == DocumentChunk.section_id)
         .join(DocumentVersion, DocumentVersion.id == DocumentChunk.version_id)
@@ -191,6 +195,7 @@ async def rank_chunks(
             heading=row.heading,
             text=row.text,
             score=round(scores[row.id] / best * 100),
+            source_kind=row.category if row.category in ("policy", "qa") else "document",
         )
         for row in sorted(rows, key=lambda r: (-scores[r.id], r.page_no))
     ]
@@ -206,6 +211,7 @@ def to_hit(chunk: Chunk, terms: list[str]) -> Hit:
         heading=chunk.heading,
         snippet=snippet_around(chunk.text, terms),
         score=chunk.score,
+        source_kind=chunk.source_kind,
     )
 
 

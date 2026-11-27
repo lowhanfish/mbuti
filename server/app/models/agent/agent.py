@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.base import Base
@@ -38,6 +38,14 @@ class Agent(Base):
         UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="SET NULL"), nullable=True
     )
     avatar = Column(JSONB, nullable=False)
+    # Boleh mencari di internet (E1d)
+    web_search = Column(Boolean, nullable=False, default=False, server_default="false")
+    # Versi Final yang dipakai bekerja; kosong sebelum Final pertama (E1a)
+    active_revision_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_revisions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
     # Ditandai terhapus agar namanya tetap ada di riwayat tugas
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     created_at = created_at()

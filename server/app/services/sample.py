@@ -62,7 +62,7 @@ async def seed(sessions: async_sessionmaker[AsyncSession], actor: CurrentMember)
         async with sessions() as session:
             await roles.update_role(
                 session,
-                organization_id,
+                actor,
                 role.id,
                 RoleUpdate(status="active", owner_member_id=str(actor.membership.id), **changes),
             )

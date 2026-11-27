@@ -29,6 +29,13 @@ class ApiKeyInfo(BaseModel):
     cooldown_until: datetime.datetime | None
 
 
+class UsageToday(BaseModel):
+    purpose: str
+    calls: int
+    # Rupiah
+    cost: int
+
+
 class EmbeddingInfo(BaseModel):
     model: str
     dimension: int
@@ -40,6 +47,7 @@ class ModelSettings(BaseModel):
     available_models: list[ModelOption]
     api_keys: list[ApiKeyInfo]
     embedding: EmbeddingInfo
+    usage_today: list["UsageToday"]
     updated_at: datetime.datetime
 
 

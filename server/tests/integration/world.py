@@ -10,6 +10,7 @@ from app.core.security import hash_password
 from app.models import Agent, Membership, Organization, Unit, User
 from app.models.base import utcnow
 from app.services.appearance import avatar_from_seed
+from app.services.formation.versions import record_manual_version
 
 PASSWORD = "kata-sandi-uji-123"
 PASSWORD_HASH = hash_password(PASSWORD)
@@ -100,5 +101,9 @@ async def add_agents(world: World, organization: str, *names: str) -> list[str]:
     ]
     async with world.sessions() as session:
         session.add_all(agents)
+        await session.flush()
+        # Seperti migrasi E1a: role yang sudah ada punya versi 1 isian manual yang Final
+        for agent in agents:
+            await record_manual_version(session, agent, None, None, "Versi uji.")
         await session.commit()
     return [str(agent.id) for agent in agents]

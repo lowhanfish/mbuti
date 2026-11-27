@@ -47,6 +47,9 @@ class Step(BaseModel):
     input_notes: str
     output: str
     citations: list[SearchHit]
+    # Temuan bergambar (E1c) dan sumber internet (E1d); kosong sampai tahap itu
+    findings: list[dict] = []
+    web_sources: list[dict] = []
     verdict: str | None
     model: str
     cost: int
@@ -90,6 +93,9 @@ class InputValue(BaseModel):
 
 class TaskDetail(TaskItem):
     inputs: list[InputValue]
+    # Lampiran (E1c) dan pilihan internet (E1d)
+    attachments: list[dict] = []
+    web_search: str = "role"
     steps: list[Step]
     approvals: list[ApprovalItem]
     events: list[Event]

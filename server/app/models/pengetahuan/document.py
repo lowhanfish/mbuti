@@ -29,6 +29,9 @@ class Document(Base):
             " OR (scope = 'agent' AND agent_id IS NOT NULL AND unit_id IS NULL)",
             name="scope",
         ),
+        CheckConstraint(
+            "category IN ('knowledge', 'policy', 'formation', 'qa', 'web')", name="category"
+        ),
     )
 
     id = uuid_pk()
@@ -40,7 +43,9 @@ class Document(Base):
     )
     title = Column(String(200), nullable=False)
     description = Column(String(1000), nullable=False, default="")
-    doc_type = Column(String(10), nullable=False, default="lainnya")
+    doc_type = Column(String(20), nullable=False, default="lainnya")
+    # knowledge, policy (E1b), formation (uraian jabatan), qa (hasil tanya jawab), web (E1d)
+    category = Column(String(12), nullable=False, default="knowledge", server_default="knowledge")
     scope = Column(String(12), nullable=False)
     unit_id = Column(
         UUID(as_uuid=True), ForeignKey("units.id", ondelete="SET NULL"), nullable=True, index=True

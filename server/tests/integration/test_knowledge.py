@@ -22,6 +22,9 @@ ITEM_KEYS = {
     "scope_color",
     "active_version",
     "version_count",
+    "category",
+    "policy",
+    "source_url",
     "created_at",
     "updated_at",
 }
@@ -38,6 +41,9 @@ VERSION_KEYS = {
     "progress",
     "error_message",
     "uploaded_by_name",
+    "media_kind",
+    "visual_pages",
+    "visual_pages_over_limit",
     "created_at",
 }
 HIT_KEYS = {
@@ -49,6 +55,8 @@ HIT_KEYS = {
     "heading",
     "snippet",
     "score",
+    "source_kind",
+    "image_url",
 }
 LETTER = (
     b"# Undangan rapat\nSurat undangan rapat dikirim paling lambat tiga hari sebelumnya.\n"

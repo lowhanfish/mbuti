@@ -64,7 +64,7 @@ async def update_role(
     member: CurrentMember = Depends(require_manager),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[RoleItem]:
-    data = await service.update_role(session, member.organization_id, role_id, body)
+    data = await service.update_role(session, member, role_id, body)
     return ApiResponse(message="Role diperbarui.", data=data)
 
 

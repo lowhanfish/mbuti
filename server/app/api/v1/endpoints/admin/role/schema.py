@@ -72,6 +72,8 @@ class RoleCreate(RoleChecks):
     unit_id: str | None = None
     goal: str = ""
     status: AgentStatus = "draft"
+    # formation: mulai sebagai draf dengan revisi pembentukan; manual: langsung versi 1 (16.3)
+    mode: Literal["formation", "manual"] = "manual"
 
 
 class RoleUpdate(RoleChecks):
@@ -96,6 +98,7 @@ class RoleUpdate(RoleChecks):
     model_profile: ModelProfile = Field(default=None)
     owner_member_id: str | None = None
     avatar: Avatar = Field(default=None)
+    web_search: bool = Field(default=None)
 
     @field_validator("input_spec")
     @classmethod
@@ -137,6 +140,9 @@ class RoleItem(BaseModel):
     model_profile: str
     owner_member_id: str | None
     avatar: dict[str, str]
+    web_search: bool
+    active_version_no: int
+    revision_status: str | None
     unit_name: str | None
     unit_color: str | None
     owner_name: str | None
@@ -164,6 +170,10 @@ class TrialResult(BaseModel):
     citations: list[SearchHit]
     cost: int
     model: str
+    # Diisi mulai E1c dan E1d; kosong sampai saat itu
+    attachments: list[dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
+    web_sources: list[dict[str, Any]] = []
 
 
 class RoleSummary(BaseModel):

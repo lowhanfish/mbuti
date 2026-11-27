@@ -22,6 +22,7 @@ from app.core.config import SERVER_DIR, settings
 from app.core.rate_limit import key_prefix
 from app.db.engine import build_async_engine
 from app.workers.execution import execute_task
+from app.workers.formation import run_formation
 from app.workers.ingestion import process_version
 from app.workers.mail import send_email
 from tests.integration.world import PASSWORD, World, build_world, new_client
@@ -112,6 +113,14 @@ def queued_tasks(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Sama untuk tugas: tes menjalankan mesinnya sendiri."""
     queued: list[str] = []
     monkeypatch.setattr(execute_task, "apply_async", lambda args, **_: queued.append(args[0]))
+    return queued
+
+
+@pytest.fixture(autouse=True)
+def queued_formations(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Analisis dan putaran tanya jawab: tes menjalankan pekerjaannya sendiri."""
+    queued: list[str] = []
+    monkeypatch.setattr(run_formation, "apply_async", lambda args, **_: queued.append(args[0]))
     return queued
 
 
