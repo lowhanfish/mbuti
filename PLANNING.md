@@ -589,15 +589,15 @@ kinerja harian, sistem kepegawaian, aplikasi laporan) tanpa dikonfirmasi berulan
      ditambahkan nanti bila diminta.
 3. **Alat browser** dengan sesi tersimpan per role per aplikasi, supaya jarang perlu masuk ulang dan meminta OTP.
 4. **Tugas terjadwal** per role, misalnya setiap hari kerja pukul 16.05 mengisi worksheet kinerja harian, atau setiap
-   akhir bulan membuat laporan jaringan. Hasilnya dilaporkan ke pemilik lewat WhatsApp, disertai tangkapan layar.
+   akhir bulan membuat laporan jaringan. Hasilnya dilaporkan di MBUTI (linimasa dan notifikasi), disertai tangkapan layar.
 5. **Mode penyusunan** per role, dan bisa diganti per tugas:
    - *Dari data*: hanya memakai dokumen, catatan, dan hasil tugas yang ada.
    - *Lengkapi*: memakai data yang ada, lalu bagian yang kosong disusun sendiri.
    - *Susun bebas*: membuat dokumen utuh sesuai perintah dan format walaupun tanpa data masukan.
    Linimasa internal mencatat mode tiap hasil; tanda ini tidak tercetak di dokumen.
 6. **Lampiran otomatis.** Berkas yang sudah ada dipakai; bila belum ada, role membuatkannya dalam PDF, DOCX, atau XLSX.
-7. **WhatsApp sebagai saluran kerja** antara role dan pemiliknya: perintah, catatan singkat kegiatan, permintaan OTP,
-   dan laporan hasil.
+7. **WhatsApp hanya untuk konfirmasi**: meminta kode yang dikirim lewat email atau SMS, dan menerima balasannya.
+   Perintah, catatan, dan laporan tetap lewat MBUTI.
 
 Pertanyaan terbuka:
 
