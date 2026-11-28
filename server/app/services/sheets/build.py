@@ -449,6 +449,12 @@ def write(sheets: list[Computed], names: list[str]) -> tuple[bytes, dict]:
         for index, width in enumerate(widths, start=1):
             page.column_dimensions[get_column_letter(index)].width = min(50, max(10, width + 3))
         page.freeze_panes = "A2"
+        # Cetak: A4 mendatar, semua kolom satu lebar halaman, judul diulang tiap halaman
+        page.page_setup.paperSize = page.PAPERSIZE_A4
+        page.page_setup.orientation = "landscape"
+        page.sheet_properties.pageSetUpPr.fitToPage = True
+        page.page_setup.fitToHeight = 0
+        page.print_title_rows = "1:1"
     book.calculation.fullCalcOnLoad = True
     buffer = io.BytesIO()
     book.save(buffer)

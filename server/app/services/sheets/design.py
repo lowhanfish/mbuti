@@ -81,7 +81,8 @@ SHEET_PROPERTY = {
                         "required": ["column", "operator"],
                     },
                 },
-                "required": ["name", "columns"],
+                # Wajib diisi (boleh kosong) agar model tidak melewatkan pengelompokan
+                "required": ["name", "columns", "group_by", "sort_by"],
             },
         }
     },
@@ -99,9 +100,11 @@ SHEET_RULES = [
     "multiply, divide) dengan `operands` berisi `header` kolom sebelumnya. Persentase memakai "
     "divide dengan format percent.",
     "- `total`: sum untuk angka yang layak dijumlahkan, average, count, min, max, atau none.",
-    "- `group_by` bila diminta per kelompok; `sort_by` dan `sort_desc` untuk urutan; `flag` "
-    "untuk menandai baris (operator lt, lte, gt, gte, eq, ne, empty; nilai persen ditulis mis. "
-    "50%).",
+    '- `group_by` judul kolom pengelompok: permintaan "per <sesuatu>" berarti dikelompokkan '
+    "menurut kolom itu dan urutan berlaku di dalam kelompok. `group_by` dan `sort_by` dikosongkan "
+    "bila tidak diminta.",
+    "- `sort_desc` benar untuk urutan menurun; `flag` untuk menandai baris (operator lt, lte, gt, "
+    "gte, eq, ne, empty; nilai persen ditulis mis. 50%).",
     "- Tanpa <data>, tulis baris di `rows` (urut sesuai kolom tanpa `op`) hanya dengan angka yang "
     "ada di arahan atau dokumen.",
     "- Di `output` jelaskan singkat isi tabel tanpa menulis angka hasil hitungan. Merancang tabel "
@@ -140,6 +143,12 @@ def _line(value: object, limit: int) -> str:
 
 def _key(value: object) -> str:
     return _line(value, 100).lower()
+
+
+def _choice(value: object) -> str:
+    """Nama kolom pilihan; model kadang menulis "-" atau "none" untuk yang tidak dipakai."""
+    name = _key(value)
+    return "" if name in ("-", "none", "null", "tidak ada") else name
 
 
 def _items(value: object, count: int) -> list:
@@ -249,14 +258,15 @@ def _sheet(raw: dict, tables: list[DataTable], dropped: list[str], number: int) 
         if not rows:
             return None
     by_name = {c["header"].lower(): i for i, c in enumerate(columns)}
-    group = by_name.get(_key(raw.get("group_by")))
+    group_name, sort_name = _choice(raw.get("group_by")), _choice(raw.get("sort_by"))
+    group = by_name.get(group_name)
     if group is not None and columns[group]["op"] is not None:
         group = None
-    sort = by_name.get(_key(raw.get("sort_by")))
+    sort = by_name.get(sort_name)
     flag = _flag(raw.get("flag"), columns)
     for asked, found, label in (
-        (_key(raw.get("group_by")), group, "pengelompokan"),
-        (_key(raw.get("sort_by")), sort, "urutan"),
+        (group_name, group, "pengelompokan"),
+        (sort_name, sort, "urutan"),
         (raw.get("flag"), flag, "penanda"),
     ):
         if asked and found is None:

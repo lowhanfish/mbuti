@@ -116,7 +116,7 @@ def test_which_tasks_may_return_a_sheet():
 
 def test_design_drops_what_it_does_not_know():
     [table] = read_tables("csv", CSV)
-    raw = design(group_by="Tidak ada")
+    raw = design(group_by="Kolom hilang")
     raw["sheets"][0]["columns"].append(
         {"header": "Selisih", "op": "subtract", "operands": ["Bidang", "Pagu"], "format": "number"}
     )
@@ -218,6 +218,9 @@ def test_libreoffice_agrees_with_program_totals():
     assert page["E2"].value.startswith("=IF(OR(") and page["D8"].value.startswith("=SUBTOTAL(9,")
     assert values.worksheets[0]["D8"].value == 261000000
     assert page["A1"].font.bold and page["C2"].number_format.endswith("#,##0")
+    assert (
+        page.page_setup.orientation == "landscape" and page.sheet_properties.pageSetUpPr.fitToPage
+    )
     # Teks yang diawali "=" tidak menjadi rumus
     cells = [c for row in page.iter_rows() for c in row if str(c.value).startswith("=HYPERLINK")]
     assert [c.data_type for c in cells] == ["s"]

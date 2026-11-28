@@ -1021,7 +1021,11 @@ disimpan sebagai teks. Pustaka `openpyxl` (MIT).
 - [x] E3b kontrak API (28 November 2026): bagian 19 di `admin/API_CONTRACT.md`
 - [x] E3b backend dan uji (28 November 2026): `services/sheets/`, migrasi `e5c8a3f1b904`, `openpyxl` (MIT) dan
       `defusedxml` (PSF). Tes unit (termasuk hitungan lewat LibreOffice sungguhan) dan tes integrasi dengan model tiruan.
-      Belum diuji dengan Gemini sungguhan dan halaman terhadap backend
+      Halaman belum dicoba terhadap backend
+- [x] Coba E3b sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan (28 November 2026): dari lampiran XLSX fiktif
+      dan dari angka di arahan, seluruh angka cocok dengan data asli. Dua temuan diperbaiki: permintaan "per bidang"
+      tidak dikelompokkan, dan cetakan terpotong jadi dua halaman. Belum dicoba dengan CSV atau berkas asli, beberapa
+      lembar, role pemeriksa, dan data ribuan baris
 
 #### Pertanyaan terbuka fase E
 
