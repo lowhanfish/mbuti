@@ -37,7 +37,9 @@ const GROUND = {
 type GroundTheme = (typeof GROUND)[keyof typeof GROUND];
 
 /** Tepi lantai gedung di sekeliling ruangan */
-const BUILDING_MARGIN = 1.6;
+const BUILDING_MARGIN = 3;
+/** Ruang tambahan di depan pintu masuk, seperti lobi */
+const LOBBY_DEPTH = 3;
 const WALL_H = 2.6;
 const LOW_WALL_H = 0.45;
 const DOOR_W = 3;
@@ -96,7 +98,7 @@ function Building({
   const minX = bounds.minX - BUILDING_MARGIN;
   const maxX = bounds.maxX + BUILDING_MARGIN;
   const minZ = bounds.minZ - BUILDING_MARGIN;
-  const maxZ = bounds.maxZ + BUILDING_MARGIN;
+  const maxZ = bounds.maxZ + BUILDING_MARGIN + LOBBY_DEPTH;
   const w = maxX - minX;
   const d = maxZ - minZ;
   const cx = (minX + maxX) / 2;
@@ -378,7 +380,7 @@ function Room({
       )}
       <TextSprite
         text={`${unit.code ? unit.code + " · " : ""}${unit.name}`}
-        position={[0, 1.75, -d / 2 + 0.1]}
+        position={[0, 1.5, d / 2 + 0.08]}
         height={0.55}
         bg={unit.color}
         fg="#ffffff"
@@ -386,7 +388,7 @@ function Room({
         bold
       />
       {unit.active_task_count > 0 && (
-        <TextSprite text={`${unit.active_task_count} tugas aktif`} position={[w / 2 - 1.2, 1.2, -d / 2 + 0.1]} height={0.36} bg="#18122b" fg="#ffb81c" font={18} bold />
+        <TextSprite text={`${unit.active_task_count} tugas aktif`} position={[0, 0.95, d / 2 + 0.08]} height={0.36} bg="#18122b" fg="#ffb81c" font={18} bold />
       )}
     </group>
   );

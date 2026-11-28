@@ -1,11 +1,13 @@
 import type { OfficeAgent, OfficeUnit } from "./types";
 
-const DESK_DX = 2.5;
-const DESK_DZ = 2.9;
+const DESK_DX = 2.6;
+/** Jarak antar-baris meja; cukup lebar agar label nama baris depan tidak menutupi baris belakang */
+const DESK_DZ = 3.4;
 /** Ruang tepi di kiri-kanan (lebar) dan depan-belakang (kedalaman) ruangan */
-const PAD_W = 1.4;
-const PAD_D = 1.8;
-const GAP = 1.6;
+const PAD_W = 2;
+const PAD_D = 2.2;
+/** Lebar lorong di antara ruangan */
+const GAP = 3;
 
 /**
  * Jumlah meja per baris mengikuti jumlah orang agar ruangan mendekati persegi:
@@ -74,8 +76,8 @@ export const buildLayout = (units: OfficeUnit[], agents: OfficeAgent[]) => {
   const area = sized.reduce((s, r) => s + (r.w + GAP) * (r.d + GAP), 0);
   const rowWidth = Math.max(...sized.map((r) => r.w), Math.sqrt(area) * 1.25);
 
-  const rooms: RoomLayout[] = [];
-  let zCursor = 0;
+  // Kelompokkan ruangan ke dalam baris
+  const rows: (typeof sized)[] = [];
   let i = 0;
   while (i < sized.length) {
     const row = [sized[i++]];
@@ -84,11 +86,25 @@ export const buildLayout = (units: OfficeUnit[], agents: OfficeAgent[]) => {
       width += GAP + sized[i].w;
       row.push(sized[i++]);
     }
+    rows.push(row);
+  }
+  // Semua baris dibuat selebar baris terlebar: sisa lebar dibagi ke ruangan sebanding lebarnya,
+  // sehingga tepi kiri-kanan denah rata dan tidak ada lahan kosong besar.
+  const rowWidths = rows.map((row) => row.reduce((s, r) => s + r.w, 0) + GAP * (row.length - 1));
+  const fullWidth = Math.max(...rowWidths);
+
+  const rooms: RoomLayout[] = [];
+  let zCursor = 0;
+  rows.forEach((row, r) => {
+    const base = row.reduce((s, x) => s + x.w, 0);
+    const stretch = (fullWidth - rowWidths[r]) / base;
     let xCursor = 0;
-    for (const { unit, members, cols, w, d } of row) {
+    for (const { unit, members, cols, w: ownW, d } of row) {
+      const w = ownW * (1 + stretch);
       const x = xCursor + w / 2;
       const z = zCursor + d / 2;
       xCursor += w + GAP;
+      const deskRows = Math.max(1, Math.ceil(members.length / cols));
       rooms.push({
         unit,
         x,
@@ -96,15 +112,20 @@ export const buildLayout = (units: OfficeUnit[], agents: OfficeAgent[]) => {
         w,
         d,
         cols,
-        agents: members.map((agent, k) => ({
-          agent,
-          x: x - w / 2 + 1.45 + (k % cols) * DESK_DX,
-          z: z - d / 2 + 1.5 + Math.floor(k / cols) * DESK_DZ,
-        })),
+        agents: members.map((agent, k) => {
+          // Meja di tengah ruangan; baris terakhir yang tidak penuh juga ditengahkan
+          const rowIndex = Math.floor(k / cols);
+          const inRow = rowIndex === deskRows - 1 ? members.length - rowIndex * cols : cols;
+          return {
+            agent,
+            x: x + ((k % cols) - (inRow - 1) / 2) * DESK_DX,
+            z: z + (rowIndex - (deskRows - 1) / 2) * DESK_DZ - 0.35,
+          };
+        }),
       });
     }
-    zCursor += Math.max(...row.map((r) => r.d)) + GAP;
-  }
+    zCursor += Math.max(...row.map((x) => x.d)) + GAP;
+  });
 
   // Pusatkan denah
   const minX = Math.min(...rooms.map((r) => r.x - r.w / 2));
