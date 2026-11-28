@@ -1052,6 +1052,7 @@ tetap bekerja seperti sebelumnya.
 - [x] E3c halaman dengan data contoh (29 November 2026): pilihan mode di role, tugas, dan tugas rutin; daftar bagian
       buatan role; persetujuan "Ada isi buatan role"; berkas laporan; mock `lib/mock/compose.ts` dan `reports.ts`.
       Dicoba di peramban untuk alur Susun bebas sampai disetujui
+- [x] E3c kontrak API (29 November 2026): bagian 20 di `admin/API_CONTRACT.md`
 
 #### Pertanyaan terbuka fase E
 

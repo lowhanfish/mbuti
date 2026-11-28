@@ -28,6 +28,8 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 16. [Pembentukan role dan pengetahuan (E1)](#16-pembentukan-role-dan-pengetahuan-e1)
 17. [Tugas rutin, kalender kerja, dan cuti (E2)](#17-tugas-rutin-kalender-kerja-dan-cuti-e2)
 18. [Surat dan berkas hasil (E3a)](#18-surat-dan-berkas-hasil-e3a)
+19. [Spreadsheet (E3b)](#19-spreadsheet-e3b)
+20. [Mode penyusunan dan laporan (E3c)](#20-mode-penyusunan-dan-laporan-e3c)
 
 ---
 
@@ -2703,4 +2705,107 @@ export interface SheetResult {
 
 Hanya simulasi, jangan ditiru backend: rancangan memakai pola tetap, XLSX unggahan tidak dibaca (diganti tabel
 contoh), dan unduhan berupa CSV.
+
+---
+
+## 20. Mode penyusunan dan laporan (E3c)
+
+Mode menentukan seberapa banyak role boleh menyusun sendiri. Rancangannya ada di `PLANNING.md` (E3c).
+
+### 20.1 Isian dan nilai bawaan
+
+```ts
+export type ComposeMode = "data" | "complete" | "free"; // Dari data, Lengkapi, Susun bebas
+export type ComposeChoice = "role" | ComposeMode;
+
+export interface ComposedItem {
+  part: string; // maks 100 karakter
+  note: string; // maks 200 karakter
+}
+```
+
+| Tempat | Isian | Bawaan |
+|---|---|---|
+| Role (`UpdateInterface`) | `compose_mode: ComposeMode` | `data` |
+| Isian kerja versi role (`RevisionSnapshot`) | `compose_mode`; versi lama tanpa isian ini tidak mengubah mode role | |
+| Buat tugas dan tugas rutin | `compose_mode?: ComposeChoice` | `role` |
+| Detail tugas, tugas rutin | `compose_mode: ComposeChoice` | |
+| Langkah tugas (`StepInterface`) | `compose_mode: ComposeMode \| null`, `composed: ComposedItem[]` | |
+| Berkas hasil (semua jenis) | `composed: ComposedItem[]` | |
+| Hasil uji coba role | `compose_mode: ComposeMode`, `composed: ComposedItem[]` | |
+
+- Mode yang berlaku pada satu langkah: pilihan tugas bila bukan `role`, selain itu mode role yang mengerjakan.
+- `compose_mode` dan `composed` langkah hanya terisi pada langkah kerja. Konsultasi dan pemeriksaan selalu memakai
+  aturan Dari data.
+- Nilai di luar daftar ditolak (422).
+
+### 20.2 Perilaku
+
+| | `data` | `complete` | `free` |
+|---|---|---|---|
+| Narasi, analisis, saran | Hanya dari data | Disusun role | Disusun role |
+| Angka, tanggal, kejadian yang tidak ada | Isian kosong | Isian kosong | Boleh dibuat sebagai contoh |
+| Aturan atau data tidak ditemukan | `need_info` atau `not_in_documents` | Tetap disusun | Tetap disusun |
+| Isian wajib role belum diisi | Ditolak | Ditolak | Diterima |
+| Tanpa potongan dokumen | Model tidak dipanggil, kecuali surat, tabel, atau laporan | Model dipanggil | Model dipanggil |
+
+- Isian wajib diperiksa saat membuat tugas, menyimpan tugas rutin, dan saat putaran rutin berjalan, memakai mode yang
+  berlaku bagi role pertama.
+- Pada `complete` dan `free`, jawaban model hanya bisa berstatus `done`.
+- Di semua mode role dilarang mengarang nama orang, NIP, tanda tangan, nomor surat, dan nomor peraturan.
+- `composed` ditulis model dan dibersihkan server (maksimal 20 butir); pada `data` selalu kosong. Pada `free`, bila
+  langkah tidak punya dasar apa pun (potongan dokumen, lampiran, data, internet) dan model tidak mendaftarkan apa pun,
+  server menambahkan butir "Isi dokumen".
+- Daftar itu berasal dari laporan model, jadi bisa tidak lengkap; karena itu ditampilkan untuk diperiksa.
+- Linimasa: pesan selesai langkah kerja menyebut mode dan jumlah bagian buatan, mis.
+  `"Sari menyelesaikan pekerjaan (mode Susun bebas, 2 bagian disusun sendiri)."`
+- Role pemeriksa menerima mode pembuat dan daftar `composed`. Isi buatan yang terdaftar dan sesuai modenya tidak
+  menjadi alasan revisi.
+
+### 20.3 Persetujuan "Ada isi buatan role"
+
+- `ApprovalReason` bertambah `composed`.
+- Dibuat saat tugas tidak punya pekerjaan dan persetujuan lain yang tertunda, untuk hasil kerja **terakhir** tiap role
+  yang bermode `free` dengan `composed` tidak kosong dan belum pernah dimintakan. Diminta kepada penanggung jawab role.
+- `approved`: tugas lanjut atau selesai. `revise`: role pembuat mengerjakan ulang; hasil barunya dimintakan lagi.
+  `rejected`: sama seperti persetujuan lain.
+- Surat yang disetujui lewat jalur ini mendapat nomor seperti 18.2.
+
+### 20.4 Laporan, notulen, proposal
+
+- Diminta bila judul atau arahan memuat permintaan membuat laporan, notula, notulen, atau proposal, dan bukan
+  permintaan surat atau spreadsheet. Tidak ada panggilan model tambahan.
+- Pada `data` tanpa potongan dokumen, model tetap dipanggil: isinya dari arahan, isian, bahan, dan lampiran; bila
+  tidak ada data sama sekali jawabannya `need_info`.
+- Program membuat DOCX dan PDF (A4, bentuk umum, kop unit atau organisasi bila ada). Tanpa nomor register dan tanpa
+  catatan format. Isi yang diawali tanda apa pun disimpan sebagai teks biasa.
+- Satu laporan per pasangan tugas dan role; revisi menaikkan `version`.
+
+`ResultDocument = LetterResult | SheetResult | ReportResult`.
+
+```ts
+export interface ReportResult {
+  kind: "report";
+  id: string;
+  title: string;
+  version: number;
+  processing: boolean;
+  checks: DocumentCheck[];
+  composed: ComposedItem[];
+  created_at: string;
+  updated_at: string;
+  report_type: string; // mis. "Laporan", "Notulen", "Proposal"
+  pages: string[];
+  docx_url: string | null;
+  pdf_url: string | null;
+}
+```
+
+- Unduhan memakai jalur 18.1 (`/unduh/docx`, `/unduh/pdf`). Koreksi format dan beri nomor → 409.
+- Format laporan menurut aturan organisasi dan lampiran surat otomatis belum termasuk.
+
+### 20.5 Khusus data contoh
+
+Hanya simulasi, jangan ditiru backend: daftar bagian buatan memakai isi tetap menurut mode, dan halaman laporan
+digambar sederhana dari judul dan arahan.
 
