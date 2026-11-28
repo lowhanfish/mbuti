@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 28 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d) dan migrasinya terpasang di mbuti; pencarian internet belum berhasil dicoba karena kuota; rancangan E2 disepakati dan sedang dikerjakan.
+Diperbarui: 29 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d) dan migrasinya terpasang di mbuti; pencarian internet belum berhasil dicoba karena kuota; E2, E3a, E3b, E3c, dan E4 (E4a–E4c) selesai dibangun dan migrasinya terpasang di mbuti; uji dari halaman aplikasi terhadap backend asli menunggu sesi perbaikan.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -704,7 +704,7 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
       coba ulang dan susulan, riwayat putaran.
 - [ ] **E3. Alat dokumen dan data:** konversi dan olah PDF, templat dokumen dari aturan organisasi, spreadsheet, mode
       penyusunan, lampiran otomatis.
-- [ ] **E4. Bekerja di aplikasi luar:** brankas akun per role, browser dengan sesi tersimpan, OTP authenticator.
+- [x] **E4. Bekerja di aplikasi luar** (selesai dibangun 29 November 2026; uji dari halaman aplikasi terhadap backend asli menyusul di sesi perbaikan): brankas akun per role, browser dengan sesi tersimpan, OTP authenticator.
 - [ ] **E5. Media dan ruang kerja:** video dan gambar dari alat open source, ruang kerja terisolasi.
 - [ ] **E6. WhatsApp untuk konfirmasi kode** (ditunda sampai diminta).
 - [ ] Paket industri, disusun bertahap seiring E1–E5.
