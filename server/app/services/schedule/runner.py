@@ -27,7 +27,7 @@ from app.models import (
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget, mailer
-from app.services.engine import intake
+from app.services.engine import compose, intake
 from app.services.engine.dispatch import enqueue_task
 from app.services.organisation import lock_organization
 from app.services.schedule.planning import OrganizationCalendar, organization_calendar, plan_next
@@ -123,8 +123,9 @@ async def _create_task(
     if agent.deleted_at is not None or agent.status != "active":
         raise _Blocked(INACTIVE_ROLE)
     inputs = {s["key"]: schedule.inputs.get(s["key"], "") for s in agent.input_spec}
+    required = compose.effective(schedule.compose_mode, agent.compose_mode) != compose.FREE
     missing = [s["label"] for s in agent.input_spec if s.get("required") and not inputs[s["key"]]]
-    if missing:
+    if required and missing:
         raise _Blocked(f"Isian wajib role belum lengkap: {', '.join(missing)}.")
     usage = await budget.month_usage(session, schedule.organization_id)
     if usage.remaining <= 0:
@@ -151,6 +152,7 @@ async def _create_task(
         due_at=None,
         budget_limit=min(schedule.budget_limit, monthly),
         web_search=schedule.web_search,
+        compose_mode=schedule.compose_mode,
         created_by_member_id=member_id,
         created_by=user_id,
     )

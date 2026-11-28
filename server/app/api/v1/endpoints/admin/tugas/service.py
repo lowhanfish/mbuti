@@ -40,7 +40,7 @@ from app.models import (
 )
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
-from app.services.engine import flow, intake
+from app.services.engine import compose, flow, intake
 from app.services.engine.dispatch import enqueue_task
 from app.services.engine.views import MANAGERS, agent_refs, approval_items
 from app.services.organisation import lock_organization
@@ -199,6 +199,7 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
     return TaskDetail(
         attachments=await attachments.task_attachments(session, task.id),
         web_search=task.web_search,
+        compose_mode=task.compose_mode,
         **item.model_dump(),
         inputs=[
             InputValue(label=labels.get(key, key), value=value)
@@ -233,6 +234,8 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
                     if c.step_id == step.id
                 ],
                 verdict=step.verdict,
+                compose_mode=step.compose_mode,
+                composed=step.composed,
                 model=step.model,
                 cost=step.cost,
                 tokens=step.tokens,
@@ -275,8 +278,10 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         )
     # Hanya isian yang diminta role yang disimpan
     inputs = {spec["key"]: body.inputs.get(spec["key"], "").strip() for spec in agent.input_spec}
+    # Susun bebas tidak meminta isian wajib (kontrak 20.2)
+    required = compose.effective(body.compose_mode, agent.compose_mode) != compose.FREE
     missing = [s["label"] for s in agent.input_spec if s.get("required") and not inputs[s["key"]]]
-    if missing:
+    if required and missing:
         raise UnprocessableEntityException(f"Lengkapi isian wajib: {', '.join(missing)}.")
 
     low, high = TASK_BUDGET
@@ -306,6 +311,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         due_at=due_at,
         budget_limit=body.budget_limit,
         web_search=body.web_search,
+        compose_mode=body.compose_mode,
         created_by_member_id=actor.membership.id,
         created_by=actor.user.id,
     )

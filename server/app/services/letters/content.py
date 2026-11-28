@@ -101,14 +101,41 @@ _BLANK = re.compile(r"\[(?!\d+\])[^\[\]]{2,80}\]")
 def blanks(letter: dict) -> list[str]:
     """Isian bertanda yang masih ada di dalam surat."""
     texts = [letter["subject"], letter["closing"], *letter["recipients"], *letter["copies"]]
-    for block in letter["blocks"]:
+    return blanks_in(texts, letter["blocks"])
+
+
+def blocks_text(blocks: list[dict]) -> list[str]:
+    """Isi blok sebagai baris teks, untuk dibaca role pemeriksa."""
+    lines: list[str] = []
+    for block in blocks:
+        if block.get("text"):
+            lines.append(block["text"])
+        lines += [f"- {item}" for item in block.get("items", [])]
+        lines += [" | ".join(row) for row in block.get("rows", [])]
+    return lines
+
+
+def letter_text(letter: dict) -> str:
+    head = [f"Jenis: {letter['letter_type']}", f"Hal: {letter['subject']}"]
+    head += [f"Kepada: {name}" for name in letter["recipients"]]
+    tail = [
+        letter["closing"],
+        f"Penanda tangan: {letter['signer_position']} {letter['signer_name']}",
+    ]
+    tail += [f"Tembusan: {name}" for name in letter["copies"]]
+    return "\n".join([*head, *blocks_text(letter["blocks"]), *(line for line in tail if line)])
+
+
+def blanks_in(texts: list[str], blocks: list[dict]) -> list[str]:
+    texts = list(texts)
+    for block in blocks:
         texts.append(block.get("text", ""))
         texts += block.get("items", [])
         texts += [cell for row in block.get("rows", []) for cell in row]
     return list(dict.fromkeys(found for text in texts for found in _BLANK.findall(text)))
 
 
-def _block(raw: object) -> dict | None:
+def clean_block(raw: object) -> dict | None:
     if not isinstance(raw, dict) or raw.get("type") not in BLOCK_TYPES:
         return None
     kind = raw["type"]
@@ -136,7 +163,7 @@ def clean_letter(data: object) -> dict | None:
         return None
     letter_type = _line(data.get("letter_type"), 60)
     blocks = data.get("blocks") if isinstance(data.get("blocks"), list) else []
-    blocks = [cleaned for raw in blocks[:60] if (cleaned := _block(raw))]
+    blocks = [cleaned for raw in blocks[:60] if (cleaned := clean_block(raw))]
     if not letter_type or not blocks:
         return None
     return {

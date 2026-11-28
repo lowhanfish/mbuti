@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Agent, Approval, Membership, Task, TaskEvent, TaskStep, User
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
+from app.services.engine import compose
 
 RUNNABLE = ("queued", "running")
 
@@ -184,6 +185,44 @@ async def has_work(session: AsyncSession, task: Task) -> bool:
     return queued is not None
 
 
+async def _ask_about_composed(session: AsyncSession, task: Task) -> bool:
+    """
+    Hasil kerja terakhir tiap role yang bermode Susun bebas dan berisi buatan sendiri wajib
+    diputuskan manusia sebelum tugas selesai (kontrak 20.3). True bila ada yang diminta.
+    """
+    steps = await session.scalars(
+        select(TaskStep)
+        .where(
+            TaskStep.task_id == task.id,
+            TaskStep.kind == "work",
+            TaskStep.status.in_(("done", "revise_requested")),
+        )
+        .order_by(TaskStep.seq)
+    )
+    latest = {step.agent_id: step for step in steps.all()}
+    asked = False
+    for step in latest.values():
+        if step.compose_mode != compose.FREE or not step.composed:
+            continue
+        if await session.scalar(
+            select(Approval.id).where(Approval.step_id == step.id, Approval.reason == "composed")
+        ):
+            continue
+        name = await agent_name(session, step.agent_id)
+        parts = ", ".join(item["part"] for item in step.composed[:5])
+        await request_approval(
+            session,
+            task,
+            step_id=step.id,
+            reason="composed",
+            question=f"Hasil {name} berisi bagian buatan sendiri ({parts}). Setujui?",
+            requested_from=await owner_of(session, step.agent_id, task),
+            follow_up={"type": "none"},
+        )
+        asked = True
+    return asked
+
+
 async def settle(session: AsyncSession, task: Task) -> None:
     """Tentukan keadaan tugas yang masih terbuka: berjalan, menunggu manusia, atau selesai."""
     if task.status not in OPEN_STATUSES:
@@ -198,7 +237,7 @@ async def settle(session: AsyncSession, task: Task) -> None:
             .limit(1)
         ):
             task.status = "running"
-    elif await pending_approvals(session, task):
+    elif await pending_approvals(session, task) or await _ask_about_composed(session, task):
         task.status = "waiting_approval"
     else:
         # Langkah yang masih ditahan tanpa izin tertunda tidak akan pernah jalan

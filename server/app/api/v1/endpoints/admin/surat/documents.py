@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import MANAGERS, CurrentMember
 from app.api.v1.common import parse_id
 from app.api.v1.endpoints.admin.surat.schema import (
+    Composed,
+    ReportResultItem,
     ResultDocumentItem,
     SheetResultItem,
 )
@@ -18,7 +20,7 @@ from app.core.exceptions import (
     NotFoundException,
     UnprocessableEntityException,
 )
-from app.models import Agent, LetterFormat, ResultDocument, Task
+from app.models import Agent, LetterFormat, ResultDocument, Task, TaskStep
 from app.services import budget
 from app.services.knowledge import storage
 from app.services.letters import documents, formats
@@ -77,6 +79,42 @@ async def _may_number(
     )
 
 
+async def _composed(session: AsyncSession, document: ResultDocument) -> list[dict]:
+    """Bagian buatan pada hasil kerja terakhir role pembuat berkas (kontrak 20.1)."""
+    if document.agent_id is None:
+        return []
+    found = await session.scalar(
+        select(TaskStep.composed)
+        .where(
+            TaskStep.task_id == document.task_id,
+            TaskStep.agent_id == document.agent_id,
+            TaskStep.kind == "work",
+            TaskStep.status.in_(("done", "revise_requested")),
+        )
+        .order_by(TaskStep.seq.desc())
+        .limit(1)
+    )
+    return found or []
+
+
+def _report_item(task: Task, document: ResultDocument) -> ReportResultItem:
+    url = f"{BASE}/{task.id}/berkas/{document.id}"
+    stamp = f"?v={document.version}"
+    return ReportResultItem(
+        id=str(document.id),
+        title=document.title,
+        version=document.version,
+        processing=document.needs_render,
+        checks=document.checks,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+        report_type=document.letter_type,
+        pages=[f"{url}/halaman/{n}{stamp}" for n in range(1, len(document.page_paths) + 1)],
+        docx_url=f"{url}/unduh/docx{stamp}" if document.docx_path else None,
+        pdf_url=f"{url}/unduh/pdf{stamp}" if document.pdf_path else None,
+    )
+
+
 def _sheet_item(task: Task, document: ResultDocument) -> SheetResultItem:
     url = f"{BASE}/{task.id}/berkas/{document.id}/unduh/xlsx?v={document.version}"
     return SheetResultItem(
@@ -96,9 +134,13 @@ def _sheet_item(task: Task, document: ResultDocument) -> SheetResultItem:
 
 async def _item(
     session: AsyncSession, actor: CurrentMember, task: Task, document: ResultDocument
-) -> ResultDocumentItem | SheetResultItem:
-    if document.kind == "sheet":
-        return _sheet_item(task, document)
+) -> ResultDocumentItem | SheetResultItem | ReportResultItem:
+    composed = await _composed(session, document)
+    if document.kind in ("sheet", "report"):
+        build = _sheet_item if document.kind == "sheet" else _report_item
+        return build(task, document).model_copy(
+            update={"composed": [Composed(**item) for item in composed]}
+        )
     note = await session.get(LetterFormat, document.format_id) if document.format_id else None
     waiting = document.number is None and task.status == "completed"
     approved = waiting and await documents.approved_by_human(session, task.id)
@@ -106,6 +148,7 @@ async def _item(
     # Alamat memuat versi dan nomor agar peramban tidak menampilkan gambar lama
     stamp = f"?v={document.version}{'n' if document.number else ''}"
     return ResultDocumentItem(
+        composed=composed,
         id=str(document.id),
         title=document.title,
         letter_type=document.letter_type,
@@ -128,7 +171,7 @@ async def _item(
 
 async def read_documents(
     session: AsyncSession, actor: CurrentMember, task_id: str
-) -> list[ResultDocumentItem | SheetResultItem]:
+) -> list[ResultDocumentItem | SheetResultItem | ReportResultItem]:
     task = await _task(session, actor, task_id)
     rows = await session.scalars(
         select(ResultDocument)

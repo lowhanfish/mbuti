@@ -1053,6 +1053,16 @@ tetap bekerja seperti sebelumnya.
       buatan role; persetujuan "Ada isi buatan role"; berkas laporan; mock `lib/mock/compose.ts` dan `reports.ts`.
       Dicoba di peramban untuk alur Susun bebas sampai disetujui
 - [x] E3c kontrak API (29 November 2026): bagian 20 di `admin/API_CONTRACT.md`
+- [x] E3c backend dan uji (29 November 2026): `services/engine/compose.py`, `services/letters/report.py`, persetujuan
+      "Ada isi buatan role", migrasi `f6d9b4a2c715` terpasang di database dev; tes unit dan integrasi terarah
+- [x] Coba E3c sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan (29 November 2026): laporan Lengkapi dan Dari
+      data tidak menambah angka, Susun bebas mendaftar angka contohnya lalu menunggu persetujuan. Dua temuan
+      diperbaiki: pada Lengkapi dan Susun bebas model tidak menulis isi laporan, dan pemeriksa berhenti karena tidak
+      ada dokumen. Belum dicoba dengan surat atau spreadsheet pada mode selain Dari data
+
+**Sesi perbaikan (menyusul):** coba halaman E2, E3a, E3b, dan E3c terhadap backend asli; E3a dengan aturan asli,
+contoh Word, dan kop gambar; E3b dengan CSV, berkas asli, dan banyak lembar. Temuan lama yang belum diputuskan: surat
+tanpa aturan bisa selesai tanpa pemeriksaan manusia, dan jejak audit dengan kode bersama menampilkan label terakhir.
 
 #### Pertanyaan terbuka fase E
 

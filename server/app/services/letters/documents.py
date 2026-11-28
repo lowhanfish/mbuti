@@ -25,9 +25,9 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.services.knowledge import storage, visual
-from app.services.letters import formats, render
+from app.services.letters import formats, render, report
 from app.services.letters import spec as letter_spec
-from app.services.letters.content import blanks
+from app.services.letters.content import blanks, blanks_in
 from app.services.letters.numbering import format_number
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
@@ -132,7 +132,9 @@ async def assign_number(session: AsyncSession, document: ResultDocument) -> None
     document.needs_render = True
 
 
-async def _head(session: AsyncSession, document: ResultDocument, note: LetterFormat) -> render.Head:
+async def _head(
+    session: AsyncSession, document: ResultDocument, note: LetterFormat | None
+) -> render.Head:
     """Kop unit role, lalu kop organisasi, lalu kop contoh Word, lalu nama organisasi."""
     agent = await session.get(Agent, document.agent_id) if document.agent_id else None
     heads = (
@@ -145,7 +147,7 @@ async def _head(session: AsyncSession, document: ResultDocument, note: LetterFor
     if chosen:
         data = await asyncio.to_thread(storage.path_of(chosen.path).read_bytes)
         return render.Head(image=data)
-    if any(s["kind"] == "sample" for s in note.sources):
+    if note and any(s["kind"] == "sample" for s in note.sources):
         sample = await formats.find_sample(session, document.organization_id, note.name)
         if sample:
             _, head = await formats.read_sample_file(sample.path)
@@ -210,6 +212,47 @@ async def render_files(session: AsyncSession, document: ResultDocument) -> None:
     await session.commit()
 
     docx = await asyncio.to_thread(render.build_docx, content, spec, head, number, day)
+    files = await _convert(organization_id, docx)
+
+    current = await _unchanged(session, organization_id, document.id, version, number, files)
+    if current is None:
+        return
+    note = await session.get(LetterFormat, current.format_id)
+    current.spec, current.sources = spec, note.sources
+    current.checks = _checks(current, note, files[1] is not None)
+    await _replace_files(session, current, files)
+
+
+def _report_checks(content: dict, has_pdf: bool) -> list[dict]:
+    checks = [{"text": "Judul dan isi tersusun", "passed": True, "ref": ""}]
+    if empty := blanks_in([content["title"]], content["blocks"]):
+        checks.append(
+            {"text": f"Masih ada isian kosong: {', '.join(empty[:5])}", "passed": False, "ref": ""}
+        )
+    if not has_pdf:
+        checks.append({"text": "PDF gagal dibuat; gunakan DOCX", "passed": False, "ref": ""})
+    return checks
+
+
+async def render_report(session: AsyncSession, document: ResultDocument) -> None:
+    """DOCX, PDF, dan gambar halaman laporan dari isi sekarang (kontrak 20.4). Menyimpan."""
+    head = await _head(session, document, None)
+    content, title = document.content, document.title
+    version, organization_id = document.version, document.organization_id
+    await session.commit()
+
+    docx = await asyncio.to_thread(render.build_report, content, title, head)
+    files = await _convert(organization_id, docx)
+
+    current = await _unchanged(session, organization_id, document.id, version, None, files)
+    if current is None:
+        return
+    current.checks = _report_checks(content, files[1] is not None)
+    await _replace_files(session, current, files)
+
+
+async def _convert(organization_id: uuid.UUID, docx: bytes) -> tuple[str, str | None, list[str]]:
+    """Simpan DOCX, PDF, dan gambar halamannya; kembalikan alamat berkasnya."""
     pdf = await asyncio.to_thread(render.to_pdf, docx)
     pages = await asyncio.to_thread(visual.render_pdf, pdf, MAX_PAGES) if pdf else []
 
@@ -219,24 +262,38 @@ async def render_files(session: AsyncSession, document: ResultDocument) -> None:
     docx_path = await asyncio.to_thread(save, "docx", docx)
     pdf_path = await asyncio.to_thread(save, "pdf", pdf) if pdf else None
     page_paths = [await asyncio.to_thread(save, "webp", page) for page, _, _ in pages]
-    created = [p for p in (docx_path, pdf_path, *page_paths) if p]
+    return docx_path, pdf_path, page_paths
 
+
+async def _unchanged(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    version: int,
+    number: str | None,
+    files: tuple[str, str | None, list[str]],
+) -> ResultDocument | None:
+    """Berkas yang terkunci bila isinya belum berubah; selain itu hasil baru dibuang."""
     await lock_organization(session, organization_id)
     current = await session.get(
-        ResultDocument, document.id, populate_existing=True, with_for_update=True
+        ResultDocument, document_id, populate_existing=True, with_for_update=True
     )
     if current is None or current.version != version or current.number != number:
         # Isi atau nomor berubah selagi berkas dibuat: hasil ini sudah usang
         await session.rollback()
-        for path in created:
-            storage.delete(path)
-        return
-    old = [p for p in (current.docx_path, current.pdf_path, *current.page_paths) if p]
-    note = await session.get(LetterFormat, current.format_id)
-    current.docx_path, current.pdf_path, current.page_paths = docx_path, pdf_path, page_paths
-    current.spec, current.sources = spec, note.sources
-    current.checks = _checks(current, note, pdf is not None)
-    current.needs_render = False
+        for path in (files[0], files[1], *files[2]):
+            if path:
+                storage.delete(path)
+        return None
+    return current
+
+
+async def _replace_files(
+    session: AsyncSession, document: ResultDocument, files: tuple[str, str | None, list[str]]
+) -> None:
+    old = [p for p in (document.docx_path, document.pdf_path, *document.page_paths) if p]
+    document.docx_path, document.pdf_path, document.page_paths = files
+    document.needs_render = False
     await session.commit()
     for path in old:
         storage.delete(path)
@@ -284,6 +341,10 @@ async def finalize_one(
 ) -> None:
     """Format, nomor otomatis, lalu berkasnya. Menyimpan transaksi."""
     document = await session.get(ResultDocument, document_id)
+    if document.kind == report.KIND:
+        if document.needs_render:
+            await render_report(session, document)
+        return
     if document.kind == sheets.KIND:
         if document.needs_render:
             await sheets.render(session, document)

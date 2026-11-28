@@ -56,6 +56,7 @@ class Schedule(Base):
     priority = Column(String(6), nullable=False, default="normal")
     budget_limit = Column(Integer, nullable=False)
     web_search = Column(String(4), nullable=False, default="role")
+    compose_mode = Column(String(8), nullable=False, default="role", server_default="role")
     rule = Column(JSONB, nullable=False)
     # Salinan rule.shift_id agar shift yang dipakai tidak bisa dihapus
     shift_id = Column(

@@ -56,6 +56,9 @@ class TaskStep(Base):
     findings = Column(JSONB, nullable=False, default=list, server_default="[]")
     # Sumber internet yang dipakai (E1d), bentuk `WebSource` di kontrak 16.7
     web_sources = Column(JSONB, nullable=False, default=list, server_default="[]")
+    # Mode penyusunan yang dipakai dan bagian buatan role (E3c); hanya pada langkah kerja
+    compose_mode = Column(String(8), nullable=True)
+    composed = Column(JSONB, nullable=False, default=list, server_default="[]")
     verdict = Column(String(10), nullable=True)
     model = Column(String(60), nullable=False, default="")
     cost = Column(Integer, nullable=False, default=0)

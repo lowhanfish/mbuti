@@ -25,10 +25,12 @@ from app.models import (
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
-from app.services.engine import flow, routing
+from app.services.engine import compose, flow, routing
 from app.services.engine.images import attachment_images
 from app.services.engine.runner import Caller, RunResult, evaluate_condition, run_agent
 from app.services.letters import documents as letters
+from app.services.letters import report as reports
+from app.services.letters.content import blocks_text, letter_text
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
 from app.services.sheets import documents as sheets
@@ -345,6 +347,32 @@ async def _materials(session: AsyncSession, step: TaskStep) -> list[tuple[str, s
             materials.append(
                 ("Spreadsheet buatan pembuat (dihitung program)", sheets.review_summary(table))
             )
+        written = await session.scalars(
+            select(ResultDocument)
+            .where(
+                ResultDocument.task_id == step.task_id,
+                ResultDocument.agent_id == parent.agent_id,
+                ResultDocument.kind.in_(("letter", reports.KIND)),
+            )
+            .order_by(ResultDocument.created_at)
+        )
+        for document in written.all():
+            if document.kind == reports.KIND:
+                materials.append(
+                    (
+                        "Isi laporan buatan pembuat",
+                        "\n".join(blocks_text(document.content["blocks"])),
+                    )
+                )
+            else:
+                materials.append(("Isi surat buatan pembuat", letter_text(document.content)))
+        if parent.compose_mode in (compose.COMPLETE, compose.FREE):
+            materials.append(
+                (
+                    "Mode penyusunan pembuat",
+                    compose.review_material(parent.compose_mode, parent.composed),
+                )
+            )
         if payload == "references":
             await references(parent)
     elif step.kind == "consult" and parent is not None:
@@ -431,6 +459,8 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             await session.commit()
             return
         step.output = result.output
+        if step.kind == "work":
+            step.compose_mode, step.composed = result.compose_mode, result.composed
         step.findings = result.findings
         step.web_sources = result.web_sources
         step.model = result.model
@@ -458,6 +488,8 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             await letters.record(session, task, step, result.letter)
         if result.sheet and step.kind == "work":
             await sheets.record(session, task, step, result.sheet)
+        if result.report and step.kind == "work":
+            await reports.record(session, task, step, result.report)
         agent = await session.get(Agent, step.agent_id)
         blocked = {
             "need_info": "butuh data tambahan",
@@ -474,7 +506,14 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
                 step.id,
             )
         if step.kind == "work":
-            flow.log(session, task, "step_done", f"{agent.name} menyelesaikan pekerjaan.", step.id)
+            used = compose.summary(result.compose_mode, result.composed)
+            flow.log(
+                session,
+                task,
+                "step_done",
+                f"{agent.name} menyelesaikan pekerjaan ({used}).",
+                step.id,
+            )
         elif step.kind == "consult":
             flow.log(session, task, "step_done", f"{agent.name} memberi masukan.", step.id)
 
@@ -608,6 +647,10 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
             materials = await _materials(session, current)
             entry = current.parent_step_id is None and current.kind == "work"
             images, tables = [], []
+            maker_mode = compose.DATA
+            if current.kind == "review" and current.parent_step_id:
+                parent = await session.get(TaskStep, current.parent_step_id)
+                maker_mode = (parent and parent.compose_mode) or compose.DATA
             if current.kind == "work":
                 ids = await _attachment_ids(session, task, current)
                 images = await attachment_images(session, task.organization_id, ids)
@@ -626,6 +669,11 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
                 attachments=images,
                 tables=tables,
                 web_mode=task.web_search,
+                # Konsultasi dan pemeriksaan selalu memakai aturan Dari data (kontrak 20.1)
+                mode=compose.effective(task.compose_mode, agent.compose_mode)
+                if current.kind == "work"
+                else compose.DATA,
+                maker_mode=maker_mode,
             )
     except ConflictException:
         async with sessions() as session:

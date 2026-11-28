@@ -38,6 +38,7 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.services import budget
+from app.services.engine import compose
 from app.services.engine.views import agent_refs
 from app.services.organisation import lock_organization
 from app.services.schedule import parsing, runner
@@ -162,6 +163,7 @@ async def _items(
                 priority=s.priority,
                 budget_limit=s.budget_limit,
                 web_search=s.web_search,
+                compose_mode=s.compose_mode,
                 rule=rule,
                 rule_text=_text(calendar, rule),
                 source_text=s.source_text,
@@ -256,8 +258,9 @@ async def _apply(
     if agent.status != "active":
         raise UnprocessableEntityException(f"{agent.name} belum aktif.")
     inputs = {spec["key"]: body.inputs.get(spec["key"], "").strip() for spec in agent.input_spec}
+    required = compose.effective(body.compose_mode, agent.compose_mode) != compose.FREE
     missing = [s["label"] for s in agent.input_spec if s.get("required") and not inputs[s["key"]]]
-    if missing:
+    if required and missing:
         raise UnprocessableEntityException(f"Lengkapi isian wajib: {', '.join(missing)}.")
     low, high = TASK_BUDGET
     if not low <= body.budget_limit <= high:
@@ -275,6 +278,7 @@ async def _apply(
     schedule.priority = body.priority
     schedule.budget_limit = body.budget_limit
     schedule.web_search = body.web_search
+    schedule.compose_mode = body.compose_mode
     schedule.rule = body.rule.model_dump()
     schedule.shift_id = shift_id
     schedule.source_text = body.source_text

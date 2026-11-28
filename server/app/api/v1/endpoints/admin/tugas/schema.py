@@ -24,6 +24,7 @@ class TaskCreate(RequestModel):
     # Lampiran dari POST /tugas/lampiran (E1c) dan pilihan internet (E1d)
     attachment_ids: list[str] = Field(default_factory=list, max_length=10)
     web_search: Literal["role", "off"] = "role"
+    compose_mode: Literal["role", "data", "complete", "free"] = "role"
 
     @field_validator("title")
     @classmethod
@@ -71,6 +72,8 @@ class Step(BaseModel):
     findings: list[dict] = []
     web_sources: list[dict] = []
     verdict: str | None
+    compose_mode: str | None = None
+    composed: list[dict] = []
     model: str
     cost: int
     tokens: int
@@ -116,6 +119,7 @@ class TaskDetail(TaskItem):
     # Lampiran (E1c) dan pilihan internet (E1d)
     attachments: list[AttachmentItem] = []
     web_search: str = "role"
+    compose_mode: str = "role"
     steps: list[Step]
     approvals: list[ApprovalItem]
     events: list[Event]

@@ -20,6 +20,7 @@ class ScheduleRequest(RequestModel):
     priority: Literal["low", "normal", "high"] = "normal"
     budget_limit: int = Field(strict=True)
     web_search: Literal["role", "off"] = "role"
+    compose_mode: Literal["role", "data", "complete", "free"] = "role"
     rule: ScheduleRule
     source_text: str = Field(default="", max_length=500)
     status: Literal["draft", "active"] = "active"
@@ -92,6 +93,7 @@ class ScheduleItem(BaseModel):
     priority: str
     budget_limit: int
     web_search: str
+    compose_mode: str
     rule: ScheduleRule
     rule_text: str
     source_text: str

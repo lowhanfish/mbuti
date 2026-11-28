@@ -94,6 +94,23 @@ class _Writer:
                     for run in cell.paragraphs[0].runs:
                         run.bold = True
 
+    def block(self, block: dict) -> None:
+        """Satu blok isi, diikuti baris kosong."""
+        if block["type"] == "paragraph":
+            for part in block["text"].split("\n"):
+                self.line(part, "justify")
+        elif block["type"] == "list":
+            if block.get("text"):
+                self.line(block["text"], "justify")
+            for index, item in enumerate(block["items"], 1):
+                paragraph = self.line(f"{index}.\t{item}", "justify", indent=1.2)
+                paragraph.paragraph_format.first_line_indent = Cm(-0.6)
+        elif block["type"] == "fields":
+            self.pairs(block["rows"], indent=1)
+        else:
+            self.grid(block["rows"])
+        self.line()
+
     def head(self, head: Head) -> None:
         if head.image:
             picture = self.document.add_picture(io.BytesIO(head.image), width=Cm(self.width))
@@ -153,20 +170,7 @@ def build_docx(
             writer.line()
         elif section == "isi":
             for block in letter["blocks"]:
-                if block["type"] == "paragraph":
-                    for part in block["text"].split("\n"):
-                        writer.line(part, "justify")
-                elif block["type"] == "list":
-                    if block.get("text"):
-                        writer.line(block["text"], "justify")
-                    for index, item in enumerate(block["items"], 1):
-                        paragraph = writer.line(f"{index}.\t{item}", "justify", indent=1.2)
-                        paragraph.paragraph_format.first_line_indent = Cm(-0.6)
-                elif block["type"] == "fields":
-                    writer.pairs(block["rows"], indent=1)
-                else:
-                    writer.grid(block["rows"])
-                writer.line()
+                writer.block(block)
             if letter["closing"]:
                 writer.line(letter["closing"], "justify")
                 writer.line()
@@ -191,6 +195,32 @@ def build_docx(
             for index, name in enumerate(letter["copies"], 1):
                 writer.line(f"{index}. {name}", indent=indent)
 
+    buffer = io.BytesIO()
+    writer.document.save(buffer)
+    return buffer.getvalue()
+
+
+# Bentuk umum laporan; belum mengikuti catatan format organisasi (kontrak 20.4)
+REPORT_SPEC = {
+    "paper": "A4",
+    "margins": {"top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5},
+    "font_name": "Arial",
+    "font_size": 11,
+}
+
+
+def build_report(report: dict, title: str, head: Head) -> bytes:
+    writer = _Writer(REPORT_SPEC)
+    writer.head(head)
+    if head.image or head.lines:
+        writer.line()
+    writer.line(title.upper(), "center", bold=True)
+    writer.line()
+    for block in report["blocks"]:
+        if block["type"] == "heading":
+            writer.line(block["text"], bold=True).paragraph_format.keep_with_next = True
+        else:
+            writer.block(block)
     buffer = io.BytesIO()
     writer.document.save(buffer)
     return buffer.getvalue()

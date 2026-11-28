@@ -20,6 +20,7 @@ WORK_FIELDS = (
     "knowledge_scope",
     "model_profile",
     "web_search",
+    "compose_mode",
 )
 
 

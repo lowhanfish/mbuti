@@ -37,6 +37,8 @@ class Task(Base):
     budget_limit = Column(Integer, nullable=False)
     # role = ikut pengaturan role; off = tanpa internet untuk tugas ini (E1d)
     web_search = Column(String(4), nullable=False, default="role", server_default="role")
+    # role = ikut mode role; selain itu mengganti mode semua role di tugas ini (E3c)
+    compose_mode = Column(String(8), nullable=False, default="role", server_default="role")
     cost_used = Column(Integer, nullable=False, default=0)
     # Jumlah putaran revisi per relasi Periksa
     review_rounds = Column(JSONB, nullable=False, default=dict)

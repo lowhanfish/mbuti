@@ -14,6 +14,7 @@ from app.core.exceptions import AppException
 from app.models import Agent, LlmCall, Membership, Organization, Unit, User
 from app.models.base import utcnow
 from app.services import budget
+from app.services.engine import compose
 from app.services.engine.citations import apply_citations
 from app.services.engine.images import (
     ImageInput,
@@ -25,11 +26,11 @@ from app.services.engine.images import (
 from app.services.engine.prompts import (
     CONDITION_SCHEMA,
     CONDITION_SYSTEM,
-    REVIEW_SCHEMA,
     RoleBrief,
     condition_prompt,
     local_date_and_zone,
     response_schema,
+    review_schema,
     system_prompt,
     user_prompt,
 )
@@ -37,6 +38,7 @@ from app.services.engine.web import number_sources, public_query, searches_today
 from app.services.knowledge.scope import visible_to
 from app.services.knowledge.search import Hit, rank_chunks, reference_order, to_hit, tokenize
 from app.services.letters.content import NO_RULES_LETTER, asks_for_letter, clean_letter
+from app.services.letters.report import NO_RULES_REPORT, asks_for_report, clean_report
 from app.services.llm.catalog import cost_in_rupiah
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import (
@@ -87,6 +89,10 @@ class RunResult:
     letter: dict | None = None
     # Rancangan tabel bila hasilnya spreadsheet (E3b)
     sheet: dict | None = None
+    # Isi laporan, mode yang dipakai, dan bagian buatan role (E3c)
+    report: dict | None = None
+    compose_mode: str = compose.DATA
+    composed: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -270,11 +276,16 @@ async def run_agent(
     attachments: list[ImageInput] | None = None,
     web_mode: str = "role",
     tables: list[DataTable] | None = None,
+    mode: str | None = None,
+    maker_mode: str = compose.DATA,
 ) -> RunResult:
     """
     `materials` adalah bahan dari langkah sebelumnya. Pemeriksaan tetap memanggil model walau
-    tanpa potongan dokumen, karena hasilnya dinilai juga terhadap kriteria.
+    tanpa potongan dokumen, karena hasilnya dinilai juga terhadap kriteria. `mode` adalah mode
+    penyusunan; kosong berarti mode role. Pemeriksaan selalu memakai aturan Dari data, kecuali
+    pembuatnya (`maker_mode`) boleh menyusun sendiri.
     """
+    mode = compose.DATA if reviewing else compose.effective(mode, agent.compose_mode)
     organization = await session.get(Organization, caller.organization_id)
     unit = await session.get(Unit, agent.unit_id) if agent.unit_id else None
     today, timezone = local_date_and_zone(utcnow(), organization.timezone)
@@ -298,9 +309,12 @@ async def run_agent(
     missing = [
         spec["label"]
         for spec in agent.input_spec
-        if check_inputs and spec.get("required") and not inputs.get(spec["key"])
+        if check_inputs
+        and mode != compose.FREE
+        and spec.get("required")
+        and not inputs.get(spec["key"])
     ]
-    system = system_prompt(role, reviewing)
+    system = system_prompt(role, reviewing, mode=mode, maker_mode=maker_mode)
     if missing:
         return RunResult(
             status="need_info",
@@ -308,6 +322,7 @@ async def run_agent(
             notes="Isian wajib belum lengkap, jadi model tidak dipanggil.",
             prompt_preview=f"{system}\n\n{user_prompt(brief, labelled, [])}",
             missing_inputs=missing,
+            compose_mode=mode,
         )
 
     query = " ".join(
@@ -348,22 +363,30 @@ async def run_agent(
     title = next((text for label, text in materials or [] if label == "Judul tugas"), "")
     tables = [] if reviewing else list(tables or [])
     sheet_offered = not reviewing and (bool(tables) or offers_sheet(f"{title} {brief}"))
-    if images or web or sheet_offered:
+    report_request = not reviewing and asks_for_report(f"{title} {brief}")
+    if images or web or sheet_offered or report_request or maker_mode != compose.DATA:
         system = system_prompt(
             role,
             reviewing,
             with_images=bool(images),
             with_web=bool(web),
             with_sheet=sheet_offered,
+            mode=mode,
+            with_report=report_request,
+            maker_mode=maker_mode,
         )
+    # Selain Dari data, aturan tetap sudah menyuruh menyusun walau rujukannya tidak ada
+    no_rules = mode == compose.DATA and not excerpts
     # Surat tetap disusun tanpa aturan: formatnya dicari kemudian dan ditandai (kontrak 18.1)
     letter_request = not reviewing and asks_for_letter(f"{title} {brief}")
-    if letter_request and not excerpts:
+    if letter_request and no_rules:
         system = f"{system}\n\n{NO_RULES_LETTER}"
     # Tabel dirancang dari berkas data atau arahan, tanpa harus ada aturan (kontrak 19.2)
     sheet_request = not reviewing and (bool(tables) or asks_for_sheet(f"{title} {brief}"))
-    if sheet_request and not excerpts:
+    if sheet_request and no_rules:
         system = f"{system}\n\n{NO_RULES_SHEET}"
+    if report_request and no_rules:
+        system = f"{system}\n\n{NO_RULES_REPORT}"
     user = user_prompt(
         brief,
         labelled,
@@ -374,13 +397,15 @@ async def run_agent(
         tables,
     )
     preview = f"{system}\n\n{user}"
-    requested = letter_request or sheet_request
-    if not excerpts and not reviewing and not images and not web and not requested:
+    requested = letter_request or sheet_request or report_request
+    grounded = bool(excerpts or images or web or tables)
+    if mode == compose.DATA and not grounded and not reviewing and not requested:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
             notes="Tidak ada potongan dokumen yang cocok, jadi model tidak dipanggil.",
             prompt_preview=preview,
+            compose_mode=mode,
         )
 
     await budget.require_budget(session, caller.organization_id)
@@ -396,12 +421,29 @@ async def run_agent(
         [models[profile], models["fallback"]],
         system,
         user,
-        REVIEW_SCHEMA if reviewing else response_schema(sheet_offered),
+        review_schema(maker_mode)
+        if reviewing
+        else response_schema(
+            sheet_offered,
+            mode,
+            report_request,
+            tuple(
+                name
+                for name, asked in (
+                    ("letter", letter_request),
+                    ("sheet", sheet_request),
+                    ("report", report_request),
+                )
+                if asked
+            ),
+        ),
         [(image.label, image.data) for image in images],
     )
 
     data = generation.data
     status = data.get("status") if data.get("status") in STATUSES else "done"
+    if mode != compose.DATA:
+        status = "done"
     if web and status == "not_in_documents":
         # Hasil yang bertumpu pada internet tidak dianggap "tidak ada di dokumen"
         status = "done"
@@ -424,9 +466,15 @@ async def run_agent(
             f"{notes} Hasil ini tidak merujuk dokumen mana pun; periksa sebelum dipakai.".strip()
         )
     terms = tokenize(query)
-    letter = None if reviewing or status != "done" else clean_letter(data.get("letter"))
+    finished = not reviewing and status == "done"
+    letter = clean_letter(data.get("letter")) if finished and not report_request else None
+    report = clean_report(data.get("report")) if finished and report_request else None
+    composed = compose.clean(data.get("composed"), mode, grounded) if finished else []
     return RunResult(
         letter=letter,
+        report=report,
+        compose_mode=mode,
+        composed=composed,
         sheet=sheet,
         status=status,
         output=output,

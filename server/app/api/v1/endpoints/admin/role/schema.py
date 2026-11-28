@@ -99,6 +99,7 @@ class RoleUpdate(RoleChecks):
     owner_member_id: str | None = None
     avatar: Avatar = Field(default=None)
     web_search: bool = Field(default=None)
+    compose_mode: Literal["data", "complete", "free"] = Field(default=None)
 
     @field_validator("input_spec")
     @classmethod
@@ -141,6 +142,7 @@ class RoleItem(BaseModel):
     owner_member_id: str | None
     avatar: dict[str, str]
     web_search: bool
+    compose_mode: str
     active_version_no: int
     revision_status: str | None
     unit_name: str | None
@@ -176,6 +178,9 @@ class TrialResult(BaseModel):
     attachments: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []
     web_sources: list[dict[str, Any]] = []
+    # Mode yang dipakai dan bagian buatan role (E3c)
+    compose_mode: str = "data"
+    composed: list[dict[str, Any]] = []
 
 
 class RoleSummary(BaseModel):

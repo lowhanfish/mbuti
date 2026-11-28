@@ -40,6 +40,8 @@ class Agent(Base):
     avatar = Column(JSONB, nullable=False)
     # Boleh mencari di internet (E1d)
     web_search = Column(Boolean, nullable=False, default=False, server_default="false")
+    # data, complete, atau free (E3c)
+    compose_mode = Column(String(8), nullable=False, default="data", server_default="data")
     # Versi Final yang dipakai bekerja; kosong sebelum Final pertama (E1a)
     active_revision_id = Column(
         UUID(as_uuid=True),

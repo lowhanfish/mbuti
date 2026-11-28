@@ -2751,7 +2751,8 @@ export interface ComposedItem {
 
 - Isian wajib diperiksa saat membuat tugas, menyimpan tugas rutin, dan saat putaran rutin berjalan, memakai mode yang
   berlaku bagi role pertama.
-- Pada `complete` dan `free`, jawaban model hanya bisa berstatus `done`.
+- Pada `complete` dan `free`, jawaban model hanya bisa berstatus `done`, dan isi berkas yang diminta (surat,
+  rancangan tabel, atau laporan) wajib diisi model.
 - Di semua mode role dilarang mengarang nama orang, NIP, tanda tangan, nomor surat, dan nomor peraturan.
 - `composed` ditulis model dan dibersihkan server (maksimal 20 butir); pada `data` selalu kosong. Pada `free`, bila
   langkah tidak punya dasar apa pun (potongan dokumen, lampiran, data, internet) dan model tidak mendaftarkan apa pun,
@@ -2759,8 +2760,10 @@ export interface ComposedItem {
 - Daftar itu berasal dari laporan model, jadi bisa tidak lengkap; karena itu ditampilkan untuk diperiksa.
 - Linimasa: pesan selesai langkah kerja menyebut mode dan jumlah bagian buatan, mis.
   `"Sari menyelesaikan pekerjaan (mode Susun bebas, 2 bagian disusun sendiri)."`
-- Role pemeriksa menerima mode pembuat dan daftar `composed`. Isi buatan yang terdaftar dan sesuai modenya tidak
-  menjadi alasan revisi.
+- Role pemeriksa menerima isi surat atau laporan pembuat, mode pembuat, dan daftar `composed`. Isi buatan yang
+  terdaftar dan sesuai modenya tidak menjadi alasan revisi.
+- Bila pembuatnya `complete` atau `free`, pemeriksa tidak berhenti karena tidak ada potongan dokumen: jawabannya
+  `done` beserta `verdict`.
 
 ### 20.3 Persetujuan "Ada isi buatan role"
 

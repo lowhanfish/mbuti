@@ -145,6 +145,7 @@ def _to_item(row) -> RoleItem:
         owner_member_id=str(agent.owner_member_id) if agent.owner_member_id else None,
         avatar=agent.avatar,
         web_search=agent.web_search,
+        compose_mode=agent.compose_mode,
         active_version_no=row.active_version_no or 0,
         revision_status=row.revision_status,
         unit_name=row.unit_name,
@@ -237,6 +238,7 @@ async def create_role(session: AsyncSession, actor: CurrentMember, body: RoleCre
         owner_member_id=actor.membership.id,
         avatar=avatar_from_seed(body.name),
         web_search=False,
+        compose_mode="data",
         created_by=actor.user.id,
     )
     _check_active(agent)

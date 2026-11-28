@@ -34,6 +34,11 @@ class Check(BaseModel):
     ref: str
 
 
+class Composed(BaseModel):
+    part: str
+    note: str
+
+
 class ResultDocumentItem(BaseModel):
     kind: str = "letter"
     id: str
@@ -51,6 +56,7 @@ class ResultDocumentItem(BaseModel):
     format_checked: bool
     official: bool
     checks: list[Check]
+    composed: list[Composed] = []
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -90,6 +96,25 @@ class SheetResultItem(BaseModel):
     origin: str
     source_files: list[str]
     sheets: list[SheetPreview]
+    composed: list[Composed] = []
+
+
+class ReportResultItem(BaseModel):
+    """`ReportResult` (kontrak 20.4)."""
+
+    kind: str = "report"
+    id: str
+    title: str
+    version: int
+    processing: bool
+    checks: list[Check]
+    composed: list[Composed] = []
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    report_type: str
+    pages: list[str]
+    docx_url: str | None
+    pdf_url: str | None
 
 
 class Margins(BaseModel):

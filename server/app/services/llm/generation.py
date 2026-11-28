@@ -239,6 +239,14 @@ class MockLlm:
             data.update(status="done", output="Surat disusun.", letter=_mock_letter(user))
         if "sheet" in schema.get("properties", {}) and '<data nama="D1">' in user:
             data.update(status="done", output="Tabel dirancang.", sheet=_mock_sheet(user))
+        if "report" in schema.get("properties", {}):
+            data.update(status="done", output="Laporan disusun.", report=_mock_report())
+        if "composed" in schema.get("properties", {}):
+            data.update(
+                status="done",
+                output=data["output"] or "Hasil disusun.",
+                composed=[{"part": "Analisis", "note": "disusun penyedia tiruan"}],
+            )
         if images:
             # Satu temuan per gambar, merujuk potongan pertama bila ada
             data["status"] = "done"
@@ -260,6 +268,17 @@ class MockLlm:
                 {"image": label, "text": f"Bacaan tiruan {label}."} for label, _ in images
             ]
         return Generation(data, len(system + user) // 4 + 300 * len(images), 120)
+
+
+def _mock_report() -> dict:
+    return {
+        "report_type": "Laporan",
+        "title": "Laporan Tiruan",
+        "blocks": [
+            {"type": "heading", "text": "Pendahuluan"},
+            {"type": "paragraph", "text": "Isi laporan dari penyedia tiruan [periode]."},
+        ],
+    }
 
 
 def _mock_sheet(user: str) -> dict:
