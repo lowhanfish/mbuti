@@ -431,8 +431,8 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [ ] Satu pengguna di beberapa organisasi, dengan pemilih organisasi.
 - [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran. Halaman depan sudah menampilkan
       harga **rencana** lama (Perintis Rp0, Tim Rp299.000, Instansi Rp1.490.000 per bulan;
-      `admin/app/(publish)/_landing/Pricing.tsx`). Rancangan penggantinya sudah disepakati (D2); halaman depan belum
-      diubah.
+      `admin/app/(publish)/_landing/Pricing.tsx`). Sejak 29 November 2026 halaman depan menampilkan paket rancangan D2,
+      tetap berlabel harga rencana.
 - [ ] Panel pengelola platform: daftar organisasi, pemakaian, dan penangguhan.
 - [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.

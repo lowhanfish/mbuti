@@ -7,33 +7,46 @@ import Heading from "./Heading";
 import Spotlight from "./Spotlight";
 
 /*
- * HARGA RENCANA: angka di bawah adalah usulan, belum diputuskan, dan pembayaran belum ada.
- * Ubah di sini. Hapus label "harga rencana" hanya setelah paket benar-benar berlaku.
+ * HARGA RENCANA: mengikuti rancangan D2 di PLANNING.md. Batas paket dan pembayaran belum ada di aplikasi,
+ * jadi hapus label "harga rencana" hanya setelah paket benar-benar berlaku. Harga belum termasuk PPN.
  */
-const PLANS = [
+const PLANS: {
+  name: string;
+  pitch: string;
+  monthly: number;
+  /** Per bulan bila dibayar tahunan; null berarti belum ada harga tahunan */
+  yearly: number | null;
+  /** Biaya pasang sekali bayar */
+  setup: number;
+  featured: boolean;
+  features: string[];
+}[] = [
   {
-    name: "Perintis",
+    name: "Uji coba",
     pitch: "Untuk mencoba satu alur kerja.",
     monthly: 0,
     yearly: 0,
+    setup: 0,
     featured: false,
-    features: ["3 role AI", "30 tugas per bulan", "20 dokumen", "Rujukan halaman dan persetujuan", "Kantor 3D"],
+    features: ["3 role AI", "30 tugas", "Rujukan halaman dan persetujuan", "Kantor 3D"],
   },
   {
-    name: "Tim",
-    pitch: "Untuk satu bidang atau unit kerja.",
-    monthly: 299_000,
-    yearly: 249_000,
+    name: "Unit",
+    pitch: "Untuk satu tim, cabang, atau kecamatan.",
+    monthly: 599_000,
+    yearly: null,
+    setup: 750_000,
     featured: true,
-    features: ["15 role AI", "500 tugas per bulan", "500 dokumen", "Relasi bersyarat dan jalur penolakan", "Batas biaya per tugas"],
+    features: ["10 role AI", "Kredit model AI Rp100.000 per bulan", "Pendampingan 1 jam per bulan", "Surat, laporan, dan spreadsheet", "Tugas rutin dan persetujuan"],
   },
   {
     name: "Instansi",
-    pitch: "Untuk organisasi dengan banyak unit.",
+    pitch: "Untuk satu instansi, dinas, atau perusahaan.",
     monthly: 1_490_000,
     yearly: 1_240_000,
+    setup: 2_500_000,
     featured: false,
-    features: ["Role AI tanpa batas", "Kuota tugas sesuai kebutuhan", "Dokumen sesuai kebutuhan", "Pendampingan menyusun role", "Pemasangan di server sendiri"],
+    features: ["25 role AI", "Kredit model AI Rp300.000 per bulan", "Pendampingan 2 jam per bulan", "Semua kemampuan paket Unit"],
   },
 ];
 
@@ -47,7 +60,7 @@ export default function Pricing() {
         center
         tag="Harga"
         title="Mulai kecil, tambah role saat perlu"
-        text="Biaya model AI mengikuti pemakaian dan selalu terlihat di dasbor, lengkap dengan batas yang Anda tentukan."
+        text="Paket berbayar sudah memuat kredit model AI. Pemakaiannya selalu terlihat di dasbor, lengkap dengan batas yang Anda tentukan."
       />
 
       <div className="lp-reveal flex flex-col items-center gap-4">
@@ -63,7 +76,7 @@ export default function Pricing() {
               onClick={() => setYearly(value)}
               className={`rounded-full px-5 py-2 transition-all duration-300 cursor-pointer ${yearly === value ? "bg-accent text-ink shadow-[0_8px_24px_-8px_rgba(255,184,28,.8)]" : "text-white/65 hover:text-white"}`}
             >
-              {value ? "Tahunan · hemat 2 bulan" : "Bulanan"}
+              {value ? "Tahunan" : "Bulanan"}
             </button>
           ))}
         </div>
@@ -71,7 +84,9 @@ export default function Pricing() {
 
       <div className="grid gap-5 lg:grid-cols-3 lg:items-stretch">
         {PLANS.map((plan) => {
-          const price = yearly ? plan.yearly : plan.monthly;
+          const annual = yearly && plan.yearly !== null;
+          const price = annual ? (plan.yearly as number) : plan.monthly;
+          const period = price === 0 ? "selama 14 hari" : annual ? "per bulan, dibayar tahunan" : "per bulan";
           return (
             <div key={plan.name} className={`lp-reveal flex ${plan.featured ? "lg:-my-4" : ""}`}>
               <Spotlight className={`flex-1 flex flex-col gap-6 p-7 sm:p-8 ${plan.featured ? "lp-featured" : ""}`}>
@@ -81,10 +96,14 @@ export default function Pricing() {
                 </div>
                 <p className="text-sm text-white/60">{plan.pitch}</p>
                 <div>
-                  <p key={price} className="rise text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
+                  <p key={price} className="rise text-4xl sm:text-5xl lg:text-4xl xl:text-5xl font-extrabold tracking-tight text-white">
                     {rupiah(price)}
                   </p>
-                  <p className="mt-1 text-xs text-white/50">{price === 0 ? "selamanya" : yearly ? "per bulan, dibayar tahunan" : "per bulan"}</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    {period}
+                    {yearly && plan.yearly === null && " · harga tahunan belum ada"}
+                  </p>
+                  <p className="mt-1 text-xs text-white/50">{plan.setup ? `Biaya pasang sekali ${rupiah(plan.setup)}` : "Tanpa biaya pasang"}</p>
                 </div>
                 <ul className="flex-1 space-y-2.5 border-t border-white/10 pt-5">
                   {plan.features.map((feature) => (
@@ -111,6 +130,10 @@ export default function Pricing() {
           );
         })}
       </div>
+
+      <p className="lp-reveal mx-auto max-w-2xl text-center text-xs leading-relaxed text-white/55">
+        Satu langganan untuk satu unit kerja. Tambah 10 role Rp400.000 per bulan, termasuk kredit model AI Rp100.000. Harga belum termasuk PPN.
+      </p>
     </section>
   );
 }
