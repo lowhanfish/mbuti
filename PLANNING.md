@@ -430,8 +430,9 @@ rinciannya disepakati dulu sebelum dikerjakan.
 - [x] Pendaftaran mandiri, verifikasi email, penerimaan undangan, dan lupa kata sandi (D1, 26 November 2026).
 - [ ] Satu pengguna di beberapa organisasi, dengan pemilih organisasi.
 - [ ] Paket langganan, kuota per paket (role, dokumen, biaya model), dan pembayaran. Halaman depan sudah menampilkan
-      harga **rencana** (Perintis Rp0, Tim Rp299.000, Instansi Rp1.490.000 per bulan; `admin/app/(publish)/_landing/Pricing.tsx`)
-      yang belum diputuskan.
+      harga **rencana** lama (Perintis Rp0, Tim Rp299.000, Instansi Rp1.490.000 per bulan;
+      `admin/app/(publish)/_landing/Pricing.tsx`). Rancangan penggantinya sudah disepakati (D2); halaman depan belum
+      diubah.
 - [ ] Panel pengelola platform: daftar organisasi, pemakaian, dan penangguhan.
 - [ ] Kunci model berbayar dengan pembagian kuota antar-organisasi, agar satu pelanggan tidak menghabiskan jatah yang lain.
 - [ ] Penyimpanan berkas di luar disk server, ekspor dan penghapusan data organisasi.
@@ -506,6 +507,43 @@ Kemajuan:
       `organizations.status` dan `users.terms_accepted_at`, pengirim email lewat Celery (`console` atau `smtp`),
       batas laju per jam, dan `tests/integration/test_accounts.py`. Pengirim email sungguhan dipilih sebelum
       pemasangan di server.
+
+#### D2. Paket dan harga: rancangan (disepakati 29 November 2026)
+
+Satu langganan untuk satu unit kerja. Tidak ada paket "tanpa batas": satu kabupaten bisa punya puluhan OPD,
+kecamatan, dan kelurahan. Harga per bulan, **belum termasuk PPN**.
+
+| Paket | Per bulan | Role (pakai browser) | Kredit AI | Pendampingan | Biaya pasang, sekali |
+|---|---|---|---|---|---|
+| Uji coba 14 hari | Gratis | 3 (0) | 30 tugas | – | – |
+| Unit (kecamatan, kelurahan, tim) | Rp599.000 | 10 (3) | Rp100.000 | 1 jam | Rp750.000 |
+| Instansi (1 OPD) | Rp1.490.000; tahunan Rp1.240.000 | 25 (10) | Rp300.000 | 2 jam | Rp2.500.000 |
+| Tambah 10 role | Rp400.000 | +10 | +Rp100.000 | – | – |
+
+- Paket Tim lama dilebur ke Unit.
+- Pemasangan di server pelanggan dijual terpisah. Kontrak kabupaten boleh diberi potongan; hitungan contohnya 36
+  Instansi dan 36 Unit dengan potongan 20%.
+- Kredit AI diukur dengan penghitung biaya aplikasi (sebelum PPN). Dengan 3.5 Flash-Lite, Rp300.000 cukup sekitar 2.200
+  langkah; dengan profil Teliti sekitar 670 langkah, padahal 25 role sekali sehari memakai 1.100 langkah.
+
+**Asumsi hitungan** (perlu diganti angka nyata): kurs Rp18.000; PPN layanan Gemini 11%; ukuran langkah wajar 4.000
+token masuk dan 2.500 keluar (Rp134 pada 3.5 Flash-Lite, Rp446 pada profil Teliti; harga Gemini dibaca 29 November
+2026); server per pelanggan Rp70.000 (Unit) dan Rp100.000 (Instansi) dengan sekitar 20 pelanggan; pendampingan
+Rp100.000 per jam; pajak dan administrasi 5%; penjualan 10%; biaya tetap Rp25 juta per bulan.
+
+| Sisa per bulan | Terburuk (kredit dan pendampingan habis) | Wajar (terpakai separuh) |
+|---|---|---|
+| Instansi | Rp633.500 (43%) | Rp900.000 (60%) |
+| Instansi tahunan | Rp421.000 (34%) | Rp687.500 (55%) |
+| Unit | Rp228.000 (38%) | Rp334.000 (56%) |
+| Tambah 10 role | Rp179.000 (45%) | Rp234.500 (59%) |
+| Kabupaten, 36 + 36, potongan 20% (pendapatan Rp60,2 juta) | Rp19,4 juta (32%) | Rp32,7 juta (54%) |
+
+Titik impas biaya tetap: 28–40 pelanggan Instansi, atau 75–110 pelanggan Unit.
+
+**Belum dibangun, jangan dijanjikan dulu:** batas role per paket, kredit yang diatur pengelola platform (sekarang batas
+biaya diatur tenant), pembayaran, browser (E4), dan pemasangan di server pelanggan. **Belum dipastikan:** perlakuan
+pajak penjualan ke pemerintah (tanyakan konsultan), harga pesaing, dan kesediaan pelanggan membayar.
 
 ### Fase E — Role sebagai pekerja (disepakati 27 November 2026)
 
