@@ -40,7 +40,7 @@ import RelationForm from "./RelationForm";
 type FlowNode = AgentFlowNode | HumanFlowNode;
 
 function toFlowNodes(graph: GraphInterface): FlowNode[] {
-  const positions = autoLayout(graph.nodes, graph.positions);
+  const positions = autoLayout(graph.nodes, graph.positions, graph.relations);
   return graph.nodes.map((n) =>
     n.kind === "agent"
       ? { id: n.id, type: "agent", position: positions[n.id], data: { ...n, dimmed: false, focused: false } }
@@ -295,7 +295,14 @@ function MapCanvas({ graph, canEdit }: { graph: GraphInterface; canEdit: boolean
                   size="sm"
                   variant="ghost"
                   loading={resetPositions.isPending}
-                  onClick={() => resetPositions.mutate(undefined, { onSuccess: () => setNodes(toFlowNodes({ ...graph, positions: {} })) })}
+                  onClick={() =>
+                    resetPositions.mutate(undefined, {
+                      onSuccess: () => {
+                        setNodes(toFlowNodes({ ...graph, positions: {} }));
+                        setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 50);
+                      },
+                    })
+                  }
                 >
                   Rapikan
                 </Button>
