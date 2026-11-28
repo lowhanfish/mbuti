@@ -39,6 +39,11 @@ class Task(Base):
     web_search = Column(String(4), nullable=False, default="role", server_default="role")
     # role = ikut mode role; selain itu mengganti mode semua role di tugas ini (E3c)
     compose_mode = Column(String(8), nullable=False, default="role", server_default="role")
+    # Alur aplikasi yang dijalankan sesudah pekerjaan selesai (E4c): {flow_id, name, values}.
+    # Tanpa kunci asing: alur yang dihapus harus membuat tugasnya gagal, bukan diam-diam dilewati
+    flow = Column(JSONB(none_as_null=True), nullable=True)
+    # None (belum), prepare, running, done
+    flow_stage = Column(String(8), nullable=True)
     cost_used = Column(Integer, nullable=False, default=0)
     # Jumlah putaran revisi per relasi Periksa
     review_rounds = Column(JSONB, nullable=False, default=dict)

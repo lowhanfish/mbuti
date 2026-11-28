@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AgentRelation, Approval, Membership, Task, TaskStep
 from app.models.base import utcnow
-from app.services.engine import flow, routing
+from app.services.engine import app_flow, flow, routing
 
 VERB = {"approved": "menyetujui", "rejected": "menolak", "revise": "meminta revisi"}
 
@@ -54,6 +54,10 @@ async def decide(
 
     follow = approval.follow_up or {}
     kind = follow.get("type")
+    if kind == "browser_run":
+        await app_flow.decide_run(session, task, follow["run_id"], decision, member)
+        task.updated_at = utcnow()
+        return
     step = await session.get(TaskStep, approval.step_id) if approval.step_id else None
 
     if decision == "rejected":

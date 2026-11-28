@@ -140,6 +140,7 @@ class FlowBase(BaseModel):
 
 
 class FlowListItem(FlowBase):
+    inputs: list[FlowInput]
     steps_count: int
     last_run: RunSummary | None
 

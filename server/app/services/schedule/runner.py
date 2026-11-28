@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.models import (
     Agent,
     Approval,
+    BrowserRun,
     Membership,
     Organization,
     Schedule,
@@ -27,7 +28,7 @@ from app.models import (
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget, mailer
-from app.services.engine import compose, intake
+from app.services.engine import app_flow, compose, intake
 from app.services.engine.dispatch import enqueue_task
 from app.services.organisation import lock_organization
 from app.services.schedule.planning import OrganizationCalendar, organization_calendar, plan_next
@@ -46,6 +47,7 @@ MISSED = "Penjadwal tidak berjalan saat jadwalnya."
 INACTIVE_ROLE = "Role tidak aktif."
 NO_BUDGET = "Anggaran bulan ini habis."
 TASK_FAILED = "Tugas berakhir gagal."
+MAYBE_SENT = "Mungkin sudah terkirim ke aplikasi; periksa aplikasinya. Tidak diulang otomatis."
 REJECTED = "Ditolak pada persetujuan."
 BACKFILLED = "Sudah diisi susulan."
 
@@ -127,6 +129,12 @@ async def _create_task(
     missing = [s["label"] for s in agent.input_spec if s.get("required") and not inputs[s["key"]]]
     if required and missing:
         raise _Blocked(f"Isian wajib role belum lengkap: {', '.join(missing)}.")
+    if schedule.flow:
+        found = await app_flow.availability(
+            session, schedule.organization_id, agent, schedule.flow["flow_id"]
+        )
+        if isinstance(found, str):
+            raise _Blocked(found)
     usage = await budget.month_usage(session, schedule.organization_id)
     if usage.remaining <= 0:
         return None
@@ -153,6 +161,7 @@ async def _create_task(
         budget_limit=min(schedule.budget_limit, monthly),
         web_search=schedule.web_search,
         compose_mode=schedule.compose_mode,
+        flow=schedule.flow,
         created_by_member_id=member_id,
         created_by=user_id,
     )
@@ -368,12 +377,23 @@ async def settle_run(
         # Keputusan manusia tidak diulang
         run.status, run.reason = "failed", REJECTED
         return
+    maybe_sent = await session.scalar(
+        select(BrowserRun.id)
+        .where(BrowserRun.task_id == task.id, BrowserRun.submitted_at.is_not(None))
+        .limit(1)
+    )
     message = await session.scalar(
         select(TaskEvent.message)
         .where(TaskEvent.task_id == task.id, TaskEvent.type == "failed")
         .order_by(TaskEvent.created_at.desc())
         .limit(1)
     )
+    if maybe_sent:
+        # Mengulang atau menyusulkan bisa mengirim dua kali
+        run.status, run.reason = "failed", f"{MAYBE_SENT} {message or ''}".strip()[:300]
+        if run.origin != "manual":
+            await _notify(session, schedule, run.reason, outbox)
+        return
     await _fail(session, schedule, run, message or TASK_FAILED, now, outbox)
 
 

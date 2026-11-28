@@ -10,8 +10,18 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Agent, Approval, Membership, Task, TaskEvent, TaskStep, User
+from app.models import (
+    Agent,
+    Approval,
+    BrowserRun,
+    Membership,
+    Task,
+    TaskEvent,
+    TaskStep,
+    User,
+)
 from app.models.base import utcnow
+from app.models.browser.flow import ACTIVE_RUN_STATUSES
 from app.models.tugas.task import OPEN_STATUSES
 from app.services.engine import compose
 
@@ -163,15 +173,32 @@ async def halt(
 ) -> None:
     """Hentikan tugas: langkah yang belum selesai dilewati dan persetujuan tertunda ditutup."""
     await skip_unfinished_steps(session, task)
+    await stop_browser_runs(session, task)
     await close_approvals(session, task, comment)
     task.pending_routes = []
     task.status = status
     log(session, task, status, message, step_id)
 
 
+async def stop_browser_runs(session: AsyncSession, task: Task) -> None:
+    """Putaran aplikasi milik tugas ini tidak boleh berjalan terus sesudah tugasnya berhenti."""
+    await session.execute(
+        update(BrowserRun)
+        .where(BrowserRun.task_id == task.id, BrowserRun.status.in_(ACTIVE_RUN_STATUSES))
+        .values(
+            status="stopped",
+            message="Tugas dihentikan.",
+            pending=None,
+            otp_encrypted=None,
+            finished_at=utcnow(),
+        )
+        .execution_options(synchronize_session="fetch")
+    )
+
+
 async def has_work(session: AsyncSession, task: Task) -> bool:
     """Ada yang bisa dikerjakan worker sekarang."""
-    if task.pending_routes:
+    if task.pending_routes or task.flow_stage == "prepare":
         return True
     queued = await session.scalar(
         select(TaskStep.id)
@@ -239,6 +266,11 @@ async def settle(session: AsyncSession, task: Task) -> None:
             task.status = "running"
     elif await pending_approvals(session, task) or await _ask_about_composed(session, task):
         task.status = "waiting_approval"
+    elif task.flow and task.flow_stage != "done":
+        # Alur aplikasi dijalankan paling akhir (E4c)
+        if task.flow_stage is None:
+            task.flow_stage = "prepare"
+        task.status = "running"
     else:
         # Langkah yang masih ditahan tanpa izin tertunda tidak akan pernah jalan
         await skip_unfinished_steps(session, task)

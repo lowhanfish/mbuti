@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Frontend memakai backend di `NEXT_PUBLIC_API_URL`, jadi nyalakan backend, kedua worker, dan buat akun dulu (lihat di bawah). Buka http://localhost:3000 dan masuk dengan akun itu.
+Frontend memakai backend di `NEXT_PUBLIC_API_URL`, jadi nyalakan backend, worker, dan buat akun dulu (lihat di bawah). Buka http://localhost:3000 dan masuk dengan akun itu.
 
 Untuk mencoba tanpa backend, isi `NEXT_PUBLIC_DATA_SOURCE=mock` di `admin/.env.local` lalu masuk dengan tombol **Masuk dengan akun demo**. Semua datanya data contoh di peramban.
 
@@ -40,6 +40,7 @@ cd server
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+playwright install --only-shell chromium   # untuk alur aplikasi luar
 cp -n .env.example .env    # -n: berkas .env yang sudah ada tidak ditimpa
 ```
 
@@ -74,7 +75,7 @@ Dokumen baru diolah, dan tugas baru dikerjakan, bila worker menyala. Pengolahan,
 kunci `GEMINI_API_KEY`, `GEMINI_API_KEY1`, … di `server/.env` (dipakai bergiliran). Isi dokumen dan tugas dikirim ke
 Google; pada tier gratis, gunakan hanya data contoh atau publik. Berkas asli disimpan di `server/uploads/`.
 
-Dua worker dan penjadwal Celery, masing-masing di terminal sendiri. Worker pertama mengolah dokumen:
+Tiga worker dan penjadwal Celery, masing-masing di terminal sendiri. Worker pertama mengolah dokumen:
 
 ```bash
 celery -A app.workers.celery_app worker -Q default,ingestion --concurrency=2 -n umum@%h --loglevel=info
@@ -85,6 +86,20 @@ kuota model tidak cepat habis:
 
 ```bash
 celery -A app.workers.celery_app worker -Q execution --concurrency=1 -n eksekusi@%h --loglevel=info
+```
+
+Worker ketiga membuka aplikasi luar dengan Chromium (alur aplikasi), satu putaran pada satu waktu:
+
+```bash
+celery -A app.workers.celery_app worker -Q browser --concurrency=1 -n browser@%h --loglevel=info
+```
+
+Isi brankas dan kunci authenticator dienkripsi. Di pengembangan kuncinya dibuat otomatis di `server/.vault-key`
+(tidak masuk git); jangan dihapus. Untuk mencoba alur tanpa aplikasi sungguhan, nyalakan aplikasi tiruan lalu simpan
+alamatnya di brankas role (akun ujinya ada di `scripts/aplikasi_tiruan.py`):
+
+```bash
+python -m scripts.aplikasi_tiruan
 ```
 
 Penjadwal mengirim ulang tugas yang pesannya hilang (mis. setelah worker atau Redis mati) dan tiap jam membuang

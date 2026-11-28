@@ -23,6 +23,19 @@ class AgentRef(BaseModel):
     unit_color: str | None
 
 
+class NamedValue(BaseModel):
+    label: str
+    value: str
+
+
+class ApprovalFlow(BaseModel):
+    """Persetujuan alur aplikasi (E4c): yang akan dikirim dan keadaan halamannya."""
+
+    run_id: str
+    values: list[NamedValue]
+    screenshot_url: str | None
+
+
 class ApprovalItem(BaseModel):
     id: str
     task_id: str
@@ -39,6 +52,7 @@ class ApprovalItem(BaseModel):
     created_at: datetime.datetime
     last_output: str
     last_agent: AgentRef | None
+    flow: ApprovalFlow | None = None
 
 
 async def agent_refs(
@@ -67,6 +81,20 @@ def can_decide(membership: Membership, approval: Approval) -> bool:
     if membership.access_role in MANAGERS:
         return True
     return membership.access_role != "viewer" and approval.requested_from_member_id == membership.id
+
+
+def _approval_flow(approval: Approval) -> ApprovalFlow | None:
+    follow = approval.follow_up or {}
+    if follow.get("type") != "browser_run":
+        return None
+    shot = follow.get("shot")
+    return ApprovalFlow(
+        run_id=follow["run_id"],
+        values=follow.get("values", []),
+        screenshot_url=f"/api/v1/admin/alur-jalan/{follow['run_id']}/bukti/{shot}"
+        if shot
+        else None,
+    )
 
 
 async def approval_items(session: AsyncSession, *filters) -> list[tuple[Approval, ApprovalItem]]:
@@ -115,6 +143,7 @@ async def approval_items(session: AsyncSession, *filters) -> list[tuple[Approval
                     created_at=approval.created_at,
                     last_output=row.output or "",
                     last_agent=refs.get(row.agent_id),
+                    flow=_approval_flow(approval),
                 ),
             )
         )

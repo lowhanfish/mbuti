@@ -1098,7 +1098,7 @@ tetap bekerja seperti sebelumnya.
       diperbaiki: pada Lengkapi dan Susun bebas model tidak menulis isi laporan, dan pemeriksa berhenti karena tidak
       ada dokumen. Belum dicoba dengan surat atau spreadsheet pada mode selain Dari data
 
-**Sesi perbaikan (menyusul):** coba halaman E2, E3a, E3b, dan E3c terhadap backend asli; E3a dengan aturan asli,
+**Sesi perbaikan (menyusul):** coba halaman E2, E3a, E3b, E3c, dan E4 terhadap backend asli (daftar E4 di bawah); E3a dengan aturan asli,
 contoh Word, dan kop gambar; E3b dengan CSV, berkas asli, dan banyak lembar. Temuan lama yang belum diputuskan: surat
 tanpa aturan bisa selesai tanpa pemeriksaan manusia, dan jejak audit dengan kode bersama menampilkan label terakhir.
 
@@ -1137,7 +1137,7 @@ desktop dan ponsel tidak termasuk.
 - [x] E4a verifikasi dua langkah akun MBUTI, brankas, dan kode authenticator (29 November 2026)
 - [x] E4b belajar alur, memutar ulang, dan bukti (29 November 2026). Playwright (Apache) dan Chromium (BSD) dipasang
       dengan izin
-- [ ] E4c alur dipakai dalam tugas dan tugas rutin, dengan persetujuan
+- [x] E4c alur dipakai dalam tugas dan tugas rutin, dengan persetujuan (29 November 2026)
 
 **Catatan E4a** (29 November 2026):
 
@@ -1184,6 +1184,34 @@ desktop dan ponsel tidak termasuk.
   terkirim sesudah disetujui
 - Belum dicoba: aplikasi web sungguhan, halaman dari aplikasi terhadap backend asli (masuk sesi perbaikan), dan kotak
   pasir Chromium di server Linux
+
+**Catatan E4c** (29 November 2026):
+
+- Halaman: pilihan **Alur aplikasi** pada formulir tugas dan tugas rutin, kartu alur di detail tugas, dan persetujuan
+  **Kirim ke aplikasi**. Dicoba di peramban mode data contoh sampai tugas selesai
+- Kontrak: bagian 23. Backend: `services/engine/app_flow.py`, migrasi `c5e1a8d3f642`
+- Keputusan saat membangun:
+  - alur milik role pertama, dijalankan sesudah semua pekerjaan dan persetujuan tugas selesai
+  - isian yang kosong disusun satu panggilan model hanya dari bahan tugas; yang tidak ada dasarnya membuat tugas gagal
+  - memakai alur hanya untuk penanggung jawab role, pemilik, atau admin
+  - alur yang dibebaskan tetap meminta persetujuan bila ada isi buatan role
+  - persetujuan alur hanya setuju atau tolak (tidak ada minta revisi)
+  - tugas rutin yang gagal sesudah tombol sempat ditekan tidak diulang dan tidak disusulkan
+- Uji: 16 tes integrasi terarah (alur tugas, alur, migrasi, penjadwal, mode penyusunan) lulus; satu panggilan Gemini
+  mengisi kolom dari bahan contoh dan tidak mengarang kolom yang tidak ada dasarnya (250 token masuk, 76 keluar)
+- Belum dicoba: tugas beralur dari halaman aplikasi terhadap backend asli (masuk sesi perbaikan)
+
+**Sesi perbaikan E4** (perlu pengguna, karena memasukkan kata sandi dan kode milik sendiri):
+
+1. Akun Saya: aktifkan verifikasi dua langkah dengan memindai QR di aplikasi authenticator, simpan kode cadangan,
+   lalu keluar dan masuk lagi
+2. Jalankan `python -m scripts.aplikasi_tiruan`, jadikan diri sendiri penanggung jawab satu role, simpan akun uji
+   aplikasi tiruan di tab Brankas
+3. Tab Alur aplikasi: ajari "isi laporan harian", periksa langkah dan tangkapan layar, setujui, jalankan, setujui
+   kirim
+4. Ulangi dengan aplikasi tiruan `--berubah` (perbaikan otomatis) dan `--kode sms` (memasukkan OTP)
+5. Buat tugas dan tugas rutin yang memakai alur itu, lalu putuskan dari halaman Persetujuan
+6. Aplikasi web sungguhan: hanya dengan akun uji dan data contoh, sesudah ketentuan aplikasinya diperiksa
 
 #### Pertanyaan terbuka fase E
 

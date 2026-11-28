@@ -29,6 +29,7 @@ from app.core.exceptions import (
 )
 from app.models import (
     Agent,
+    BrowserFlow,
     Membership,
     Schedule,
     ScheduleRun,
@@ -38,7 +39,7 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.services import budget
-from app.services.engine import compose
+from app.services.engine import app_flow, compose
 from app.services.engine.views import agent_refs
 from app.services.organisation import lock_organization
 from app.services.schedule import parsing, runner
@@ -150,6 +151,12 @@ async def _items(
             ),
         )
     )
+    # Nama alur yang sekarang; kosong bila sudah dihapus
+    flow_ids = [uuid.UUID(s.flow["flow_id"]) for s in schedules if s.flow]
+    flow_names = {
+        str(found.id): found.name
+        for found in await session.scalars(select(BrowserFlow).where(BrowserFlow.id.in_(flow_ids)))
+    }
     items = []
     for s in schedules:
         rule = ScheduleRule.model_validate(s.rule)
@@ -164,6 +171,9 @@ async def _items(
                 budget_limit=s.budget_limit,
                 web_search=s.web_search,
                 compose_mode=s.compose_mode,
+                flow_id=s.flow["flow_id"] if s.flow else None,
+                flow_name=flow_names.get(s.flow["flow_id"], "") if s.flow else "",
+                flow_values=s.flow.get("values", {}) if s.flow else {},
                 rule=rule,
                 rule_text=_text(calendar, rule),
                 source_text=s.source_text,
@@ -270,6 +280,16 @@ async def _apply(
         raise UnprocessableEntityException("Batas biaya tugas melebihi batas bulanan organisasi.")
     calendar = await organization_calendar(session, organization_id)
     shift_id = _require_shift(calendar, body.rule)
+    # Hak mengelola jadwal sama dengan hak memakai alur role itu
+    chosen = None
+    if body.flow_id:
+        found = await app_flow.availability(session, organization_id, agent, body.flow_id)
+        if isinstance(found, str):
+            raise UnprocessableEntityException(found)
+        try:
+            chosen = app_flow.choice_of(found[0], body.flow_values)
+        except ValueError as exc:
+            raise UnprocessableEntityException(str(exc)) from None
 
     schedule.entry_agent_id = agent.id
     schedule.title = body.title
@@ -279,6 +299,7 @@ async def _apply(
     schedule.budget_limit = body.budget_limit
     schedule.web_search = body.web_search
     schedule.compose_mode = body.compose_mode
+    schedule.flow = chosen
     schedule.rule = body.rule.model_dump()
     schedule.shift_id = shift_id
     schedule.source_text = body.source_text

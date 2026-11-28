@@ -23,14 +23,16 @@ from app.models import (
     BrowserRun,
     BrowserRunEvent,
     Membership,
+    Task,
     User,
     VaultAccount,
 )
 from app.models.base import utcnow
 from app.models.browser.flow import ACTIVE_RUN_STATUSES
 from app.services import two_factor
-from app.services.browser import accounts, evidence, runner
+from app.services.browser import accounts, evidence, records
 from app.services.browser.steps import describe, value_label, view_action
+from app.services.engine import app_flow, decisions
 from app.services.knowledge import storage
 
 ROLE_NOT_FOUND = "Role tidak ditemukan."
@@ -99,7 +101,7 @@ async def _manageable(
     """Alur terkunci, boleh dikelola, dan tidak sedang menjalankan apa pun."""
     scope, flow = await _flow(session, member, flow_id, lock=True)
     scope.require_manage()
-    if await runner.active_run(session, flow.id):
+    if await records.active_run(session, flow.id):
         raise ConflictException(BUSY)
     return scope, flow
 
@@ -141,6 +143,13 @@ def _summary(run: BrowserRun, names: dict) -> schema.RunSummary:
 
 def _shot_url(run_id: object, no: int) -> str:
     return f"/api/v1/admin/alur-jalan/{run_id}/bukti/{no}"
+
+
+def _inputs(flow: BrowserFlow, sees: bool) -> list[schema.FlowInput]:
+    return [
+        schema.FlowInput(**{**item, "sample": item["sample"] if sees else ""})
+        for item in flow.inputs
+    ]
 
 
 def _base(flow: BrowserFlow, account_name: str | None) -> dict:
@@ -192,6 +201,7 @@ async def read_flows(session: AsyncSession, member: CurrentMember, role_id: str)
             schema.FlowListItem(
                 **_base(flow, names.get(flow.account_id)),
                 steps_count=len(flow.steps),
+                inputs=_inputs(flow, scope.can_manage),
                 last_run=_summary(latest[flow.id], people) if flow.id in latest else None,
             )
             for flow in flows
@@ -221,7 +231,7 @@ async def _detail(session: AsyncSession, scope: Scope, flow: BrowserFlow) -> sch
     people = await _names(
         session, {flow.approved_by_member_id, *(r.created_by_member_id for r in runs)}
     )
-    active = await runner.active_run(session, flow.id)
+    active = await records.active_run(session, flow.id)
     # Isi akun orang lain hanya untuk yang boleh mengelola
     sees = scope.can_manage
     steps = [
@@ -245,10 +255,7 @@ async def _detail(session: AsyncSession, scope: Scope, flow: BrowserFlow) -> sch
         role_id=str(scope.agent.id),
         role_name=scope.agent.name,
         goal=flow.goal,
-        inputs=[
-            schema.FlowInput(**{**item, "sample": item["sample"] if sees else ""})
-            for item in flow.inputs
-        ],
+        inputs=_inputs(flow, sees),
         steps=steps,
         note=flow.note,
         approved_at=flow.approved_at,
@@ -292,7 +299,7 @@ async def create_flow(
     )
     session.add(flow)
     await session.flush()
-    run = runner.new_run(flow, "learn", _samples(flow), member.membership.id)
+    run = records.new_run(flow, "learn", _samples(flow), member.membership.id)
     session.add(run)
     await session.commit()
     return await _detail(session, scope, flow), str(run.id)
@@ -312,10 +319,10 @@ async def relearn(
     flow.goal = body.goal
     flow.inputs = [item.model_dump() for item in body.inputs]
     flow.version += 1
-    runner.reset_approval(flow)
+    records.reset_approval(flow)
     flow.status = "learning"
     flow.note = ""
-    run = runner.new_run(flow, mode, _samples(flow), member.membership.id)
+    run = records.new_run(flow, mode, _samples(flow), member.membership.id)
     session.add(run)
     await session.commit()
     return await _detail(session, scope, flow), str(run.id)
@@ -351,7 +358,7 @@ async def start_run(
         raise UnprocessableEntityException(f"Isian belum lengkap: {', '.join(missing)}.")
     if any(len(value) > schema.MAX_VALUE for value in values.values()):
         raise UnprocessableEntityException(f"Isian maksimal {schema.MAX_VALUE} karakter.")
-    run = runner.new_run(flow, "replay", values, member.membership.id)
+    run = records.new_run(flow, "replay", values, member.membership.id)
     session.add(run)
     await session.commit()
     return await _run_detail(session, scope, flow, run), str(run.id)
@@ -393,15 +400,16 @@ async def delete_flow(session: AsyncSession, member: CurrentMember, flow_id: str
 async def _run(
     session: AsyncSession, member: CurrentMember, run_id: str, *, lock: bool = False
 ) -> tuple[Scope, BrowserFlow, BrowserRun]:
-    query = select(BrowserRun).where(
-        BrowserRun.id == parse_id(run_id, RUN_NOT_FOUND),
-        BrowserRun.organization_id == member.organization_id,
+    wanted = parse_id(run_id, RUN_NOT_FOUND)
+    mine = select(BrowserRun).where(
+        BrowserRun.id == wanted, BrowserRun.organization_id == member.organization_id
     )
-    if lock:
-        query = query.with_for_update().execution_options(populate_existing=True)
-    run = await session.scalar(query)
+    run = await session.scalar(mine)
     if run is None:
         raise NotFoundException(RUN_NOT_FOUND)
+    if lock:
+        # Tugas pemiliknya ikut terkunci, lebih dulu daripada putarannya
+        _, run = await records.lock_run_and_task(session, wanted)
     flow = await session.get(BrowserFlow, run.flow_id)
     return await _scope(session, member, flow.agent_id), flow, run
 
@@ -469,23 +477,40 @@ async def decide(
     scope.require_manage()
     if run.status != "waiting_approval":
         raise ConflictException("Putaran ini tidak sedang menunggu persetujuan.")
+    if run.task_id:
+        return await _decide_for_task(session, scope, flow, run, decision)
     name = member.user.full_name
     queued = None
     if decision == "rejected":
         message = "Ditolak. Tidak ada yang dikirim."
-        await runner.add_event(session, run, f"Ditolak {name}. Tidak ada yang dikirim.", "blocked")
+        await records.add_event(session, run, f"Ditolak {name}. Tidak ada yang dikirim.", "blocked")
         run.status, run.message, run.pending = "stopped", message, None
         run.finished_at = utcnow()
     else:
         if flow.status != "approved" or flow.version != run.flow_version:
-            raise ConflictException(runner.OUTDATED)
+            raise ConflictException(records.OUTDATED)
         await _usable_account(session, scope, flow.account_id)
-        await runner.add_event(session, run, f"Disetujui {name}.", "done")
+        await records.add_event(session, run, f"Disetujui {name}.", "done")
         run.approved_step = run.pending["step_no"]
         run.approved_by_member_id = member.membership.id
         run.status, run.message, run.pending = "queued", "", None
         queued = str(run.id)
     await session.commit()
+    return await _run_detail(session, scope, flow, run), queued
+
+
+async def _decide_for_task(
+    session: AsyncSession, scope: Scope, flow: BrowserFlow, run: BrowserRun, decision: str
+) -> tuple[schema.RunDetail, str | None]:
+    """Sama dengan memutuskan persetujuan tugasnya, termasuk jejak dan akibatnya."""
+    task = await session.get(Task, run.task_id)
+    approval = await app_flow.pending_approval(session, task.id, run.id)
+    if approval is None:
+        raise ConflictException(app_flow.NOT_WAITING)
+    comment = "" if decision == "approved" else "Ditolak dari halaman putaran."
+    await decisions.decide(session, task, approval, decision, comment, scope.member.membership)
+    await session.commit()
+    queued = str(run.id) if decision == "approved" else None
     return await _run_detail(session, scope, flow, run), queued
 
 
@@ -498,8 +523,8 @@ async def send_otp(
         raise ConflictException("Putaran ini tidak sedang menunggu kode.")
     if run.otp_encrypted:
         raise ConflictException("Kode sudah dikirim. Tunggu sebentar.")
-    run.otp_encrypted = encryption.encrypt(code, runner.otp_context(run.id))
-    await runner.add_event(session, run, "Kode OTP diterima.", "done")
+    run.otp_encrypted = encryption.encrypt(code, records.otp_context(run.id))
+    await records.add_event(session, run, "Kode OTP diterima.", "done")
     await session.commit()
     return await _run_detail(session, scope, flow, run)
 
@@ -512,13 +537,15 @@ async def stop(session: AsyncSession, member: CurrentMember, run_id: str) -> sch
     message = "Dihentikan pengguna."
     if run.submitted_at:
         message = f"{message} Tombol sudah sempat ditekan; periksa aplikasinya."
-    await runner.add_event(session, run, message, "blocked")
+    await records.add_event(session, run, message, "blocked")
     run.status, run.message, run.pending, run.otp_encrypted = "stopped", message, None, None
     run.finished_at = utcnow()
     if flow.status == "learning":
         flow.status = "needs_repair" if run.mode == "repair" else "failed"
         flow.note = "Belajar dihentikan."
         flow.updated_at = utcnow()
+    if run.task_id:
+        await app_flow.sync(session, await session.get(Task, run.task_id), run)
     await session.commit()
     return await _run_detail(session, scope, flow, run)
 

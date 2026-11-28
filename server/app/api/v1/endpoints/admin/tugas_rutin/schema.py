@@ -21,6 +21,10 @@ class ScheduleRequest(RequestModel):
     budget_limit: int = Field(strict=True)
     web_search: Literal["role", "off"] = "role"
     compose_mode: Literal["role", "data", "complete", "free"] = "role"
+    flow_id: str | None = None
+    flow_values: dict[str, Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=dict, max_length=10
+    )
     rule: ScheduleRule
     source_text: str = Field(default="", max_length=500)
     status: Literal["draft", "active"] = "active"
@@ -94,6 +98,9 @@ class ScheduleItem(BaseModel):
     budget_limit: int
     web_search: str
     compose_mode: str
+    flow_id: str | None
+    flow_name: str
+    flow_values: dict[str, str]
     rule: ScheduleRule
     rule_text: str
     source_text: str

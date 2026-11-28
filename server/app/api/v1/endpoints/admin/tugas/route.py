@@ -113,4 +113,4 @@ async def read_task(
     member: CurrentMember = Depends(get_current_member),
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[TaskDetail]:
-    return ApiResponse(data=await service.read_task(session, member.organization_id, task_id))
+    return ApiResponse(data=await service.read_task(session, member, task_id))

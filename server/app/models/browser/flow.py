@@ -105,6 +105,12 @@ class BrowserRun(Base):
         nullable=False,
         index=True,
     )
+    # Terisi untuk putaran milik tugas (E4c)
+    task_id = Column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    # Hasil tugasnya berisi buatan role: tetap minta persetujuan walau alurnya dibebaskan
+    force_approval = Column(Boolean, nullable=False, default=False, server_default="false")
     mode = Column(String(8), nullable=False)
     status = Column(String(20), nullable=False, default="queued")
     message = Column(String(500), nullable=False, default="")

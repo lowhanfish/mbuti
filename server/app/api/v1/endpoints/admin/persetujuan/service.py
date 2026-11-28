@@ -11,7 +11,7 @@ from app.core.exceptions import (
     UnprocessableEntityException,
 )
 from app.models import Approval, ResultDocument, Task
-from app.services.engine import decisions, flow
+from app.services.engine import app_flow, decisions, flow
 from app.services.engine.dispatch import enqueue_task
 from app.services.engine.views import MANAGERS, ApprovalItem, approval_items, can_decide
 
@@ -81,12 +81,17 @@ async def decide(
         raise ForbiddenException("Permintaan ini ditujukan kepada orang lain.")
     if approval.status != "pending":
         raise ConflictException("Permintaan ini sudah diputuskan.")
+    if approval.reason == "flow" and body.decision == "revise":
+        raise UnprocessableEntityException("Persetujuan alur hanya bisa disetujui atau ditolak.")
     if body.decision != "approved" and len(body.comment) < 5:
         raise UnprocessableEntityException(
             "Tuliskan alasan atau catatan perbaikan (minimal 5 karakter)."
         )
     await decisions.decide(session, task, approval, body.decision, body.comment, member.membership)
     await session.commit()
+    follow = approval.follow_up or {}
+    if follow.get("type") == "browser_run" and body.decision == "approved":
+        await app_flow.enqueue_run(follow["run_id"])
     # Tugas yang selesai lewat persetujuan ini masih perlu nomor dan berkas suratnya
     has_letter = await session.scalar(
         select(ResultDocument.id)

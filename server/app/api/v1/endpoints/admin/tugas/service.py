@@ -17,6 +17,7 @@ from app.api.v1.endpoints.admin.tugas.schema import (
     Step,
     TaskCreate,
     TaskDetail,
+    TaskFlow,
     TaskItem,
     TaskSummary,
 )
@@ -30,6 +31,8 @@ from app.models import (
     Agent,
     AgentRelation,
     Approval,
+    BrowserFlow,
+    BrowserRun,
     Citation,
     Membership,
     Organization,
@@ -40,7 +43,7 @@ from app.models import (
 )
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
-from app.services.engine import compose, flow, intake
+from app.services.engine import app_flow, compose, flow, intake
 from app.services.engine.dispatch import enqueue_task
 from app.services.engine.views import MANAGERS, agent_refs, approval_items
 from app.services.organisation import lock_organization
@@ -171,7 +174,64 @@ async def _get(session: AsyncSession, organization_id: uuid.UUID, task_id: str) 
     return task
 
 
-async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: str) -> TaskDetail:
+async def _task_flow(
+    session: AsyncSession, actor: CurrentMember, task: Task, agent: Agent
+) -> TaskFlow | None:
+    """Isian dan hasil alur hanya untuk yang boleh mengelola alur role itu."""
+    if not task.flow:
+        return None
+    run = await session.scalar(
+        select(BrowserRun)
+        .where(BrowserRun.task_id == task.id)
+        .order_by(BrowserRun.created_at.desc())
+        .limit(1)
+    )
+    sees = _manages_flow(actor, agent)
+    values, outputs = [], []
+    if run is not None and sees:
+        definition = await session.get(BrowserFlow, run.flow_id)
+        labels = {item["key"]: item["label"] for item in definition.inputs}
+        values = [InputValue(label=labels.get(k, k), value=v) for k, v in run.inputs.items()]
+        outputs = [InputValue(**item) for item in run.outputs]
+    return TaskFlow(
+        flow_id=task.flow["flow_id"],
+        name=task.flow["name"],
+        stage=task.flow_stage or "waiting",
+        run_id=str(run.id) if run else None,
+        run_status=run.status if run else None,
+        run_message=run.message if run else "",
+        values=values,
+        outputs=outputs,
+    )
+
+
+def _manages_flow(actor: CurrentMember, agent: Agent) -> bool:
+    """Penanggung jawab role (bukan pemantau), pemilik, atau admin."""
+    return actor.access_role in MANAGERS or (
+        actor.access_role != "viewer" and agent.owner_member_id == actor.membership.id
+    )
+
+
+async def _flow_choice(
+    session: AsyncSession, actor: CurrentMember, agent: Agent, body: TaskCreate
+) -> dict | None:
+    if not body.flow_id:
+        return None
+    if not _manages_flow(actor, agent):
+        raise ForbiddenException(
+            "Hanya penanggung jawab role, pemilik, atau admin yang dapat memakai alur."
+        )
+    found = await app_flow.availability(session, actor.organization_id, agent, body.flow_id)
+    if isinstance(found, str):
+        raise UnprocessableEntityException(found)
+    try:
+        return app_flow.choice_of(found[0], body.flow_values)
+    except ValueError as exc:
+        raise UnprocessableEntityException(str(exc)) from None
+
+
+async def read_task(session: AsyncSession, actor: CurrentMember, task_id: str) -> TaskDetail:
+    organization_id = actor.organization_id
     task = await _get(session, organization_id, task_id)
     item = (await task_items(session, [task]))[0]
     steps = (
@@ -196,7 +256,12 @@ async def read_task(session: AsyncSession, organization_id: uuid.UUID, task_id: 
     approvals = await approval_items(session, Approval.task_id == task.id)
     entry = await session.get(Agent, task.entry_agent_id)
     labels = {spec["key"]: spec["label"] for spec in entry.input_spec}
+    if not _manages_flow(actor, entry):
+        for _, shown in approvals:
+            if shown.flow:
+                shown.flow.values, shown.flow.screenshot_url = [], None
     return TaskDetail(
+        flow=await _task_flow(session, actor, task, entry),
         attachments=await attachments.task_attachments(session, task.id),
         web_search=task.web_search,
         compose_mode=task.compose_mode,
@@ -291,6 +356,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
     if body.budget_limit > current.monthly_budget:
         raise UnprocessableEntityException("Batas biaya tugas melebihi batas bulanan organisasi.")
     await budget.require_budget(session, organization_id)
+    chosen = await _flow_choice(session, actor, agent, body)
 
     due_at = None
     if body.due_at:
@@ -312,6 +378,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         budget_limit=body.budget_limit,
         web_search=body.web_search,
         compose_mode=body.compose_mode,
+        flow=chosen,
         created_by_member_id=actor.membership.id,
         created_by=actor.user.id,
     )

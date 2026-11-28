@@ -25,7 +25,7 @@ from app.models import (
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
-from app.services.engine import compose, flow, routing
+from app.services.engine import app_flow, compose, flow, routing
 from app.services.engine.images import attachment_images
 from app.services.engine.runner import Caller, RunResult, evaluate_condition, run_agent
 from app.services.letters import documents as letters
@@ -160,6 +160,9 @@ async def _claim(sessions: Sessions, task_id: uuid.UUID) -> tuple[Task, TaskStep
                 return None
             running.status = "queued"
             steps = sorted(steps, key=lambda s: (s.queue_no, s.seq))
+        if not steps and task.flow_stage == "prepare":
+            await session.commit()
+            return task, app_flow.PREPARE
         if not steps:
             await flow.settle(session, task)
             await session.commit()
@@ -722,13 +725,15 @@ async def advance(sessions: Sessions, task_id: uuid.UUID, providers: Providers) 
     try:
         if step is None:
             await _run_pending_route(sessions, task, providers)
+        elif step == app_flow.PREPARE:
+            await app_flow.prepare(sessions, task.id, providers.llm)
         elif step.consults_expanded or not await _expand_consults(sessions, task, step, providers):
             await _work(sessions, task, step, providers)
     except RetryLater:
         raise
     except AppException as exc:
-        # Penilaian kondisi gagal: coba lagi nanti
-        if step is not None:
+        # Penilaian kondisi atau penyusunan isian alur gagal: coba lagi nanti
+        if isinstance(step, TaskStep):
             await _requeue(sessions, task.id, step.id)
         raise RetryLater(RETRY_SECONDS) from exc
 

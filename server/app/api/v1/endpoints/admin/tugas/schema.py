@@ -25,6 +25,11 @@ class TaskCreate(RequestModel):
     attachment_ids: list[str] = Field(default_factory=list, max_length=10)
     web_search: Literal["role", "off"] = "role"
     compose_mode: Literal["role", "data", "complete", "free"] = "role"
+    # Alur aplikasi milik role pertama (E4c)
+    flow_id: str | None = None
+    flow_values: dict[str, Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=dict, max_length=10
+    )
 
     @field_validator("title")
     @classmethod
@@ -114,12 +119,24 @@ class InputValue(BaseModel):
     value: str
 
 
+class TaskFlow(BaseModel):
+    flow_id: str
+    name: str
+    stage: Literal["waiting", "prepare", "running", "done"]
+    run_id: str | None = None
+    run_status: str | None = None
+    run_message: str = ""
+    values: list[InputValue] = []
+    outputs: list[InputValue] = []
+
+
 class TaskDetail(TaskItem):
     inputs: list[InputValue]
     # Lampiran (E1c) dan pilihan internet (E1d)
     attachments: list[AttachmentItem] = []
     web_search: str = "role"
     compose_mode: str = "role"
+    flow: TaskFlow | None = None
     steps: list[Step]
     approvals: list[ApprovalItem]
     events: list[Event]

@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import encryption
@@ -17,19 +17,30 @@ from app.models import (
     Agent,
     BrowserFlow,
     BrowserRun,
-    BrowserRunEvent,
     Membership,
     User,
     VaultAccount,
 )
 from app.models.base import utcnow
-from app.models.browser.flow import ACTIVE_RUN_STATUSES
+from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget, mailer
-from app.services.browser import accounts, evidence
+from app.services.browser import accounts
 from app.services.browser.learn import learn
+from app.services.browser.records import (
+    OUTDATED,
+    add_event,
+    close,
+    lock_run,
+    lock_run_and_task,
+    new_run,
+    otp_context,
+    reset_approval,
+)
 from app.services.browser.replay import replay
 from app.services.browser.session import Cancelled, Outcome, Stop, open_session
 from app.services.browser.steps import describe
+from app.services.engine import app_flow
+from app.services.engine.dispatch import enqueue_task
 from app.services.engine.runner import Caller, generate_with_fallback
 from app.services.llm.generation import LlmProvider
 
@@ -49,52 +60,6 @@ MAYBE_SENT = (
     "sebelum menjalankan lagi."
 )
 LEARNED = "Alur tersusun. Periksa langkahnya lalu setujui."
-OUTDATED = "Alur sudah berubah atau belum disetujui."
-
-
-def otp_context(run_id: uuid.UUID) -> str:
-    return f"browser-otp:{run_id}"
-
-
-async def next_event_no(session: AsyncSession, run_id: uuid.UUID) -> int:
-    highest = await session.scalar(
-        select(func.max(BrowserRunEvent.no)).where(BrowserRunEvent.run_id == run_id)
-    )
-    return (highest or 0) + 1
-
-
-async def add_event(
-    session: AsyncSession,
-    run: BrowserRun,
-    message: str,
-    status: str = "done",
-    step_no: int | None = None,
-    shot: bytes | None = None,
-) -> int:
-    """Baris `run` harus sudah dikunci agar nomor catatan tidak bertabrakan."""
-    number = await next_event_no(session, run.id)
-    if shot:
-        evidence.save(run.organization_id, run.flow_id, run.id, number, shot)
-    session.add(
-        BrowserRunEvent(
-            run_id=run.id,
-            no=number,
-            step_no=step_no,
-            message=message[:500],
-            status=status,
-            has_screenshot=bool(shot),
-        )
-    )
-    return number
-
-
-async def lock_run(session: AsyncSession, run_id: uuid.UUID) -> BrowserRun | None:
-    return await session.scalar(
-        select(BrowserRun)
-        .where(BrowserRun.id == run_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
 
 
 async def notice(session: AsyncSession, run: BrowserRun, message: str) -> mailer.Email | None:
@@ -152,6 +117,7 @@ class DbHooks:
         wait = datetime.timedelta(seconds=settings.BROWSER_OTP_WAIT_SECONDS)
         until = utcnow() + wait
         async with self.sessions() as session:
+            task, _ = await lock_run_and_task(session, self.run_id)
             run = await self._alive(session)
             number = await add_event(
                 session, run, "Menunggu kode OTP dari pemilik.", "waiting", None, shot
@@ -165,6 +131,7 @@ class DbHooks:
                 "shot": number,
                 "expires_at": until.isoformat(),
             }
+            await app_flow.sync(session, task, run)
             email = await notice(session, run, question)
             await session.commit()
         if email:
@@ -211,7 +178,7 @@ async def _claim(sessions: Sessions, run_id: uuid.UUID) -> Job | None:
     """Ambil putaran yang antre. Yang tidak bisa dijalankan langsung ditutup."""
     email = None
     async with sessions() as session:
-        run = await lock_run(session, run_id)
+        task, run = await lock_run_and_task(session, run_id)
         if run is None or run.status != "queued":
             return None
         run.status = "running"
@@ -225,6 +192,10 @@ async def _claim(sessions: Sessions, run_id: uuid.UUID) -> Job | None:
             await session.get(Membership, agent.owner_member_id) if agent.owner_member_id else None
         )
         reason = None
+        if run.task_id and (task is None or task.status not in OPEN_STATUSES):
+            close(run, "stopped", "Tugas sudah berakhir.")
+            await session.commit()
+            return None
         if run.submitted_at is not None:
             reason = MAYBE_SENT
         elif agent.deleted_at is not None:
@@ -237,8 +208,9 @@ async def _claim(sessions: Sessions, run_id: uuid.UUID) -> Job | None:
             reason = accounts.problem(account, agent, responsible)
         if reason:
             await add_event(session, run, reason, "failed")
-            _close(run, "failed", reason)
+            close(run, "failed", reason)
             _learning_failed(flow, run, reason)
+            await app_flow.sync(session, task, run)
             email = await notice(session, run, reason)
             await session.commit()
         else:
@@ -258,7 +230,7 @@ async def _claim(sessions: Sessions, run_id: uuid.UUID) -> Job | None:
                 steps=flow.steps,
                 given=run.inputs,
                 approved_step=run.approved_step,
-                trusted=flow.trusted_submit,
+                trusted=flow.trusted_submit and not run.force_approval,
                 creds=accounts.credentials(account),
                 state=accounts.stored_session(account) if run.mode == "replay" else None,
             )
@@ -267,14 +239,6 @@ async def _claim(sessions: Sessions, run_id: uuid.UUID) -> Job | None:
     if email:
         mailer.queue(email)
     return None
-
-
-def _close(run: BrowserRun, status: str, message: str) -> None:
-    run.status = status
-    run.message = message[:500]
-    run.pending = None
-    run.otp_encrypted = None
-    run.finished_at = utcnow()
 
 
 def _learning_failed(flow: BrowserFlow, run: BrowserRun, message: str) -> None:
@@ -378,7 +342,7 @@ async def _finish(sessions: Sessions, run_id: uuid.UUID, job: Job, result: Resul
     outcome = result.outcome
     email, follow_up = None, None
     async with sessions() as session:
-        run = await lock_run(session, run_id)
+        task, run = await lock_run_and_task(session, run_id)
         if run is None:
             return None
         flow = await session.get(BrowserFlow, run.flow_id)
@@ -417,23 +381,28 @@ async def _finish(sessions: Sessions, run_id: uuid.UUID, job: Job, result: Resul
                 else ""
             )
             flow.updated_at = utcnow()
-            _close(run, "succeeded", LEARNED)
+            close(run, "succeeded", LEARNED)
         elif outcome.status == "succeeded":
             flow.successful_runs += 1
             flow.updated_at = utcnow()
-            _close(run, "succeeded", outcome.message)
+            close(run, "succeeded", outcome.message)
         elif outcome.status == "needs_repair":
-            _close(run, "needs_repair", outcome.message)
+            close(run, "needs_repair", outcome.message)
             email = await notice(session, run, outcome.message)
             if flow.status == "approved" and flow.version == run.flow_version:
                 follow_up = _start_repair(session, flow, outcome.message)
         else:
-            _close(run, "failed", outcome.message)
+            close(run, "failed", outcome.message)
             _learning_failed(flow, run, outcome.message)
             email = await notice(session, run, outcome.message)
+        await app_flow.sync(session, task, run)
+        completed = task is not None and task.status == "completed"
         await session.commit()
     if email:
         mailer.queue(email)
+    if completed:
+        # Nomor dan berkas surat dibuat worker eksekusi sesudah tugasnya selesai
+        await enqueue_task(task.id)
     return follow_up
 
 
@@ -448,46 +417,31 @@ def _start_repair(session: AsyncSession, flow: BrowserFlow, reason: str) -> str:
     return str(run.id)
 
 
-def reset_approval(flow: BrowserFlow) -> None:
-    flow.trusted_submit = False
-    flow.successful_runs = 0
-    flow.approved_at = None
-    flow.approved_by_member_id = None
-    flow.updated_at = utcnow()
-
-
-def new_run(flow: BrowserFlow, mode: str, inputs: dict, member_id: uuid.UUID | None) -> BrowserRun:
-    return BrowserRun(
-        id=uuid.uuid4(),
-        organization_id=flow.organization_id,
-        flow_id=flow.id,
-        mode=mode,
-        status="queued",
-        flow_version=flow.version,
-        inputs=inputs,
-        outputs=[],
-        created_by_member_id=member_id,
-    )
-
-
 async def recover(sessions: Sessions) -> list[str]:
     """Tutup putaran yang ditinggalkan worker dan kirim ulang yang pesannya hilang."""
     emails = []
+    old = (
+        BrowserRun.status.in_(("running", "waiting_otp")),
+        BrowserRun.claimed_at < utcnow() - STALE_AFTER,
+    )
     async with sessions() as session:
-        stale = await session.scalars(
-            select(BrowserRun)
-            .where(
-                BrowserRun.status.in_(("running", "waiting_otp")),
-                BrowserRun.claimed_at < utcnow() - STALE_AFTER,
-            )
-            .with_for_update(skip_locked=True)
-        )
-        for run in stale.all():
+        stale = list(await session.scalars(select(BrowserRun.id).where(*old)))
+    for run_id in stale:
+        async with sessions() as session:
+            task, run = await lock_run_and_task(session, run_id)
+            # Bisa sudah selesai atau memberi kabar sementara dikunci
+            if run is None or not await session.scalar(
+                select(BrowserRun.id).where(BrowserRun.id == run_id, *old)
+            ):
+                continue
             message = MAYBE_SENT if run.submitted_at else ABANDONED
             await add_event(session, run, message, "failed")
-            _close(run, "failed", message)
+            close(run, "failed", message)
             _learning_failed(await session.get(BrowserFlow, run.flow_id), run, message)
+            await app_flow.sync(session, task, run)
             emails.append(await notice(session, run, message))
+            await session.commit()
+    async with sessions() as session:
         waiting = await session.scalars(
             select(BrowserRun.id).where(
                 BrowserRun.status == "queued", BrowserRun.created_at < utcnow() - REQUEUE_AFTER
@@ -498,11 +452,3 @@ async def recover(sessions: Sessions) -> list[str]:
     for email in filter(None, emails):
         mailer.queue(email)
     return queued
-
-
-async def active_run(session: AsyncSession, flow_id: uuid.UUID) -> uuid.UUID | None:
-    return await session.scalar(
-        select(BrowserRun.id)
-        .where(BrowserRun.flow_id == flow_id, BrowserRun.status.in_(ACTIVE_RUN_STATUSES))
-        .limit(1)
-    )

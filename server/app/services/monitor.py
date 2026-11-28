@@ -20,7 +20,7 @@ from app.models.base import utcnow
 from app.workers.celery_app import celery_app
 
 OK, WARN, FAIL = "OK", "PERINGATAN", "GAGAL"
-QUEUES = ("default", "ingestion", "execution")
+QUEUES = ("default", "ingestion", "execution", "browser")
 BACKLOG_LIMIT = 100
 STUCK_AFTER = datetime.timedelta(minutes=30)
 MIN_FREE_BYTES = 1024**3
