@@ -65,7 +65,7 @@ export default function Pricing() {
 
       <div className="lp-reveal flex flex-col items-center gap-4">
         <p className="rounded-full border border-accent/40 bg-accent/15 px-4 py-2 text-xs font-semibold text-[#ffd98a] text-center">
-          Harga rencana, belum berlaku. Pendaftaran dan pembayaran belum tersedia.
+          Harga rencana, belum berlaku. Pembayaran belum tersedia.
         </p>
         <div className="inline-flex rounded-full border border-white/15 bg-white/5 p-1 text-sm font-semibold" role="group" aria-label="Periode pembayaran">
           {[false, true].map((value) => (

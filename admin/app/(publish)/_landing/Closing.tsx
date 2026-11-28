@@ -68,19 +68,19 @@ export function Setup() {
 const FAQ = [
   {
     q: "Apakah role AI bisa bertindak sendiri di luar aplikasi?",
-    a: "Tidak. Role hanya membaca dokumen dan menulis hasil di dalam MBUTI. Ia tidak punya akses internet, email, atau berkas di luar sistem.",
+    a: "Belum. Role bekerja dengan dokumen dan menulis hasil di dalam MBUTI. Pencarian internet hanya jalan bila Anda mengizinkannya untuk role itu, dan sumbernya ditampilkan. Role belum bisa membuka aplikasi lain, mengirim email, atau mengakses berkas di komputer Anda.",
   },
   {
     q: "Bagaimana kalau aturannya tidak ada di dokumen?",
-    a: "Role diminta mengatakannya, bukan menebak, lalu tugas bisa naik ke penanggung jawab. Model AI tetap bisa keliru, jadi periksa hasil penting sebelum dipakai.",
+    a: "Pada mode bawaan, Dari data, role diminta mengatakannya, bukan menebak, lalu tugas bisa naik ke penanggung jawab. Surat, tabel, dan laporan yang diminta tetap disusun dari data yang ada. Mode Lengkapi dan Susun bebas boleh menyusun bagian yang kosong, dan daftar bagian buatannya ditampilkan. Model AI tetap bisa keliru, jadi periksa hasil penting sebelum dipakai.",
   },
   {
     q: "Dokumen apa yang bisa diunggah?",
-    a: "PDF berteks, DOCX, TXT, dan Markdown, maksimal 20 MB per berkas. Hasil pindaian (gambar) belum didukung.",
+    a: "PDF (termasuk hasil pindaian), DOCX, TXT, Markdown, serta gambar PNG, JPG, dan WEBP, maksimal 20 MB per berkas. Jumlah halaman bergambar yang dibaca per dokumen dibatasi.",
   },
   {
     q: "Ke mana isi dokumen dikirim?",
-    a: "Potongan dokumen dan isi tugas dikirim ke model Gemini milik Google untuk diolah. Pada kunci tier gratis, gunakan hanya dokumen contoh atau publik.",
+    a: "Isi dokumen, termasuk gambar halamannya, dikirim ke model Gemini milik Google saat diolah dan saat dipakai, begitu juga isi tugas. Bila pencarian internet diizinkan, kata kuncinya dikirim ke mesin pencari. Pada kunci tier gratis, gunakan hanya dokumen contoh atau publik.",
   },
   {
     q: "Apakah data antar-organisasi terpisah?",
@@ -88,11 +88,11 @@ const FAQ = [
   },
   {
     q: "Apakah harga di halaman ini sudah berlaku?",
-    a: "Belum. Itu harga rencana. Pendaftaran mandiri dan pembayaran belum tersedia, dan angkanya masih bisa berubah.",
+    a: "Belum. Itu harga rencana. Pembayaran belum tersedia, batas paket belum diterapkan, dan angkanya masih bisa berubah.",
   },
   {
     q: "Bagaimana cara mendapatkan akun?",
-    a: "Saat ini akun dibuat oleh pengelola server. Pendaftaran mandiri ada di peta jalan.",
+    a: "Daftarkan organisasi dari halaman masuk, lalu verifikasi email Anda. Selama uji coba, organisasi baru aktif setelah disetujui pengelola. Anggota lain bergabung lewat undangan.",
   },
 ];
 
