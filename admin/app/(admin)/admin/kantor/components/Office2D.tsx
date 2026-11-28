@@ -21,7 +21,7 @@ export default function Office2D({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 p-1 stagger">
       {rooms.map((room) => (
-        <Card key={room.unit.id} interactive className="overflow-hidden">
+        <Card key={room.unit.id} interactive className={`overflow-hidden ${room.cols >= 4 ? "sm:col-span-2" : ""}`}>
           <button
             type="button"
             onClick={() => onSelectUnit(room.unit.id)}
@@ -34,7 +34,10 @@ export default function Office2D({
             </span>
             {room.unit.active_task_count > 0 && <span className="text-[10px] font-bold bg-night/80 text-accent rounded-full px-2 py-1">{room.unit.active_task_count} aktif</span>}
           </button>
-          <div className="p-3 grid grid-cols-3 gap-2" style={{ background: tint(room.unit.color, 0.86) }}>
+          <div
+            className="p-3 grid grid-cols-3 gap-2 sm:[grid-template-columns:repeat(var(--desk-cols),minmax(0,1fr))]"
+            style={{ background: tint(room.unit.color, 0.86), ["--desk-cols" as string]: Math.max(3, room.cols) }}
+          >
             {room.agents.map(({ agent }) => (
               <button
                 key={agent.id}
@@ -47,7 +50,7 @@ export default function Office2D({
                 <ActivityBadge activity={agent.activity} />
               </button>
             ))}
-            {room.agents.length === 0 && <p className="col-span-3 text-xs text-faint text-center py-4">Ruangan kosong</p>}
+            {room.agents.length === 0 && <p className="col-span-full text-xs text-faint text-center py-4">Ruangan kosong</p>}
           </div>
         </Card>
       ))}

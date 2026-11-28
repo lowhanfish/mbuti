@@ -1,10 +1,23 @@
 import type { OfficeAgent, OfficeUnit } from "./types";
 
-export const DESK_COLS = 3;
 const DESK_DX = 2.5;
 const DESK_DZ = 2.9;
-const ROOM_W = DESK_COLS * DESK_DX + 1.4;
+/** Ruang tepi di kiri-kanan (lebar) dan depan-belakang (kedalaman) ruangan */
+const PAD_W = 1.4;
+const PAD_D = 1.8;
 const GAP = 1.6;
+
+/**
+ * Jumlah meja per baris mengikuti jumlah orang agar ruangan mendekati persegi:
+ * 1–4 orang 2 meja, 5–9 orang 3 meja, 10–16 orang 4 meja, dan seterusnya (paling banyak 6).
+ */
+export const deskColumns = (count: number) => Math.min(6, Math.max(2, Math.ceil(Math.sqrt(count))));
+
+const roomSize = (count: number) => {
+  const cols = deskColumns(count);
+  const rows = Math.max(1, Math.ceil(count / cols));
+  return { cols, w: cols * DESK_DX + PAD_W, d: rows * DESK_DZ + PAD_D };
+};
 
 export type RoomLayout = {
   unit: OfficeUnit;
@@ -12,6 +25,8 @@ export type RoomLayout = {
   z: number;
   w: number;
   d: number;
+  /** Meja per baris di ruangan ini */
+  cols: number;
   agents: Array<{ agent: OfficeAgent; x: number; z: number }>;
 };
 
@@ -42,7 +57,9 @@ const treeOrder = (units: OfficeUnit[]) => {
 };
 
 /**
- * Denah kantor: satu ruangan per unit dalam kisi, meja tiga per baris.
+ * Denah kantor: satu ruangan per unit, ukurannya mengikuti jumlah orang di unit itu.
+ * Ruangan disusun berurutan (seperti pohon unit) ke dalam baris dengan lebar sasaran yang membuat
+ * denah mendekati persegi; ruangan dalam satu baris rata di sisi belakang.
  * Koordinat dunia (x, z) dengan pusat denah di titik (0, 0).
  */
 export const buildLayout = (units: OfficeUnit[], agents: OfficeAgent[]) => {
@@ -50,34 +67,43 @@ export const buildLayout = (units: OfficeUnit[], agents: OfficeAgent[]) => {
   const unplaced = agents.filter((a) => !a.unit_id || !units.some((u) => u.id === a.unit_id));
   if (unplaced.length) ordered.push(LOBBY);
 
-  const cols = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(ordered.length))));
+  const sized = ordered.map((unit) => {
+    const members = unit.id === LOBBY.id ? unplaced : agents.filter((a) => a.unit_id === unit.id);
+    return { unit, members, ...roomSize(members.length) };
+  });
+  const area = sized.reduce((s, r) => s + (r.w + GAP) * (r.d + GAP), 0);
+  const rowWidth = Math.max(...sized.map((r) => r.w), Math.sqrt(area) * 1.25);
+
   const rooms: RoomLayout[] = [];
   let zCursor = 0;
-  for (let rowStart = 0; rowStart < ordered.length; rowStart += cols) {
-    const row = ordered.slice(rowStart, rowStart + cols);
-    const depths = row.map((u) => {
-      const count = u.id === LOBBY.id ? unplaced.length : agents.filter((a) => a.unit_id === u.id).length;
-      return Math.max(1, Math.ceil(count / DESK_COLS)) * DESK_DZ + 1.8;
-    });
-    const rowDepth = Math.max(...depths);
-    row.forEach((unit, i) => {
-      const members = unit.id === LOBBY.id ? unplaced : agents.filter((a) => a.unit_id === unit.id);
-      const x = i * (ROOM_W + GAP);
-      const z = zCursor;
+  let i = 0;
+  while (i < sized.length) {
+    const row = [sized[i++]];
+    let width = row[0].w;
+    while (i < sized.length && width + GAP + sized[i].w <= rowWidth) {
+      width += GAP + sized[i].w;
+      row.push(sized[i++]);
+    }
+    let xCursor = 0;
+    for (const { unit, members, cols, w, d } of row) {
+      const x = xCursor + w / 2;
+      const z = zCursor + d / 2;
+      xCursor += w + GAP;
       rooms.push({
         unit,
         x,
         z,
-        w: ROOM_W,
-        d: rowDepth,
+        w,
+        d,
+        cols,
         agents: members.map((agent, k) => ({
           agent,
-          x: x - ROOM_W / 2 + 1.45 + (k % DESK_COLS) * DESK_DX,
-          z: z - rowDepth / 2 + 1.5 + Math.floor(k / DESK_COLS) * DESK_DZ,
+          x: x - w / 2 + 1.45 + (k % cols) * DESK_DX,
+          z: z - d / 2 + 1.5 + Math.floor(k / cols) * DESK_DZ,
         })),
       });
-    });
-    zCursor += rowDepth + GAP;
+    }
+    zCursor += Math.max(...row.map((r) => r.d)) + GAP;
   }
 
   // Pusatkan denah
