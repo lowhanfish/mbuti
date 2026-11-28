@@ -50,6 +50,8 @@ class AttachmentItem(BaseModel):
     page_count: int
     # Alamat gambar tiap halaman
     pages: list[str]
+    # Lembar data lampiran Excel dan CSV (E3b)
+    table: list[dict] | None = None
     exif: dict | None
     uploaded_by_name: str | None
     created_at: datetime.datetime

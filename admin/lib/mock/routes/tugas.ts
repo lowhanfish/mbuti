@@ -1,6 +1,7 @@
 import { LIMITS } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
 import { MAX_IMAGE_BYTES } from "@/app/(admin)/admin/pengetahuan/types";
 import { MAX_ATTACHMENTS, MAX_PDF_PAGES, placeholderPage, readImage, toAttachment, type MockAttachment } from "../media";
+import { SAMPLE_TABLE, parseCsv, type MockTable } from "../sheets";
 import {
   formatRupiah,
   type AgentRef,
@@ -144,13 +145,23 @@ export const tugasRoutes: MockRoute[] = [
       if (self.access_role === "viewer") return fail(403, "Pemantau tidak dapat mengunggah lampiran.");
       const file = ctx.body instanceof FormData ? ctx.body.get("file") : null;
       if (!(file instanceof File)) return fail(422, "Pilih berkas lampiran.");
-      if (!ATTACHMENT_TYPES.includes(file.type)) return fail(422, "Lampiran berupa gambar PNG, JPG, WEBP, atau PDF.");
+      // Jenis berkas data dikenali dari namanya: peramban memberi jenis media yang berbeda-beda
+      const data = /\.(csv|xlsx)$/i.exec(file.name)?.[1].toLowerCase();
+      if (!data && !ATTACHMENT_TYPES.includes(file.type)) return fail(422, "Lampiran berupa gambar, PDF, Excel (.xlsx), atau CSV.");
       if (file.size > MAX_IMAGE_BYTES) return fail(422, "Ukuran lampiran melebihi 10 MB.");
       if (file.size === 0) return fail(422, "Berkas kosong.");
       let pages: string[];
       let width = 0;
       let height = 0;
-      if (file.type === "application/pdf") {
+      let tables: MockTable[] | undefined;
+      if (data) {
+        // Peramban tidak membaca XLSX di mode data contoh; dipakai isi contoh
+        const table = data === "csv" ? parseCsv(await file.text()) : SAMPLE_TABLE;
+        if (!table.rows.length || !table.columns.some(Boolean)) return fail(422, "Berkas data tidak berisi baris.");
+        if (table.rows.length > 5000) return fail(422, "Berkas data paling banyak 5.000 baris.");
+        tables = [table];
+        pages = [];
+      } else if (file.type === "application/pdf") {
         // Peramban tidak merender PDF di mode data contoh; backend merender maks 20 halaman dengan pypdfium2
         const count = Math.min(MAX_PDF_PAGES, Math.max(1, Math.round(file.size / 120_000)));
         pages = Array.from({ length: count }, (_, i) => placeholderPage(file.name, i + 1));
@@ -169,11 +180,12 @@ export const tugasRoutes: MockRoute[] = [
         organization_id: self.organization_id,
         task_id: null,
         file_name: file.name.slice(0, 200),
-        mime_type: file.type,
+        mime_type: data ? (data === "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") : file.type,
         size_bytes: file.size,
         width,
         height,
         pages,
+        tables,
         exif: null,
         uploaded_by_member_id: self.id,
         created_at: nowIso(),

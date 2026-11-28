@@ -164,8 +164,15 @@ export function AttachmentStrip({ attachments, onRemove }: { attachments: TaskAt
     <ul className="flex flex-wrap gap-2">
       {attachments.map((a) => (
         <li key={a.id} className="relative w-24 rounded-xl border border-line bg-surface overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element -- gambar lampiran dari API berizin atau data URL */}
-          <img src={mediaSrc(a.pages[0], apiBase)} alt={a.file_name} className="w-24 h-24 object-cover bg-white" />
+          {a.table ? (
+            <div className="w-24 h-24 flex flex-col items-center justify-center gap-1 bg-emerald-500/15 text-emerald-700" title={a.table.map((t) => `${t.name}: ${t.columns.join(", ")}`).join(" · ")}>
+              <span className="text-xs font-extrabold">{a.file_name.toLowerCase().endsWith(".csv") ? "CSV" : "XLSX"}</span>
+              <span className="text-[10px]">{a.table.reduce((s, t) => s + t.row_count, 0)} baris</span>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- gambar lampiran dari API berizin atau data URL
+            <img src={mediaSrc(a.pages[0], apiBase)} alt={a.file_name} className="w-24 h-24 object-cover bg-white" />
+          )}
           <p className="px-1.5 py-1 text-[10px] text-muted truncate" title={a.file_name}>
             {a.mime_type === "application/pdf" ? `PDF · ${a.page_count} hlm.` : a.file_name}
           </p>

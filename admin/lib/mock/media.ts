@@ -5,6 +5,7 @@
 import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
 import type { Finding, TaskAttachment } from "@/app/(admin)/admin/tugas/types";
 import type { MockAgent, MockDatabase } from "./seed";
+import type { MockTable } from "./sheets";
 
 export interface MockAttachment {
   id: string;
@@ -17,6 +18,8 @@ export interface MockAttachment {
   width: number;
   height: number;
   pages: string[];
+  /** Isi lembar data (E3b); kosong untuk gambar dan PDF */
+  tables?: MockTable[];
   exif: TaskAttachment["exif"];
   uploaded_by_member_id: string;
   created_at: string;
@@ -111,6 +114,7 @@ export const toAttachment = (db: MockDatabase, a: MockAttachment): TaskAttachmen
     height: a.height,
     page_count: a.pages.length,
     pages: a.pages,
+    table: a.tables?.map((t) => ({ name: t.name, columns: t.columns, row_count: t.rows.length })) ?? null,
     exif: a.exif,
     uploaded_by_name: member ? db.users.find((u) => u.id === member.user_id)?.full_name ?? null : null,
     created_at: a.created_at,

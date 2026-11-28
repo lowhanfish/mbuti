@@ -40,7 +40,14 @@ export interface CreateInterface {
 
 export type WebSearchMode = "role" | "off";
 
-/** Lampiran tugas: gambar (PNG, JPG, WEBP) atau PDF. */
+/** Ringkasan satu lembar data pada lampiran Excel atau CSV (E3b) */
+export interface TableSummary {
+  name: string;
+  columns: string[];
+  row_count: number;
+}
+
+/** Lampiran tugas: gambar (PNG, JPG, WEBP), PDF, atau data (XLSX, CSV). */
 export interface TaskAttachment {
   id: string;
   file_name: string;
@@ -53,6 +60,8 @@ export interface TaskAttachment {
   page_count: number;
   /** Gambar per halaman (gambar = satu). Backend: path API; data contoh: data URL */
   pages: string[];
+  /** Lembar data yang terbaca; null untuk gambar dan PDF */
+  table: TableSummary[] | null;
   /** Metadata foto, bila ada */
   exif: { taken_at: string | null; location: string | null } | null;
   uploaded_by_name: string | null;
@@ -175,19 +184,27 @@ export interface DocumentCheck {
   ref: string;
 }
 
-/** Berkas hasil tugas (E3a); dibuat program dari susunan yang ditulis role */
-export interface ResultDocument {
+/** Bagian yang sama pada semua berkas hasil */
+interface ResultBase {
   id: string;
   title: string;
+  version: number;
+  /** Benar selama format, nomor, atau berkasnya masih dikerjakan server */
+  processing: boolean;
+  checks: DocumentCheck[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Surat (E3a); dibuat program dari susunan yang ditulis role */
+export interface LetterResult extends ResultBase {
+  kind: "letter";
   letter_type: string;
   format_id: string | null;
-  version: number;
   /** Diberikan saat surat disetujui; null sebelum itu */
   number: string | null;
   /** Benar bila pengguna ini boleh memberi nomor sekarang */
   can_number: boolean;
-  /** Benar selama format, nomor, atau berkasnya masih dikerjakan server */
-  processing: boolean;
   /** Gambar tiap halaman PDF */
   pages: string[];
   docx_url: string | null;
@@ -196,10 +213,47 @@ export interface ResultDocument {
   format_checked: boolean;
   /** Benar bila formatnya bersumber dari aturan atau contoh resmi organisasi */
   official: boolean;
-  checks: DocumentCheck[];
-  created_at: string;
-  updated_at: string;
 }
+
+export type CellFormat = "text" | "number" | "currency" | "percent" | "date";
+
+export interface SheetColumn {
+  header: string;
+  format: CellFormat;
+  /** Rumus dalam kata, mis. "Realisasi ÷ Pagu"; kosong untuk kolom data */
+  formula: string;
+}
+
+export interface SheetRow {
+  /** flag = ditandai menurut aturan penanda */
+  style: "normal" | "flag" | "subtotal" | "total";
+  /** Nilai siap tampil, sudah dihitung dan diformat */
+  cells: string[];
+}
+
+export interface SheetPreview {
+  name: string;
+  columns: SheetColumn[];
+  rows: SheetRow[];
+  /** Jumlah baris data seluruhnya; pratinjau bisa lebih sedikit */
+  row_count: number;
+  flagged: number;
+  /** Penjelasan penanda, mis. "Persentase di bawah 50%"; kosong bila tidak ada */
+  flag_rule: string;
+}
+
+/** Spreadsheet (E3b); barisnya diisi dan dihitung program */
+export interface SheetResult extends ResultBase {
+  kind: "sheet";
+  xlsx_url: string | null;
+  /** text = angkanya berasal dari arahan atau dokumen, bukan berkas data */
+  origin: "attachment" | "text";
+  /** Nama berkas data yang dipakai */
+  source_files: string[];
+  sheets: SheetPreview[];
+}
+
+export type ResultDocument = LetterResult | SheetResult;
 
 export interface ResponseListInterface {
   success: boolean;

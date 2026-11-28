@@ -5,6 +5,7 @@ import { readImage } from "../media";
 import { fail, ok, type MockContext, type MockRoute } from "../router";
 import type { MockTask } from "../engine";
 import type { MockDatabase, MockMembership } from "../seed";
+import { sheetsOf } from "../sheets";
 
 const BASE = "/api/v1/admin/pengaturan/persuratan";
 const TASK = "/api/v1/admin/tugas/:id/berkas";
@@ -41,7 +42,7 @@ export const suratRoutes: MockRoute[] = [
       const documents = documentsOf(ctx.db, task);
       // Berkas dan nomornya dibuat saat pertama dibaca, jadi perlu disimpan
       saveDb();
-      return ok(documents.map((d) => ({ ...d, can_number: canNumber(ctx.db, self, task, d) })));
+      return ok([...documents.map((d) => ({ ...d, can_number: canNumber(ctx.db, self, task, d) })), ...sheetsOf(ctx.db, task)]);
     },
   },
   {

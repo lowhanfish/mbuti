@@ -9,9 +9,10 @@ import { buttonClasses } from "../../../../_components/ui/button-classes";
 import { mediaSrc } from "../../../pengetahuan/types";
 import { SOURCE_KIND } from "../../../pengaturan/persuratan/types";
 import { useCorrectDocument, useNumberDocument, useResponseDocuments } from "../../hooks/documents";
-import type { ResultDocument, TaskStatus } from "../../types";
+import type { LetterResult, TaskStatus } from "../../types";
+import SheetView from "./SheetView";
 
-function DocumentView({ taskId, doc }: { taskId: string; doc: ResultDocument }) {
+function LetterView({ taskId, doc }: { taskId: string; doc: LetterResult }) {
   const [text, setText] = useState("");
   const [page, setPage] = useState<string | null>(null);
   const apiBase = useUrlStore((state) => state.URL.APP);
@@ -127,9 +128,7 @@ export default function ResultDocuments({ taskId, status }: { taskId: string; st
         <span className="text-[11px] text-faint">{Documents.length} berkas</span>
       </CardHeader>
       <CardContent className="space-y-6">
-        {Documents.map((doc) => (
-          <DocumentView key={doc.id} taskId={taskId} doc={doc} />
-        ))}
+        {Documents.map((doc) => (doc.kind === "sheet" ? <SheetView key={doc.id} doc={doc} /> : <LetterView key={doc.id} taskId={taskId} doc={doc} />))}
       </CardContent>
     </Card>
   );

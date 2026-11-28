@@ -35,6 +35,7 @@ class Check(BaseModel):
 
 
 class ResultDocumentItem(BaseModel):
+    kind: str = "letter"
     id: str
     title: str
     letter_type: str

@@ -8,9 +8,9 @@ import type { TaskAttachment } from "../../admin/tugas/types";
 import { AttachmentStrip } from "./image-findings";
 
 export const MAX_ATTACHMENTS = 10;
-const ACCEPT = ".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf";
+const ACCEPT = ".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.csv,image/png,image/jpeg,image/webp,application/pdf,text/csv";
 
-/** Pilih lampiran gambar atau PDF untuk tugas dan uji coba; setiap berkas langsung diunggah. */
+/** Pilih lampiran gambar, PDF, atau data untuk tugas dan uji coba; setiap berkas langsung diunggah. */
 export function AttachmentPicker({ value, onChange }: { value: TaskAttachment[]; onChange: (next: TaskAttachment[]) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const upload = useUploadAttachment();
@@ -46,15 +46,16 @@ export function AttachmentPicker({ value, onChange }: { value: TaskAttachment[];
           ) : (
             <Icon name="plus" size={13} />
           )}
-          Tambah gambar atau PDF
+          Tambah gambar, PDF, atau data
         </button>
         <span className="text-[11px] text-faint">
-          {value.length}/{MAX_ATTACHMENTS} · PNG, JPG, WEBP, PDF · maks 10 MB
+          {value.length}/{MAX_ATTACHMENTS} · PNG, JPG, WEBP, PDF, XLSX, CSV · maks 10 MB
         </span>
         <input ref={inputRef} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => handle(e.target.files)} />
       </div>
       <AttachmentStrip attachments={value} onRemove={(id) => onChange(value.filter((a) => a.id !== id))} />
-      {value.length > 0 && <p className="text-[11px] text-faint">Role membaca gambar ini dan menandai temuannya dengan kotak bernomor.</p>}
+      {value.some((a) => !a.table) && <p className="text-[11px] text-faint">Role membaca gambar ini dan menandai temuannya dengan kotak bernomor.</p>}
+      {value.some((a) => a.table) && <p className="text-[11px] text-faint">Angka dari berkas data diambil dan dihitung program; role hanya melihat nama kolom dan beberapa contoh baris.</p>}
     </div>
   );
 }

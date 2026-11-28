@@ -3,7 +3,7 @@
  * Backend membaca aturan dengan Gemini dan membuat DOCX serta PDF; di sini semuanya disimulasikan.
  */
 import type { LetterFormat, Letterhead, LetterSample, NumberRegister } from "@/app/(admin)/admin/pengaturan/persuratan/types";
-import type { ResultDocument } from "@/app/(admin)/admin/tugas/types";
+import type { LetterResult } from "@/app/(admin)/admin/tugas/types";
 import type { MockTask } from "./engine";
 import type { MockDatabase } from "./seed";
 
@@ -11,7 +11,7 @@ export type MockLetterFormat = LetterFormat & { organization_id: string };
 export type MockLetterhead = Letterhead & { organization_id: string };
 export type MockRegister = Omit<NumberRegister, "preview"> & { organization_id: string };
 export type MockSample = LetterSample & { organization_id: string };
-export type MockResultFile = ResultDocument & { organization_id: string; task_id: string };
+export type MockResultFile = LetterResult & { organization_id: string; task_id: string };
 
 const LETTER = /surat|undangan|nota dinas|edaran/i;
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
@@ -150,6 +150,7 @@ export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] 
     const official = format.sources.some((s) => s.kind === "rule" || s.kind === "sample");
     const ref = format.sources[0]?.title ?? "";
     doc = {
+      kind: "letter",
       id: `berkas-${db.task_documents.length + 1}`,
       organization_id: task.organization_id,
       task_id: task.id,

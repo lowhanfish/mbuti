@@ -1016,7 +1016,8 @@ pagu); kelompok dengan subtotal, penanda warna, urutan; format angka, rupiah, pe
 disimpan sebagai teks. Pustaka `openpyxl` (MIT).
 **Contoh acuan:** rekap realisasi anggaran per bidang dengan data fiktif (berlaku bagi instansi maupun perusahaan).
 
-- [ ] E3b halaman dengan data contoh
+- [x] E3b halaman dengan data contoh (28 November 2026): lampiran XLSX dan CSV, pratinjau spreadsheet di Berkas
+      hasil; mock `lib/mock/sheets.ts`. Unduhan di data contoh berupa CSV dan XLSX unggahan tidak dibaca
 - [ ] E3b kontrak API
 - [ ] E3b backend dan uji
 
