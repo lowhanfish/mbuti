@@ -2249,6 +2249,9 @@ export type ParseResponse = PreviewResponse & {
 - `susulan`: hanya untuk putaran `missed`, `failed`, atau `stopped_budget` (`409`). Membuat putaran `backfill` dengan
   `planned_for` yang sama; bila tugasnya terbuat, putaran lama menjadi `skipped` ("Sudah diisi susulan.").
 - `DELETE` menghapus jadwal dan riwayat putarannya; tugas yang sudah dibuat tetap ada.
+- Menghapus role mengakhiri jadwalnya (`ended`). Mengubah zona waktu organisasi menghitung ulang putaran
+  berikutnya, sama seperti perubahan kalender dan cuti.
+- `jalankan`, `susulan`, `runs`, dan `last_run` baru berfungsi sesudah E2c.
 - `attachment_count` = jumlah lampiran pada tugas putaran itu.
 
 ### 17.4 Aturan jadwal dan penghitungan putaran (E2b)
@@ -2297,6 +2300,7 @@ mengikuti hari shift (jadwal terkait shift) atau hari kerja organisasi.
 - Server memeriksa hasilnya dengan aturan 17.4. Bagian yang tidak sah atau tidak disebut diganti nilai bawaan dan
   disebut di `notes`; model tidak boleh membuat shift atau role. `title` ≤ 150, boleh kosong.
 - Hasilnya hanya usulan: tidak ada yang disimpan sampai pengguna menyimpan jadwalnya.
+- Memakai model profil cepat, lalu cadangan.
 - Model gagal atau jawabannya tidak bisa dibaca → `503` dengan pesan agar mencoba lagi atau mengisi formulir.
 - `UsagePurpose` (16.8) bertambah `schedule_parse` ("Memahami jadwal"), sehingga `usage_today` menjadi enam baris.
 

@@ -8,6 +8,7 @@ import uuid
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import MANAGERS, CurrentMember
@@ -22,13 +23,15 @@ from app.api.v1.endpoints.admin.kalender.schema import (
     parse_date,
 )
 from app.core.exceptions import (
+    ConflictException,
     NotFoundException,
     UnprocessableEntityException,
     validation_message,
 )
 from app.db.transaction import commit_or_raise_unique_conflict
-from app.models import CalendarDay, Organization, WorkShift
+from app.models import CalendarDay, Organization, Schedule, WorkShift
 from app.services.organisation import lock_organization
+from app.services.schedule.planning import refresh_organization
 
 SHIFT_NOT_FOUND = "Shift tidak ditemukan."
 DAY_NOT_FOUND = "Tanggal tidak ditemukan."
@@ -69,6 +72,7 @@ async def read_calendar(session: AsyncSession, actor: CurrentMember) -> Calendar
 async def save_workdays(session: AsyncSession, actor: CurrentMember, workdays: list[int]) -> None:
     organization = await session.get(Organization, actor.organization_id)
     organization.workdays = workdays
+    await refresh_organization(session, actor.organization_id)
     await session.commit()
 
 
@@ -106,11 +110,24 @@ async def update_shift(
 ) -> None:
     shift = await _owned(session, WorkShift, actor.organization_id, shift_id, SHIFT_NOT_FOUND)
     _apply_shift(shift, body)
-    await commit_or_raise_unique_conflict(session, DUPLICATE_SHIFT)
+    try:
+        # Disimpan lebih dulu agar nama yang sama ketahuan sebelum jadwal dihitung ulang
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        raise ConflictException(DUPLICATE_SHIFT) from None
+    await refresh_organization(session, actor.organization_id)
+    await session.commit()
 
 
 async def delete_shift(session: AsyncSession, actor: CurrentMember, shift_id: str) -> None:
+    await lock_organization(session, actor.organization_id)
     shift = await _owned(session, WorkShift, actor.organization_id, shift_id, SHIFT_NOT_FOUND)
+    used_by = await session.scalar(
+        select(Schedule.title).where(Schedule.shift_id == shift.id).limit(1)
+    )
+    if used_by is not None:
+        raise ConflictException(f'Shift masih dipakai tugas rutin "{used_by}".')
     await session.delete(shift)
     await session.commit()
 
@@ -161,12 +178,14 @@ async def _upsert_days(
 async def save_day(session: AsyncSession, actor: CurrentMember, body: CalendarDayRequest) -> None:
     await lock_organization(session, actor.organization_id)
     await _upsert_days(session, actor, {parse_date(body.date): body})
+    await refresh_organization(session, actor.organization_id)
     await session.commit()
 
 
 async def delete_day(session: AsyncSession, actor: CurrentMember, day_id: str) -> None:
     day = await _owned(session, CalendarDay, actor.organization_id, day_id, DAY_NOT_FOUND)
     await session.delete(day)
+    await refresh_organization(session, actor.organization_id)
     await session.commit()
 
 
@@ -217,6 +236,7 @@ async def import_days(session: AsyncSession, actor: CurrentMember, content: byte
     # Tanggal berulang di satu berkas: baris terakhir yang dipakai
     unique = {parse_date(day.date): day for day in days}
     existing = await _upsert_days(session, actor, unique)
+    await refresh_organization(session, actor.organization_id)
     await session.commit()
     added = len(unique) - len(existing)
     return ImportResult(added=added, updated=len(days) - added, errors=errors[:MAX_ERRORS])

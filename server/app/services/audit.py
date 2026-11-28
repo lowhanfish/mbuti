@@ -25,6 +25,7 @@ from app.models import (
     CalendarDay,
     Document,
     Membership,
+    Schedule,
     Task,
     Unit,
     User,
@@ -47,8 +48,10 @@ class Action:
 
 CALENDAR_CHANGE = Action("kalender.ubah", "Mengubah kalender kerja")
 LEAVE_CHANGE = Action("cuti.ubah", "Mengubah cuti anggota")
+SCHEDULE_CHANGE = Action("rutin.ubah", "Mengubah tugas rutin")
 
-# Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta).
+# Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta, atau
+# permintaan yang tidak menyimpan apa pun).
 ACTIONS: dict[tuple[str, str], Action | None] = {
     ("PUT", "/organisasi/profil/update"): Action("organisasi.ubah", "Mengubah profil organisasi"),
     ("POST", "/unit/create"): Action("unit.buat", "Membuat unit"),
@@ -112,6 +115,13 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("DELETE", "/pengaturan/kalender/hari/{day_id}"): CALENDAR_CHANGE,
     ("POST", "/organisasi/pengguna/{member_id}/cuti"): LEAVE_CHANGE,
     ("DELETE", "/organisasi/pengguna/{member_id}/cuti/{leave_id}"): LEAVE_CHANGE,
+    ("POST", "/tugas-rutin"): SCHEDULE_CHANGE,
+    ("PUT", "/tugas-rutin/{schedule_id}"): SCHEDULE_CHANGE,
+    ("DELETE", "/tugas-rutin/{schedule_id}"): SCHEDULE_CHANGE,
+    ("POST", "/tugas-rutin/{schedule_id}/jeda"): SCHEDULE_CHANGE,
+    ("POST", "/tugas-rutin/{schedule_id}/lanjutkan"): SCHEDULE_CHANGE,
+    ("POST", "/tugas-rutin/pahami"): None,
+    ("POST", "/tugas-rutin/pratinjau"): None,
     ("POST", "/pengetahuan/usulan"): Action("dokumen.usulan", "Mengusulkan temuan internet"),
     ("POST", "/pengetahuan/usulan/{proposal_id}/setujui"): Action(
         "dokumen.usulan", "Menyetujui usulan pengetahuan"
@@ -214,6 +224,7 @@ async def _name_of(
             "document_id": (Document, Document.title),
             "shift_id": (WorkShift, WorkShift.name),
             "day_id": (CalendarDay, CalendarDay.name),
+            "schedule_id": (Schedule, Schedule.title),
             "task_id": (Task, Task.title),
         }[key]
         query = select(column).where(model.id == wanted, model.organization_id == organization_id)
@@ -254,6 +265,7 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
         "member_id",
         "shift_id",
         "day_id",
+        "schedule_id",
     ):
         if key in params:
             name = await _name_of(session, organization_id, key, params[key])

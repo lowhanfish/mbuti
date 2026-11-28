@@ -224,6 +224,8 @@ class MockLlm:
     ) -> Generation:
         if "skills" in schema.get("properties", {}):
             return Generation(_mock_formation(user), len(system + user) // 4, 600)
+        if "time_mode" in schema.get("properties", {}):
+            return Generation(_mock_schedule(user), len(system + user) // 4, 120)
         numbers = [int(n) for n in re.findall(r'<dokumen nomor="(\d+)"', user)]
         data = {
             "status": "done" if numbers else "not_in_documents",
@@ -325,6 +327,22 @@ def _mock_formation(user: str) -> dict:
         "satisfied": answering,
         "note": "Rancangan sudah jelas." if answering else "",
     }
+
+
+def _mock_schedule(user: str) -> dict:
+    """Pemahaman jadwal tiruan: frekuensi dan jam dari kata yang umum."""
+    found = re.search(r"<kalimat>(.*?)</kalimat>", user, re.DOTALL)
+    sentence = found.group(1) if found else ""
+    text = sentence.lower()
+    data: dict = {"title": re.split(r"\b(?:setiap|tiap|pukul|jam)\b", sentence)[0].strip(" ,.")}
+    if "hari kerja" in text:
+        data["frequency"] = "workdays"
+    elif "setiap hari" in text:
+        data["frequency"] = "daily"
+    clock = re.search(r"(?:pukul|jam)\s*(\d{1,2})[.:](\d{2})", text)
+    if clock:
+        data["time"] = f"{int(clock.group(1)):02d}:{clock.group(2)}"
+    return data
 
 
 @lru_cache

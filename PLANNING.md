@@ -921,7 +921,9 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
 - [x] Kontrak API bagian 17 (28 November 2026)
 - [x] E2a backend dan uji (28 November 2026): kalender kerja, shift, hari khusus beserta impor CSV, cuti; migrasi
       `a1d4e7c9b352` terpasang di database dev. Diuji dengan tes kalender dan migrasi saja (31 lulus), bukan seluruh pytest
-- [ ] E2b backend dan uji: jadwal, pemahaman kalimat, pratinjau
+- [x] E2b backend dan uji (28 November 2026): jadwal (simpan, ubah, jeda, lanjutkan), pemahaman kalimat, pratinjau;
+      migrasi `b7e2f9a4c168` terpasang di database dev. Satu kalimat contoh dipahami benar oleh Gemini (percobaan
+      pertama gagal karena model sedang tidak bisa dipakai). Jalankan sekarang, susulan, dan riwayat putaran menunggu E2c
 - [ ] E2c backend dan uji: penjadwal, putaran, coba ulang, susulan, notifikasi
 
 #### Pertanyaan terbuka fase E

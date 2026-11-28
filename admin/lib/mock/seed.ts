@@ -105,7 +105,7 @@ export interface MockLlmCall {
   model: string;
   cost: number;
   /** Jenis pemakaian untuk rincian kuota; kosong = uji coba */
-  purpose?: "task" | "trial" | "formation" | "vision_ingest" | "web_search";
+  purpose?: "task" | "trial" | "formation" | "vision_ingest" | "web_search" | "schedule_parse";
   created_at: string;
 }
 

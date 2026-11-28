@@ -7,6 +7,7 @@ from app.api.v1.endpoints.admin.organisasi.schema import Profile, ProfileStats, 
 from app.api.v1.endpoints.admin.role.service import live_agents
 from app.core.exceptions import NotFoundException
 from app.models import Agent, Membership, Organization, Unit
+from app.services.schedule.planning import refresh_organization
 
 
 async def _get(session: AsyncSession, organization_id: uuid.UUID) -> Organization:
@@ -57,5 +58,6 @@ async def update_profile(
     organization = await _get(session, organization_id)
     for field, value in body.model_dump().items():
         setattr(organization, field, value)
+    await refresh_organization(session, organization_id)
     await session.commit()
     return await _to_profile(session, organization)

@@ -17,6 +17,7 @@ from app.api.v1.endpoints.admin.persetujuan.route import router as persetujuan_r
 from app.api.v1.endpoints.admin.relasi.route import router as relasi_router
 from app.api.v1.endpoints.admin.role.route import router as role_router
 from app.api.v1.endpoints.admin.tugas.route import router as tugas_router
+from app.api.v1.endpoints.admin.tugas_rutin.route import router as rutin_router
 from app.api.v1.endpoints.admin.unit.route import router as unit_router
 from app.api.v1.endpoints.admin.usulan.route import router as usulan_router
 from app.api.v1.endpoints.auth.route import router as auth_router
@@ -38,6 +39,7 @@ admin_router.include_router(pengetahuan_router)
 admin_router.include_router(pengaturan_router)
 admin_router.include_router(kalender_router)
 admin_router.include_router(tugas_router)
+admin_router.include_router(rutin_router)
 admin_router.include_router(persetujuan_router)
 admin_router.include_router(kantor_router)
 admin_router.include_router(dashboard_router)

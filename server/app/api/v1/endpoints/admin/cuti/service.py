@@ -12,6 +12,7 @@ from app.api.v1.endpoints.admin.kalender.schema import parse_date
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.models import MemberLeave, Membership
 from app.services.organisation import lock_organization
+from app.services.schedule.planning import refresh_organization
 
 MEMBER_NOT_FOUND = "Anggota tidak ditemukan."
 LEAVE_NOT_FOUND = "Cuti tidak ditemukan."
@@ -78,6 +79,7 @@ async def create_leave(
             created_by=actor.user.id,
         )
     )
+    await refresh_organization(session, actor.organization_id)
     await session.commit()
 
 
@@ -93,4 +95,5 @@ async def delete_leave(
     if leave is None:
         raise NotFoundException(LEAVE_NOT_FOUND)
     await session.delete(leave)
+    await refresh_organization(session, actor.organization_id)
     await session.commit()

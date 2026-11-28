@@ -346,6 +346,13 @@ async def test_catalog_and_usage_today(world, sign_in, run_jobs, database):
     await analysed(client, run_jobs, role["id"], tools=())
     models = (await client.get("/api/v1/admin/pengaturan/model-ai")).json()["data"]
     usage = {row["purpose"]: row["calls"] for row in models["usage_today"]}
-    assert usage == {"task": 0, "trial": 0, "formation": 1, "vision_ingest": 0, "web_search": 0}
+    assert usage == {
+        "task": 0,
+        "trial": 0,
+        "formation": 1,
+        "vision_ingest": 0,
+        "web_search": 0,
+        "schedule_parse": 0,
+    }
     async with database() as session:
         assert (await session.scalars(select(ToolRequest))).all() == []

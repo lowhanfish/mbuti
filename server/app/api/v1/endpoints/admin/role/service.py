@@ -25,6 +25,7 @@ from app.models import (
     Document,
     FlowPosition,
     Membership,
+    Schedule,
     Task,
     TaskAttachment,
     TaskStep,
@@ -326,6 +327,11 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
         )
     now = utcnow()
     agent.deleted_at = now
+    await session.execute(
+        update(Schedule)
+        .where(Schedule.entry_agent_id == agent.id)
+        .values(status="ended", next_run_at=None)
+    )
     await session.execute(
         update(Document)
         .where(Document.agent_id == agent.id, Document.deleted_at.is_(None))
