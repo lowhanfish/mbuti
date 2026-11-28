@@ -3,6 +3,7 @@
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import MANAGERS, CurrentMember
@@ -15,6 +16,7 @@ from app.api.v1.endpoints.admin.tugas_rutin.schema import (
     ParseResult,
     Preview,
     PreviewRequest,
+    RunItem,
     ScheduleDetail,
     ScheduleItem,
     ScheduleRequest,
@@ -25,12 +27,20 @@ from app.core.exceptions import (
     NotFoundException,
     UnprocessableEntityException,
 )
-from app.models import Agent, Membership, Schedule, User
+from app.models import (
+    Agent,
+    Membership,
+    Schedule,
+    ScheduleRun,
+    Task,
+    TaskAttachment,
+    User,
+)
 from app.models.base import utcnow
 from app.services import budget
 from app.services.engine.views import agent_refs
 from app.services.organisation import lock_organization
-from app.services.schedule import parsing
+from app.services.schedule import parsing, runner
 from app.services.schedule.planning import OrganizationCalendar, organization_calendar, plan_next
 from app.services.schedule.rules import ScheduleRule, occurrences, rule_text
 
@@ -38,6 +48,10 @@ NOT_FOUND = "Tugas rutin tidak ditemukan."
 NOT_ALLOWED = "Anda tidak dapat mengubah tugas rutin ini."
 OWN_ROLES_ONLY = "Anggota hanya dapat menjadwalkan role yang ia tanggung jawabi."
 WRONG_STATE = "Tindakan ini tidak berlaku untuk keadaan sekarang."
+RUN_NOT_FOUND = "Putaran tidak ditemukan."
+CAN_BACKFILL = ("missed", "failed", "stopped_budget")
+MAX_RUNS = 100
+MAX_UPCOMING = 20
 
 
 def _can_manage(actor: CurrentMember, agent: Agent) -> bool:
@@ -60,13 +74,44 @@ def _occurrence_items(
             moved_from=o.moved_from,
             reason=o.reason,
         )
-        for o in occurrences(calendar.for_rule(rule, agent_id), rule, utcnow(), 5, seed)
+        for o in occurrences(
+            calendar.for_rule(rule, agent_id), rule, utcnow(), 5, seed, limit=MAX_UPCOMING
+        )
     ]
 
 
 def _text(calendar: OrganizationCalendar, rule: ScheduleRule) -> str:
     shift = calendar.shift_of(rule)
     return rule_text(rule, shift.name if shift else None)
+
+
+async def _run_items(session: AsyncSession, query) -> list[tuple[uuid.UUID, RunItem]]:
+    """Baris putaran beserta keadaan tugasnya, berpasangan dengan ID jadwalnya."""
+    attachments = (
+        select(func.count())
+        .where(TaskAttachment.task_id == ScheduleRun.task_id)
+        .correlate(ScheduleRun)
+        .scalar_subquery()
+    )
+    rows = await session.execute(
+        query.add_columns(Task.status, attachments).outerjoin(Task, Task.id == ScheduleRun.task_id)
+    )
+    return [
+        (
+            run.schedule_id,
+            RunItem(
+                id=str(run.id),
+                planned_for=run.planned_for,
+                status=run.status,
+                attempt=run.attempt,
+                reason=run.reason,
+                task_id=str(run.task_id) if run.task_id else None,
+                task_status=task_status,
+                attachment_count=count,
+            ),
+        )
+        for run, task_status, count in rows
+    ]
 
 
 async def _items(
@@ -87,6 +132,23 @@ async def _items(
             )
         ).all()
     )
+    # Hasil terakhir: putaran terbaru, tanpa susulan yang masih menunggu
+    last_runs = dict(
+        await _run_items(
+            session,
+            select(ScheduleRun)
+            .where(
+                ScheduleRun.schedule_id.in_([s.id for s in schedules]),
+                ScheduleRun.status != "scheduled",
+            )
+            .ext(distinct_on(ScheduleRun.schedule_id))
+            .order_by(
+                ScheduleRun.schedule_id,
+                ScheduleRun.planned_for.desc(),
+                ScheduleRun.created_at.desc(),
+            ),
+        )
+    )
     items = []
     for s in schedules:
         rule = ScheduleRule.model_validate(s.rule)
@@ -105,8 +167,7 @@ async def _items(
                 source_text=s.source_text,
                 status=s.status,
                 next_run_at=s.next_run_at,
-                # Riwayat putaran diisi penjadwal (E2c)
-                last_run=None,
+                last_run=last_runs.get(s.id),
                 created_by_name=names.get(s.created_by_member_id),
                 can_manage=_can_manage(actor, agents[s.entry_agent_id]),
                 created_at=s.created_at,
@@ -127,7 +188,14 @@ async def _detail(
     calendar = await organization_calendar(session, actor.organization_id)
     item = (await _items(session, actor, [schedule], calendar))[0]
     upcoming = _occurrence_items(calendar, item.rule, schedule.entry_agent_id, str(schedule.id))
-    return ScheduleDetail(**dict(item), upcoming=upcoming, runs=[])
+    runs = await _run_items(
+        session,
+        select(ScheduleRun)
+        .where(ScheduleRun.schedule_id == schedule.id)
+        .order_by(ScheduleRun.planned_for.desc(), ScheduleRun.created_at.desc())
+        .limit(MAX_RUNS),
+    )
+    return ScheduleDetail(**dict(item), upcoming=upcoming, runs=[run for _, run in runs])
 
 
 async def _get(session: AsyncSession, organization_id: uuid.UUID, value: str) -> Schedule:
@@ -258,7 +326,8 @@ async def pause(session: AsyncSession, actor: CurrentMember, schedule_id: str) -
     schedule = await _managed(session, actor, schedule_id)
     if schedule.status != "active":
         raise ConflictException(WRONG_STATE)
-    schedule.status, schedule.next_run_at = "paused", None
+    schedule.status = "paused"
+    schedule.next_run_at = schedule.check_at = schedule.cursor_at = None
     await session.commit()
     return await _detail(session, actor, schedule)
 
@@ -271,6 +340,48 @@ async def resume(session: AsyncSession, actor: CurrentMember, schedule_id: str) 
     plan_next(schedule, await organization_calendar(session, actor.organization_id))
     await session.commit()
     return await _detail(session, actor, schedule)
+
+
+async def run_now(
+    session: AsyncSession, actor: CurrentMember, schedule_id: str
+) -> tuple[ScheduleDetail, str]:
+    schedule = await _managed(session, actor, schedule_id)
+    run, outbox = await runner.run_now(session, schedule, actor.membership.id)
+    return await _after_run(session, actor, schedule, run, outbox, "Tugas dibuat.")
+
+
+async def backfill(
+    session: AsyncSession, actor: CurrentMember, schedule_id: str, run_id: str
+) -> tuple[ScheduleDetail, str]:
+    schedule = await _managed(session, actor, schedule_id)
+    old = await session.scalar(
+        select(ScheduleRun).where(
+            ScheduleRun.id == parse_id(run_id, RUN_NOT_FOUND),
+            ScheduleRun.schedule_id == schedule.id,
+        )
+    )
+    if old is None:
+        raise NotFoundException(RUN_NOT_FOUND)
+    if old.status not in CAN_BACKFILL:
+        raise ConflictException(WRONG_STATE)
+    run, outbox = await runner.backfill_now(session, schedule, old, actor.membership.id)
+    return await _after_run(session, actor, schedule, run, outbox, "Susulan dibuat.")
+
+
+async def _after_run(
+    session: AsyncSession,
+    actor: CurrentMember,
+    schedule: Schedule,
+    run: ScheduleRun,
+    outbox: runner.Outbox,
+    created: str,
+) -> tuple[ScheduleDetail, str]:
+    """Simpan, antrekan tugasnya, lalu jawab; yang gagal dibuat dijelaskan lewat pesan."""
+    message = created if run.task_id else run.reason
+    session.add(run)
+    await session.commit()
+    await outbox.send()
+    return await _detail(session, actor, schedule), message
 
 
 async def preview(session: AsyncSession, actor: CurrentMember, body: PreviewRequest) -> Preview:

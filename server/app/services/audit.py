@@ -49,6 +49,7 @@ class Action:
 CALENDAR_CHANGE = Action("kalender.ubah", "Mengubah kalender kerja")
 LEAVE_CHANGE = Action("cuti.ubah", "Mengubah cuti anggota")
 SCHEDULE_CHANGE = Action("rutin.ubah", "Mengubah tugas rutin")
+SCHEDULE_RUN = Action("rutin.jalankan", "Menjalankan tugas rutin")
 
 # Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta, atau
 # permintaan yang tidak menyimpan apa pun).
@@ -120,6 +121,8 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("DELETE", "/tugas-rutin/{schedule_id}"): SCHEDULE_CHANGE,
     ("POST", "/tugas-rutin/{schedule_id}/jeda"): SCHEDULE_CHANGE,
     ("POST", "/tugas-rutin/{schedule_id}/lanjutkan"): SCHEDULE_CHANGE,
+    ("POST", "/tugas-rutin/{schedule_id}/jalankan"): SCHEDULE_RUN,
+    ("POST", "/tugas-rutin/{schedule_id}/susulan/{run_id}"): SCHEDULE_RUN,
     ("POST", "/tugas-rutin/pahami"): None,
     ("POST", "/tugas-rutin/pratinjau"): None,
     ("POST", "/pengetahuan/usulan"): Action("dokumen.usulan", "Mengusulkan temuan internet"),

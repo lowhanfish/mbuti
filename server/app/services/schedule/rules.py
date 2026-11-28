@@ -222,8 +222,12 @@ def occurrences(
     after: datetime.datetime,
     count: int = 5,
     seed: str = "",
+    limit: int | None = None,
 ) -> list[Occurrence]:
-    """Putaran sesudah `after`, termasuk yang dilewati, sampai `count` putaran yang jalan."""
+    """
+    Putaran sesudah `after`, termasuk yang dilewati, sampai `count` putaran yang jalan.
+    `limit` membatasi jumlah butir (untuk tampilan).
+    """
     if rule.time_mode != "fixed" and cal.shift is None:
         return []
     start = to_date(rule.start_date)
@@ -285,7 +289,7 @@ def occurrences(
     for item in found:
         result.append(item)
         runs += item.status == "run"
-        if runs >= count or len(result) >= count * 4:
+        if runs >= count or (limit and len(result) >= limit):
             break
     return result
 

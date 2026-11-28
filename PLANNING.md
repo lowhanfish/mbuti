@@ -924,7 +924,10 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
 - [x] E2b backend dan uji (28 November 2026): jadwal (simpan, ubah, jeda, lanjutkan), pemahaman kalimat, pratinjau;
       migrasi `b7e2f9a4c168` terpasang di database dev. Satu kalimat contoh dipahami benar oleh Gemini (percobaan
       pertama gagal karena model sedang tidak bisa dipakai). Jalankan sekarang, susulan, dan riwayat putaran menunggu E2c
-- [ ] E2c backend dan uji: penjadwal, putaran, coba ulang, susulan, notifikasi
+- [x] E2c backend dan uji (28 November 2026): penjadwal Celery beat tiap menit, riwayat putaran, coba ulang,
+      susulan, jalankan sekarang, email pemberitahuan; migrasi `c3a8d1e6f257` terpasang di database dev. Worker dan
+      beat perlu dinyalakan ulang agar penjadwal aktif
+- [ ] Coba E2 sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan
 
 #### Pertanyaan terbuka fase E
 

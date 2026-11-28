@@ -24,6 +24,7 @@ celery_app = Celery(
         "app.workers.ingestion",
         "app.workers.execution",
         "app.workers.formation",
+        "app.workers.schedule",
     ],
 )
 
@@ -47,6 +48,12 @@ celery_app.conf.update(
     result_expires=3600,
     # Dijalankan `celery beat`
     beat_schedule={
+        "dispatch-schedules": {
+            "task": "app.workers.schedule.dispatch_schedules",
+            "schedule": 60.0,
+            # Pesan yang menumpuk saat worker mati tidak perlu dikerjakan semua
+            "options": {"expires": 55},
+        },
         "recover-stalled-tasks": {
             "task": "app.workers.execution.recover_stalled",
             "schedule": 300.0,

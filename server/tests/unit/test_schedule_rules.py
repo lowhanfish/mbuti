@@ -132,6 +132,14 @@ def test_leave_waits_or_skips():
     assert [o.status for o in skipping] == ["skipped_leave", "skipped_leave", "run"]
 
 
+def test_long_leave_does_not_hide_the_next_run():
+    cal = calendar(leaves=((DAY("2026-12-01"), DAY("2027-01-29")),))
+    schedule = rule(on_leave="skip")
+
+    assert f"{next_run(cal, schedule, NOW):%Y-%m-%d}" == "2027-02-01"
+    assert len(occurrences(cal, schedule, NOW, 5, limit=20)) == 20
+
+
 def test_spread_is_stable_and_in_range():
     schedule = rule(time="16:00", spread_minutes=30)
 

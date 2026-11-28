@@ -17,7 +17,7 @@ from app.models import (
     WorkShift,
 )
 from app.models.base import utcnow
-from app.services.schedule.rules import ScheduleRule, Shift, WorkCalendar, next_run
+from app.services.schedule.rules import ScheduleRule, Shift, WorkCalendar, occurrences
 
 
 @dataclass
@@ -79,21 +79,26 @@ async def organization_calendar(
 def plan_next(
     schedule: Schedule, calendar: OrganizationCalendar, after: datetime.datetime | None = None
 ) -> None:
-    """Isi `next_run_at`; jadwal aktif tanpa putaran lagi menjadi berakhir."""
+    """
+    Tentukan putaran berikutnya sesudah `after`, yang sekaligus menjadi batas yang sudah
+    diproses. Jadwal aktif tanpa putaran lagi menjadi berakhir.
+    """
+    schedule.cursor_at = schedule.check_at = schedule.next_run_at = None
     if schedule.status != "active":
-        schedule.next_run_at = None
         return
     rule = ScheduleRule.model_validate(schedule.rule)
-    moment = next_run(
-        calendar.for_rule(rule, schedule.entry_agent_id),
-        rule,
-        after or utcnow(),
-        str(schedule.id),
+    after = after or utcnow()
+    items = occurrences(
+        calendar.for_rule(rule, schedule.entry_agent_id), rule, after, 1, str(schedule.id)
     )
-    # UTC, sama dengan yang dibaca kembali dari database (kontrak 1.1)
-    schedule.next_run_at = moment.astimezone(datetime.UTC) if moment else None
+    moment = next((o.at for o in items if o.status == "run"), None)
     if moment is None:
         schedule.status = "ended"
+        return
+    # UTC, sama dengan yang dibaca kembali dari database (kontrak 1.1)
+    schedule.cursor_at = after
+    schedule.check_at = items[0].at.astimezone(datetime.UTC)
+    schedule.next_run_at = moment.astimezone(datetime.UTC)
 
 
 async def refresh_organization(session: AsyncSession, organization_id: uuid.UUID) -> None:
@@ -113,5 +118,5 @@ async def refresh_organization(session: AsyncSession, organization_id: uuid.UUID
         return
     calendar = await organization_calendar(session, organization_id)
     for schedule in schedules:
-        if schedule.next_run_at is None or schedule.next_run_at > now:
+        if schedule.check_at is None or schedule.check_at > now:
             plan_next(schedule, calendar, now)

@@ -110,3 +110,24 @@ async def resume(
 ) -> ApiResponse[ScheduleDetail]:
     data = await service.resume(session, member, schedule_id)
     return ApiResponse(message="Tugas rutin aktif.", data=data)
+
+
+@router.post("/{schedule_id}/jalankan", response_model=ApiResponse[ScheduleDetail])
+async def run_now(
+    schedule_id: str,
+    member: CurrentMember = Depends(get_current_member),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[ScheduleDetail]:
+    data, message = await service.run_now(session, member, schedule_id)
+    return ApiResponse(message=message, data=data)
+
+
+@router.post("/{schedule_id}/susulan/{run_id}", response_model=ApiResponse[ScheduleDetail])
+async def backfill(
+    schedule_id: str,
+    run_id: str,
+    member: CurrentMember = Depends(get_current_member),
+    session: AsyncSession = Depends(get_db),
+) -> ApiResponse[ScheduleDetail]:
+    data, message = await service.backfill(session, member, schedule_id, run_id)
+    return ApiResponse(message=message, data=data)

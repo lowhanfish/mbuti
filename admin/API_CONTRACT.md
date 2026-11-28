@@ -2251,7 +2251,8 @@ export type ParseResponse = PreviewResponse & {
 - `DELETE` menghapus jadwal dan riwayat putarannya; tugas yang sudah dibuat tetap ada.
 - Menghapus role mengakhiri jadwalnya (`ended`). Mengubah zona waktu organisasi menghitung ulang putaran
   berikutnya, sama seperti perubahan kalender dan cuti.
-- `jalankan`, `susulan`, `runs`, dan `last_run` baru berfungsi sesudah E2c.
+- `runs` paling banyak 100 putaran terbaru. `last_run` = putaran terbaru, tanpa susulan yang masih menunggu.
+  Menghapus role juga membatalkan susulan dan coba ulang yang menunggu.
 - `attachment_count` = jumlah lampiran pada tugas putaran itu.
 
 ### 17.4 Aturan jadwal dan penghitungan putaran (E2b)
@@ -2306,20 +2307,31 @@ mengikuti hari shift (jadwal terkait shift) atau hari kerja organisasi.
 
 ### 17.6 Penjadwal dan putaran (E2c)
 
-- Celery beat menjalankan `dispatch_schedules` setiap menit: mengambil jadwal `active` yang `next_run_at`-nya sudah
-  lewat dengan `FOR UPDATE SKIP LOCKED`, membuat putaran dan tugasnya, lalu menghitung `next_run_at` berikutnya. Satu
-  jadwal tidak menghasilkan dua putaran untuk `planned_for` yang sama.
-- Tugas putaran adalah tugas biasa (role, relasi, persetujuan, kantor) dengan pembuat = pembuat jadwal.
+- Celery beat menjalankan `dispatch_schedules` setiap menit (antrean `default`). Setiap jadwal atau putaran diproses
+  dalam transaksinya sendiri dengan `FOR UPDATE SKIP LOCKED`. Satu jadwal tidak menghasilkan dua putaran terjadwal
+  untuk `planned_for` yang sama. Satu kegagalan tidak menghentikan yang lain.
+- Semua kejadian sejak terakhir diproses dicatat: putaran jalan, dan yang dilewati (`skipped_holiday`,
+  `skipped_leave`) segera sesudah waktunya. Menyimpan, melanjutkan, atau mengubah kalender memulai hitungan dari saat
+  itu; putaran selama dijeda tidak dicatat.
 - Terlambat kurang dari 6 jam tetap dijalankan. Lebih lama dicatat `missed`.
-- Organisasi yang ditangguhkan tidak dijalankan. Anggaran bulanan habis → `stopped_budget` (tanpa coba ulang).
-- Putaran gagal (role tidak aktif, atau tugasnya berakhir gagal) dicoba ulang 2 kali, 15 menit lalu 1 jam
-  (`retrying`, `attempt` bertambah, `task_id` menunjuk tugas terakhir). Sesudah itu `failed`.
-- **Susulan otomatis:** putaran `missed` atau `failed` pada jadwal `on_fail: "backfill"` mendapat satu putaran
-  `scheduled` pada hari kerja berikutnya pada jam yang sama, yang saat jalan menjadi `backfill`. Susulan yang gagal
-  tidak disusulkan lagi.
-- Putaran yang dilewati (`skipped_holiday`, `skipped_leave`) dicatat di riwayat saat tanggalnya lewat.
-- **Pemberitahuan:** `failed` dan `stopped_budget` dikirim ke email penanggung jawab role (bila tidak ada atau tidak
-  aktif: pembuat jadwal) lewat antrean email yang sudah ada.
+- Tugas putaran adalah tugas biasa (role, relasi, persetujuan, kantor). Pembuatnya pembuat jadwal (`jalankan` dan
+  `susulan`: pengguna yang menekan); bila tidak aktif atau pemantau, penanggung jawab role, lalu pemilik organisasi.
+  Batas biaya tugas tidak melebihi batas bulanan.
+- Organisasi yang ditangguhkan tidak diproses. Anggaran bulanan habis → `stopped_budget` (tanpa coba ulang).
+- Putaran gagal (role tidak aktif, isian wajib baru, atau tugasnya berakhir gagal) dicoba ulang 2 kali, 15 menit
+  lalu 1 jam (`retrying`, `attempt` bertambah, `task_id` menunjuk tugas terakhir). Sesudah itu `failed`. Coba ulang
+  yang terlambat 6 jam atau lebih langsung `failed`.
+- Tugas yang gagal karena **ditolak manusia** pada persetujuan menjadi `failed` tanpa coba ulang, susulan, atau
+  email. Tugas yang dihentikan pengguna tidak ditindaklanjuti.
+- Putaran manual (`jalankan` dan `susulan`) tidak dicoba ulang otomatis, tidak disusulkan, dan tidak dikirimi email,
+  kecuali anggaran habis tetap tercatat `stopped_budget`.
+- **Susulan otomatis:** putaran terjadwal yang `missed` atau `failed` pada jadwal `on_fail: "backfill"` mendapat satu
+  putaran `scheduled` pada hari kerja berikutnya di jam yang sama, yang saat jalan menjadi `backfill`. Beberapa
+  putaran terlewat dengan waktu susulan sama cukup satu susulan. Susulan yang gagal tidak disusulkan lagi.
+- Jadwal yang dijeda menahan susulan dan coba ulang yang menunggu. `susulan` manual membatalkan susulan otomatis
+  putaran itu.
+- **Pemberitahuan:** `failed` dan `stopped_budget` (selain manual) dikirim ke email penanggung jawab role (bila tidak
+  ada atau tidak aktif: pembuat jadwal, lalu pemilik organisasi) lewat antrean email yang sudah ada.
 
 ### 17.7 Pengaturan server, batas laju, dan jejak audit
 

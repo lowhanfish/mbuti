@@ -13,7 +13,7 @@ from app.models.agent import (
 from app.models.audit import AuditLog
 from app.models.auth import AuthToken, RefreshSession, User
 from app.models.biaya import LlmCall, OrganizationSettings
-from app.models.jadwal import CalendarDay, MemberLeave, Schedule, WorkShift
+from app.models.jadwal import CalendarDay, MemberLeave, Schedule, ScheduleRun, WorkShift
 from app.models.organisasi import Membership, Organization, Unit
 from app.models.pengetahuan import (
     Document,
@@ -49,6 +49,7 @@ __all__ = [
     "OrganizationSettings",
     "RefreshSession",
     "Schedule",
+    "ScheduleRun",
     "Task",
     "TaskAttachment",
     "TaskEvent",

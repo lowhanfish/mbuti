@@ -26,6 +26,7 @@ from app.models import (
     FlowPosition,
     Membership,
     Schedule,
+    ScheduleRun,
     Task,
     TaskAttachment,
     TaskStep,
@@ -330,7 +331,17 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
     await session.execute(
         update(Schedule)
         .where(Schedule.entry_agent_id == agent.id)
-        .values(status="ended", next_run_at=None)
+        .values(status="ended", next_run_at=None, check_at=None, cursor_at=None)
+    )
+    await session.execute(
+        update(ScheduleRun)
+        .where(
+            ScheduleRun.schedule_id.in_(
+                select(Schedule.id).where(Schedule.entry_agent_id == agent.id)
+            ),
+            ScheduleRun.due_at.is_not(None),
+        )
+        .values(status="skipped", reason="Role dihapus.", due_at=None)
     )
     await session.execute(
         update(Document)

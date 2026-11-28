@@ -40,7 +40,7 @@ from app.models import (
 )
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
-from app.services.engine import flow
+from app.services.engine import flow, intake
 from app.services.engine.dispatch import enqueue_task
 from app.services.engine.views import MANAGERS, agent_refs, approval_items
 from app.services.organisation import lock_organization
@@ -293,14 +293,15 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         due_at = datetime.datetime.combine(
             body.due_at, datetime.time(23, 59, 59), ZoneInfo(organization.timezone)
         )
-    task = Task(
-        id=uuid.uuid4(),
+    creator = await flow.member_name(session, actor.membership.id)
+    task = await intake.open_task(
+        session,
+        agent,
+        f"Tugas dibuat oleh {creator} untuk {agent.name}.",
         organization_id=organization_id,
         title=body.title,
         brief=body.brief,
         inputs=inputs,
-        entry_agent_id=agent.id,
-        status="queued",
         priority=body.priority,
         due_at=due_at,
         budget_limit=body.budget_limit,
@@ -308,13 +309,7 @@ async def create_task(session: AsyncSession, actor: CurrentMember, body: TaskCre
         created_by_member_id=actor.membership.id,
         created_by=actor.user.id,
     )
-    session.add(task)
-    await session.flush()
     await attachments.claim(session, organization_id, body.attachment_ids, task.id)
-    creator = await flow.member_name(session, actor.membership.id)
-    flow.log(session, task, "created", f"Tugas dibuat oleh {creator} untuk {agent.name}.")
-    await session.flush()
-    await flow.add_step(session, task, agent.id, "work")
     await session.commit()
     await enqueue_task(task.id)
     return (await task_items(session, [task]))[0]

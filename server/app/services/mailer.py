@@ -179,6 +179,19 @@ def invitation(to: str, name: str, organization: str, inviter: str, token: str) 
     )
 
 
+def schedule_problem(to: str, name: str, title: str, reason: str, schedule_id: str) -> Email:
+    return Email(
+        to=to,
+        subject=f"Tugas rutin perlu diperiksa: {title}",
+        text=(
+            f'Halo {name},\n\nSatu putaran tugas rutin "{title}" tidak berhasil.\n'
+            f"Sebabnya: {reason}\n\nBuka riwayat putarannya untuk mengisi susulan."
+        ),
+        link=settings.app_link(f"/admin/tugas/rutin/{schedule_id}"),
+        link_label="Buka tugas rutin",
+    )
+
+
 def organization_approved(to: str, name: str, organization: str) -> Email:
     return Email(
         to=to,
