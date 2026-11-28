@@ -83,17 +83,25 @@ const ROADMAP = [
   {
     phase: "Sudah tersedia",
     tone: "#34d399",
-    items: ["Organisasi, unit, dan hak akses", "Role, peta relasi, dan pengetahuan", "Tugas lintas role dan persetujuan", "Kantor 3D, dasbor, dan batas biaya"],
+    items: [
+      "Organisasi, unit, dan hak akses",
+      "Pendaftaran mandiri dan undangan",
+      "Pembentukan role, peta relasi, dan pengetahuan",
+      "Tugas lintas role, persetujuan, dan tugas rutin",
+      "Surat, laporan, dan spreadsheet",
+      "Kantor 3D, dasbor, dan batas biaya",
+      "Audit log, cadangan database, dan pemantauan galat",
+    ],
   },
   {
     phase: "Berikutnya",
     tone: "#ffb81c",
-    items: ["Uji alur ujung ke ujung", "Audit log dan cadangan database", "Pemantauan galat", "Pemasangan di server"],
+    items: ["Bekerja di aplikasi luar", "Pemasangan di server", "Pengiriman email", "Gambar dan video"],
   },
   {
     phase: "Menuju SaaS",
     tone: "#9b6bff",
-    items: ["Pendaftaran mandiri dan undangan email", "Satu akun di beberapa organisasi", "Paket langganan dan pembayaran", "Panel pengelola platform"],
+    items: ["Satu akun di beberapa organisasi", "Paket langganan dan pembayaran", "Panel pengelola platform", "Ekspor dan penghapusan data organisasi"],
   },
 ];
 
