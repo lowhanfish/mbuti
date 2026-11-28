@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.models import LlmCall
 from app.services.llm.generation import MockLlm
+from app.services.search import free
 from tests.integration.tasks import create_task, detail, run
 from tests.integration.test_knowledge import BASE, run_queue, upload  # noqa: F401
 from tests.integration.world import add_agents
@@ -138,3 +139,46 @@ async def test_proposals_flow_and_permissions(world, sign_in, queued_versions):
     again = (await member.post(PROPOSALS, json=body)).json()["data"]
     response = await admin.post(f"{PROPOSALS}/{again['id']}/tolak")
     assert response.json()["data"]["status"] == "rejected"
+
+
+async def test_free_search_comes_first_and_gemini_is_the_fallback(
+    world, sign_in, database, monkeypatch
+):
+    client = await sign_in("a_admin")
+    [lumi] = await add_agents(world, "a", "Lumi")
+    await allow_web(client, lumi)
+    monkeypatch.setattr(settings, "WEB_SEARCH_FREE", True)
+    queries: list[str] = []
+    found = [
+        {
+            "title": "Panduan naskah",
+            "url": "https://gratis.test/panduan",
+            "domain": "gratis.test",
+            "snippet": "Susunan surat.",
+        }
+    ]
+
+    async def fake(query: str):
+        queries.append(query)
+        return ("yahoo", found) if len(queries) == 1 else ("", [])
+
+    monkeypatch.setattr(free, "search", fake)
+    brief = {"brief": "Format surat undangan terbaru untuk Pak Budi, 081234567890"}
+
+    first = (await client.post(f"{ROLE}/{lumi}/trial", json=brief)).json()["data"]
+    second = (await client.post(f"{ROLE}/{lumi}/trial", json=brief)).json()["data"]
+
+    assert [s["domain"] for s in first["web_sources"]] == ["gratis.test"]
+    assert second["web_sources"][0]["domain"] == "pustaka-terbuka.test"
+    # Nama dan nomor tidak ikut terkirim ke mesin pencari
+    # Nama role (Lumi) juga disembunyikan dari jabatannya
+    assert queries[0] == "Format surat undangan terbaru untuk Jabatan"
+    async with database() as session:
+        calls = await session.execute(
+            select(LlmCall.provider, LlmCall.cost)
+            .where(LlmCall.kind == "web_search")
+            .order_by(LlmCall.created_at)
+        )
+        calls = calls.all()
+    assert [provider for provider, _ in calls] == ["ddgs", "mock"]
+    assert calls[0].cost == 0

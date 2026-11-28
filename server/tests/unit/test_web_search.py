@@ -4,8 +4,10 @@ import uuid
 
 import pytest
 
-from app.services.engine.web import number_sources, should_search
+from app.core.config import settings
+from app.services.engine.web import number_sources, public_query, should_search
 from app.services.knowledge.search import Chunk
+from app.services.search import free
 
 
 def chunk(score: int) -> Chunk:
@@ -36,3 +38,63 @@ def test_sources_are_unique_numbered_and_limited():
     assert [s["no"] for s in numbered] == [1, 2, 3, 4, 5]
     assert len({s["url"] for s in numbered}) == 5
     assert all(s["url"].startswith("https://") for s in numbered)
+
+
+@pytest.mark.parametrize(
+    ("topic", "role", "expected"),
+    [
+        (
+            "Buat surat undangan rapat 2027\nrincian internal tidak ikut",
+            "Staf Persuratan",
+            "Buat surat undangan rapat 2027 Staf Persuratan",
+        ),
+        (
+            "Surat untuk Pak Budi Santoso nomor 800/123/BKPSDM budi@contoh.test 081234567890",
+            "Staf",
+            "Surat untuk nomor Staf",
+        ),
+        ("Rekap kinerja Rina Wulandari", "Staf", "Rekap kinerja Staf"),
+    ],
+)
+def test_public_query_hides_names_numbers_and_addresses(topic, role, expected):
+    assert public_query(topic, role, ["Rina Wulandari"]) == expected
+
+
+async def test_free_search_tries_next_engine(monkeypatch):
+    calls = []
+
+    def engine(query, backend):
+        calls.append(backend)
+        if backend == "yahoo":
+            raise RuntimeError("diblokir")
+        return [{"url": "https://contoh.test/a", "title": "A", "domain": "contoh.test"}]
+
+    monkeypatch.setattr(free, "_engine_results", engine)
+    monkeypatch.setattr(settings, "WEB_SEARCH_BACKENDS", "yahoo, auto")
+
+    backend, results = await free.search("surat undangan")
+
+    assert (backend, len(results), calls) == ("auto", 1, ["yahoo", "auto"])
+
+
+def test_only_https_results_are_kept(monkeypatch):
+    class Fake:
+        def __init__(self, **_):
+            pass
+
+        def text(self, query, **_):
+            return [
+                {"href": "http://tidak-aman.test", "title": "x"},
+                {"href": "https://www.contoh.test/b", "title": "", "body": "cuplikan"},
+            ]
+
+    monkeypatch.setattr("ddgs.DDGS", Fake)
+
+    assert free._engine_results("apa saja", "yahoo") == [
+        {
+            "title": "contoh.test",
+            "url": "https://www.contoh.test/b",
+            "domain": "contoh.test",
+            "snippet": "cuplikan",
+        }
+    ]

@@ -26,6 +26,8 @@ dependencies = [
     "pypdfium2>=5.0.0",
     "pillow>=11.0.0",
     "python-multipart>=0.0.18",
+    # Pencarian internet gratis (E1d); ddgs MIT, primp MIT, lxml BSD
+    "ddgs>=9.16.1,<10",
 ]
 
 [project.optional-dependencies]

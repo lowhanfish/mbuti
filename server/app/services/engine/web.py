@@ -2,6 +2,7 @@
 
 import re
 import uuid
+from collections.abc import Iterable
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -18,6 +19,41 @@ FRESH = re.compile(
     r"\b(terbaru|terkini|sekarang|hari ini|tahun ini|internet|tren|harga|berita|kabar)\b",
     re.IGNORECASE,
 )
+
+
+# Sapaan atau gelar beserta nama sesudahnya
+HONORIFIC = re.compile(
+    r"\b(?:Pak|Bapak|Bpk|Bu|Ibu|Sdr|Sdri|Saudara|Saudari|Mas|Mbak|Kak|Drs?|Ir|Hj?)\b\.?"
+    r"(?:\s+[A-Z][\w'.]*){1,4}"
+)
+YEAR = re.compile(r"(19|20)\d\d")
+TOPIC_WORDS = 10
+ROLE_WORDS = 4
+
+
+def public_query(topic: str, role_title: str, private_names: Iterable[str]) -> str:
+    """
+    Kata pencarian untuk mesin pihak ketiga: pendek, dari judul dan jabatan saja, tanpa alamat,
+    nomor, dan nama orang yang dikenal.
+    """
+    hidden = {w for name in private_names for w in re.findall(r"\w+", name.lower()) if len(w) > 2}
+
+    def words(text: str, limit: int) -> list[str]:
+        text = text.strip().split("\n")[0][:300]
+        text = re.sub(r"\S+@\S+|https?://\S+", " ", text)
+        text = HONORIFIC.sub(" ", text)
+        kept = []
+        for word in re.findall(r"[\w\-/.]+", text):
+            word = word.strip("-/.")
+            digits = sum(c.isdigit() for c in word)
+            # Nomor surat, NIP, telepon, dan sejenisnya tidak ikut; tahun boleh
+            if not word or word.lower() in hidden or (digits >= 3 and not YEAR.fullmatch(word)):
+                continue
+            kept.append(word)
+        return kept[:limit]
+
+    found = words(topic, TOPIC_WORDS) + words(role_title, ROLE_WORDS)
+    return " ".join(dict.fromkeys(found))
 
 
 def should_search(enabled: bool, mode: str, query: str, excerpts: list[Chunk]) -> bool:

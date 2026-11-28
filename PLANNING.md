@@ -585,7 +585,9 @@ Katalog alat (semua open source):
   panduan merek. Dicek lebih dulu saat role bekerja.
 - **Aturan menjadi templat:** AI mengenali jenis dokumen, susunan, penomoran, dan tata letak dari aturan yang
   diunggah, lalu menyusun templat DOCX yang diisi alat dokumen.
-- **Pencarian internet** per role (boleh atau tidak), memakai pencarian Google bawaan Gemini, dengan tautan sumber.
+- **Pencarian internet** per role (boleh atau tidak), dengan tautan sumber. Sejak 28 November 2026 pencarian gratis
+  `ddgs` (MIT, cara Toto-L) dipakai lebih dulu dan Google Search bawaan Gemini menjadi cadangan. Pustaka ini tidak
+  resmi (membaca halaman mesin pencari); nilai ulang sebelum dijual sebagai SaaS.
   Temuan yang berguna bisa diusulkan untuk disimpan sebagai pengetahuan organisasi.
 - **Urutan rujukan:** aturan organisasi → hasil tanya jawab → dokumen umum → internet. Bila berbeda, aturan organisasi
   yang dipakai.

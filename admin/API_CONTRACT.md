@@ -1945,7 +1945,13 @@ Pencarian:
 - Dijalankan hanya bila role `web_search: true`, tugas `web_search` bukan `off`, dan salah satu: tidak ada potongan
   dokumen, skor teratas < 60, atau arahan meminta informasi terkini. Maks satu pencarian per langkah dan
   `WEB_SEARCH_PER_DAY` per organisasi (bawaan 50); setelah batas, langkah berjalan tanpa internet.
-- Dua panggilan: (1) alat `google_search` Gemini menghasilkan temuan dan grounding metadata; **judul, alamat, dan
+- **Pencarian gratis lebih dulu** (`WEB_SEARCH_FREE`, pustaka `ddgs`, tanpa kunci API): mesin di
+  `WEB_SEARCH_BACKENDS` dicoba berurutan; hanya hasil `https` yang dipakai (judul, alamat, domain, cuplikan) dan
+  langsung masuk prompt utama, tanpa panggilan model tambahan. Dicatat di `llm_calls` dengan `provider: "ddgs"` dan
+  biaya 0. Mesin pencari menerima **kata pencarian pendek** dari judul tugas (atau baris pertama arahan uji coba) dan
+  jabatan role saja: alamat email, tautan, nomor panjang, sapaan beserta nama, dan nama anggota serta role dibuang.
+  Arahan lengkap, isian, dan bahan tidak dikirim.
+- Bila tidak ada hasil dan `WEB_SEARCH_PROVIDER_FALLBACK` aktif, dipakai Gemini. Dua panggilan: (1) alat `google_search` Gemini menghasilkan temuan dan grounding metadata; **judul, alamat, dan
   domain dibuat server dari metadata itu**, bukan dari teks model; (2) temuan masuk prompt utama sebagai potongan
   `W1…` di bawah `INTERNET`, sesudah semua sumber organisasi. Bila model mendukung alat dan keluaran terstruktur
   sekaligus, cukup satu panggilan (dicek saat E1d).
@@ -1992,6 +1998,10 @@ dihitung di sini.
 | `VISION_PAGES_PER_DOCUMENT` | 40 | Halaman berat per berkas yang dibuat embedding gambarnya |
 | `MAX_IMAGES_PER_STEP` | 6 | Gambar per langkah atau uji coba |
 | `WEB_SEARCH_PER_DAY` | 50 | Pencarian internet per organisasi per hari |
+| `WEB_SEARCH_FREE` | true | Pencarian gratis lebih dulu |
+| `WEB_SEARCH_BACKENDS` | `yahoo,auto` | Urutan mesin pencarian gratis |
+| `WEB_SEARCH_PROVIDER_FALLBACK` | true | Gemini Google Search bila tidak ada hasil |
+| `WEB_SEARCH_TIMEOUT_SECONDS` | 25 | Batas waktu pencarian gratis |
 
 ### 16.10 Batas laju dan jejak audit
 

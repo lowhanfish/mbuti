@@ -5,13 +5,13 @@ import time
 import uuid
 from dataclasses import dataclass, field, replace
 
-from sqlalchemy import literal
+from sqlalchemy import literal, select
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import AppException
-from app.models import Agent, LlmCall, Organization, Unit
+from app.models import Agent, LlmCall, Membership, Organization, Unit, User
 from app.models.base import utcnow
 from app.services import budget
 from app.services.engine.citations import apply_citations
@@ -33,7 +33,7 @@ from app.services.engine.prompts import (
     system_prompt,
     user_prompt,
 )
-from app.services.engine.web import number_sources, searches_today, should_search
+from app.services.engine.web import number_sources, public_query, searches_today, should_search
 from app.services.knowledge.scope import visible_to
 from app.services.knowledge.search import Hit, rank_chunks, reference_order, to_hit, tokenize
 from app.services.llm.catalog import cost_in_rupiah
@@ -44,6 +44,7 @@ from app.services.llm.generation import (
     ModelFailed,
     ModelUnavailable,
 )
+from app.services.search import free as free_search
 
 logger = logging.getLogger("mbuti.runner")
 
@@ -169,16 +170,55 @@ async def generate_with_fallback(
     raise AppException(UNAVAILABLE, 503)
 
 
+async def _private_names(session: AsyncSession, organization_id: uuid.UUID) -> list[str]:
+    """Nama anggota dan role, agar tidak terkirim ke mesin pencari."""
+    members = await session.scalars(
+        select(User.full_name)
+        .join(Membership, Membership.user_id == User.id)
+        .where(Membership.organization_id == organization_id)
+    )
+    agents = await session.scalars(
+        select(Agent.name).where(Agent.organization_id == organization_id)
+    )
+    return [*members, *agents]
+
+
 async def _search_web(
-    session: AsyncSession, caller: Caller, agent: Agent, llm: LlmProvider, query: str
+    session: AsyncSession,
+    caller: Caller,
+    agent: Agent,
+    llm: LlmProvider,
+    query: str,
+    topic: str,
 ) -> tuple[list[dict], int]:
     """
-    Pencarian Google bawaan Gemini dengan model profil role, lalu cadangan. Dicatat sebagai
-    `web_search`. Bila gagal, role tetap bekerja tanpa internet.
+    Pencarian gratis lebih dulu, lalu pencarian Google bawaan Gemini (model profil role, lalu
+    cadangan). Dicatat sebagai `web_search`. Bila gagal, role tetap bekerja tanpa internet.
     """
     models = (await budget.read_settings(session, caller.organization_id)).models
     searching = replace(caller, kind="web_search")
+    keywords = public_query(
+        topic, agent.title, await _private_names(session, caller.organization_id)
+    )
     await session.commit()
+    if settings.WEB_SEARCH_FREE and keywords:
+        started = time.monotonic()
+        engine, results = await free_search.search(keywords)
+        # Yang dicatat hanya hasil akhir, agar satu pencarian tidak terhitung dua kali
+        if results or not settings.WEB_SEARCH_PROVIDER_FALLBACK:
+            await _record(
+                session,
+                searching,
+                agent.id,
+                "ddgs",
+                f"gratis:{engine or '-'}",
+                (0, 0),
+                started,
+                "ok" if results else "error",
+            )
+            return number_sources(results, utcnow().isoformat()), 0
+    if settings.WEB_SEARCH_FREE and not settings.WEB_SEARCH_PROVIDER_FALLBACK:
+        return [], 0
     for model in dict.fromkeys([models[agent.model_profile], models["fallback"]]):
         started = time.monotonic()
         try:
@@ -290,7 +330,8 @@ async def run_agent(
     if not reviewing and should_search(agent.web_search, web_mode, query, excerpts):
         if await searches_today(session, caller.organization_id) < settings.WEB_SEARCH_PER_DAY:
             await budget.require_budget(session, caller.organization_id)
-            web, web_cost = await _search_web(session, caller, agent, llm, query)
+            title = next((text for label, text in materials or [] if label == "Judul tugas"), brief)
+            web, web_cost = await _search_web(session, caller, agent, llm, query, title)
     if images or web:
         system = system_prompt(role, reviewing, with_images=bool(images), with_web=bool(web))
     user = user_prompt(

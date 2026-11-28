@@ -176,6 +176,11 @@ class Settings(BaseSettings):
     MAX_ATTACHMENT_PAGES: int = 20
     # Pencarian internet per organisasi per hari (E1d)
     WEB_SEARCH_PER_DAY: int = 50
+    # Pencarian gratis (pustaka ddgs); mesin dicoba berurutan. Gemini Google Search jadi cadangan
+    WEB_SEARCH_FREE: bool = True
+    WEB_SEARCH_BACKENDS: str = "yahoo,auto"
+    WEB_SEARCH_PROVIDER_FALLBACK: bool = True
+    WEB_SEARCH_TIMEOUT_SECONDS: int = 25
 
     # ==========================
     # PEMBENTUKAN ROLE (E1a)
