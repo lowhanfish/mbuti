@@ -130,10 +130,13 @@ function SidebarNav({ onItemClick }: { onItemClick: () => void }) {
   );
 }
 
+/** Halaman yang tidak ada di menu samping. */
+const unlistedTitle = (pathname: string) =>
+  pathname.startsWith("/admin/akun") ? "Akun Saya" : pathname.startsWith("/admin/alur") ? "Alur Aplikasi" : null;
+
 function HeaderTitle() {
   const pathname = usePathname();
-  // Akun Saya tidak ada di menu samping; dibuka dari nama pengguna
-  const pageTitle = pathname.startsWith("/admin/akun") ? "Akun Saya" : (findPageTitle(adminMenu, pathname) ?? "Dashboard");
+  const pageTitle = unlistedTitle(pathname) ?? findPageTitle(adminMenu, pathname) ?? "Dashboard";
   return (
     <div className="flex flex-col min-w-0">
       <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-faint">

@@ -20,6 +20,7 @@ import TabRiwayat from "./components/TabRiwayat";
 import TabPembentukan from "./components/TabPembentukan";
 import TabVersi from "./components/TabVersi";
 import TabBrankas from "./components/TabBrankas";
+import TabAlur from "./components/TabAlur";
 import { buttonClasses } from "../../../_components/ui/button-classes";
 import { REVISION_STATUS_LABEL } from "../formation-types";
 
@@ -29,6 +30,7 @@ const TABS = [
   { key: "instruksi", label: "Instruksi", icon: "task" },
   { key: "dokumen", label: "Dokumen", icon: "book" },
   { key: "brankas", label: "Brankas", icon: "lock" },
+  { key: "alur", label: "Alur aplikasi", icon: "flow" },
   { key: "relasi", label: "Relasi", icon: "flow" },
   { key: "uji", label: "Uji coba", icon: "sparkles" },
   { key: "riwayat", label: "Riwayat", icon: "list" },
@@ -182,6 +184,7 @@ function RoleDetail() {
         )}
         {tab === "dokumen" && <TabDokumen role={Role} canEdit={canEdit} />}
         {tab === "brankas" && <TabBrankas role={Role} />}
+        {tab === "alur" && <TabAlur role={Role} />}
         {tab === "relasi" && <TabRelasi role={Role} />}
         {tab === "uji" && <TabUjiCoba role={Role} />}
         {tab === "riwayat" && <TabRiwayat role={Role} />}

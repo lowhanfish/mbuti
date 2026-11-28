@@ -306,6 +306,9 @@ export const roleRoutes: MockRoute[] = [
       delete ctx.db.flow_positions[removed.id];
       // Rahasia di brankas tidak disimpan setelah role dihapus
       ctx.db.vault_accounts = ctx.db.vault_accounts.filter((a) => a.agent_id !== removed.id);
+      const flows = new Set(ctx.db.browser_flows.filter((fl) => fl.agent_id === removed.id).map((fl) => fl.id));
+      ctx.db.browser_flows = ctx.db.browser_flows.filter((fl) => !flows.has(fl.id));
+      ctx.db.browser_runs = ctx.db.browser_runs.filter((r) => !flows.has(r.flow_id));
       return ok(null, "Role dihapus.");
     },
   },

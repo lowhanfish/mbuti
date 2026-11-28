@@ -31,6 +31,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 19. [Spreadsheet (E3b)](#19-spreadsheet-e3b)
 20. [Mode penyusunan dan laporan (E3c)](#20-mode-penyusunan-dan-laporan-e3c)
 21. [Verifikasi dua langkah dan brankas role (E4a)](#21-verifikasi-dua-langkah-dan-brankas-role-e4a)
+22. [Alur aplikasi luar (E4b)](#22-alur-aplikasi-luar-e4b)
 
 ---
 
@@ -2949,4 +2950,200 @@ bukan pemantau, memakai verifikasi dua langkahnya sendiri. Selain itu `403`; kod
 - `kode` tanpa kunci authenticator: `409`. Setiap tampilan dicatat (`brankas.kode`).
 - Jejak audit: `brankas.tambah`, `brankas.ubah`, `brankas.hapus`, `brankas.konfirmasi`, `brankas.kode`.
 - Batas laju kode salah sama dengan 21.1, dihitung per akun pengguna.
+
+---
+
+## 22. Alur aplikasi luar (E4b)
+
+Rancangannya ada di `PLANNING.md` (E4). Role mempelajari satu pekerjaan di aplikasi web menjadi **alur**, lalu program
+mengulangnya. Belajar dan putaran berjalan di worker antrean `browser`.
+
+### 22.1 Bentuk data
+
+```ts
+export type FlowStatus = "learning" | "review" | "approved" | "needs_repair" | "failed";
+export type RunMode = "learn" | "replay" | "repair";
+export type RunStatus = "queued" | "running" | "waiting_approval" | "waiting_otp" | "succeeded" | "failed" | "stopped" | "needs_repair";
+export type StepAction = "open" | "login" | "fill" | "select" | "check" | "click" | "read";
+export type StepRisk = "none" | "submit" | "delete";
+
+export interface FlowInput {
+  key: string;
+  label: string;
+  /** Nilai contoh yang dipakai saat belajar */
+  sample: string;
+}
+
+export interface FlowStep {
+  no: number;
+  action: StepAction;
+  description: string;
+  /** Asal nilai yang diisikan, mis. "Isian: Uraian" atau "Password (brankas)"; "" bila tidak mengisi */
+  value_label: string;
+  risk: StepRisk;
+  screenshot_url: string | null;
+}
+
+export interface RunSummary {
+  id: string;
+  mode: RunMode;
+  status: RunStatus;
+  /** Alasan berhenti atau keterangan hasil */
+  message: string;
+  flow_version: number;
+  created_by_name: string;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface FlowAccess {
+  /** Mengajari, menyetujui, menjalankan, dan menghapus: penanggung jawab role, pemilik, atau admin */
+  can_manage: boolean;
+  /** Membebaskan persetujuan kirim: hanya penanggung jawab role dengan verifikasi dua langkah */
+  can_trust: boolean;
+}
+
+export interface FlowListItem {
+  id: string;
+  name: string;
+  account_id: string | null;
+  account_name: string;
+  status: FlowStatus;
+  version: number;
+  steps_count: number;
+  trusted_submit: boolean;
+  successful_runs: number;
+  last_run: RunSummary | null;
+  updated_at: string;
+}
+
+export interface VaultAccountOption {
+  id: string;
+  name: string;
+  locked: boolean;
+}
+
+export interface FlowListResponse {
+  flows: FlowListItem[];
+  accounts: VaultAccountOption[];
+  can_manage: boolean;
+}
+
+export interface FlowDetail extends Omit<FlowListItem, "steps_count" | "last_run"> {
+  role_id: string;
+  role_name: string;
+  goal: string;
+  inputs: FlowInput[];
+  steps: FlowStep[];
+  /** Penjelasan saat gagal dipelajari atau perlu diperbaiki */
+  note: string;
+  approved_at: string | null;
+  approved_by_name: string | null;
+  /** Putaran yang belum selesai, bila ada */
+  active_run_id: string | null;
+  access: FlowAccess;
+  runs: RunSummary[];
+  created_at: string;
+}
+
+export interface NamedValue {
+  label: string;
+  value: string;
+}
+
+export interface RunEvent {
+  no: number;
+  step_no: number | null;
+  message: string;
+  status: "done" | "waiting" | "blocked" | "failed";
+  screenshot_url: string | null;
+  created_at: string;
+}
+
+export interface RunPending {
+  kind: "approval" | "otp";
+  question: string;
+  values: NamedValue[];
+  screenshot_url: string | null;
+  /** Batas waktu memasukkan kode OTP */
+  expires_at: string | null;
+}
+
+export interface RunDetail extends RunSummary {
+  flow_id: string;
+  flow_name: string;
+  role_id: string;
+  role_name: string;
+  inputs: NamedValue[];
+  events: RunEvent[];
+  /** Data yang dibaca dari halaman */
+  outputs: NamedValue[];
+  pending: RunPending | null;
+  can_decide: boolean;
+}
+
+export interface LearnRequest {
+  account_id: string;
+  name: string;
+  goal: string;
+  inputs: FlowInput[];
+}
+```
+
+### 22.2 Alamat
+
+| Method dan alamat | Isian | `data` |
+|---|---|---|
+| `GET /admin/role/{role_id}/alur` | | `FlowListResponse` |
+| `POST /admin/role/{role_id}/alur` | `LearnRequest` | `FlowDetail` (201) |
+| `GET /admin/alur/{id}` | | `FlowDetail` |
+| `POST /admin/alur/{id}/pelajari` | `{ name, goal, inputs }` | `FlowDetail` |
+| `POST /admin/alur/{id}/setujui` | `{ version }` | `FlowDetail` |
+| `POST /admin/alur/{id}/jalankan` | `{ inputs: { [key]: string } }` | `RunDetail` (201) |
+| `POST /admin/alur/{id}/tanpa-persetujuan` | `{ enabled, code }` | `FlowDetail` |
+| `POST /admin/alur/{id}/hapus` | | `null` |
+| `GET /admin/alur-jalan/{run_id}` | | `RunDetail` |
+| `POST /admin/alur-jalan/{run_id}/putuskan` | `{ decision: "approved" \| "rejected" }` | `RunDetail` |
+| `POST /admin/alur-jalan/{run_id}/otp` | `{ code }` | `RunDetail` |
+| `POST /admin/alur-jalan/{run_id}/hentikan` | | `RunDetail` |
+| `GET /admin/alur-jalan/{run_id}/bukti/{nomor}` | | gambar WebP |
+
+Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di atas.
+
+### 22.3 Hak akses
+
+- Melihat: semua anggota.
+- Mengajari, menyetujui, menjalankan, memutuskan, mengirim OTP, menghentikan, menghapus: **penanggung jawab role**
+  (bukan pemantau), pemilik, atau admin. Selain itu `403`.
+- `tanpa-persetujuan`: hanya penanggung jawab role dengan kode verifikasi dua langkahnya.
+
+### 22.4 Isian dan keadaan
+
+- `name` 2–100, `goal` 10–1000, `inputs` maks 10 (`key` `[a-z0-9_]{1,30}` unik, `label` 1–60, `sample` 1–500).
+- Isian putaran: semua `inputs` wajib, maks 2000 karakter.
+- Akun brankas harus milik role itu dan tidak terkunci (`409`).
+- Satu alur hanya punya satu putaran belum selesai (`409`).
+- `jalankan` hanya untuk alur `approved`. `setujui` hanya untuk `review` dengan `version` yang sama (`409`).
+- `pelajari` menaikkan `version`, mengembalikan alur ke `learning`, dan menghapus persetujuan, pembebasan, serta
+  hitungan putaran berhasil. Pada alur `needs_repair` putarannya bermode `repair`.
+- `tanpa-persetujuan` dengan `enabled: true` perlu `approved` dan 3 putaran berhasil (`409`).
+
+### 22.5 Pengaman
+
+- **Belajar** tidak menekan kirim, simpan, atau hapus. Program juga memblokir setiap permintaan yang mengubah data
+  selain pengiriman formulir masuk; tombol yang memicunya dicatat sebagai langkah berisiko.
+- **Putaran:** sebelum langkah `submit` atau `delete`, putaran berhenti pada `waiting_approval`. `submit` dilewatkan
+  persetujuannya hanya bila `trusted_submit`; `delete` selalu menunggu. Setelah disetujui, program mengulang dari awal
+  sampai langkah itu, lalu melanjutkan.
+- Pembayaran dan transfer tidak didukung: putaran berhenti `failed`.
+- CAPTCHA tidak dilewati: putaran berhenti `failed` dengan penjelasan.
+- Gagal masuk berhenti setelah 2 kali percobaan. Akun brankas yang gagal masuk tidak dipakai lagi sampai passwordnya
+  diganti atau dikonfirmasi.
+- OTP lewat SMS atau email: `waiting_otp` selama paling lama 5 menit, lalu `failed`.
+- Username, password, dan kode authenticator diisi program, hanya pada asal yang terdaftar di brankas; tidak dikirim ke
+  model, tidak masuk catatan putaran, dan kolomnya ditutup pada tangkapan layar.
+- Halaman di luar asal yang terdaftar tidak dibuka. Di produksi alamat jaringan internal diblokir.
+- Langkah yang tidak ditemukan saat putaran: `needs_repair`.
+- Jejak audit: `alur.belajar`, `alur.setujui`, `alur.jalankan`, `alur.persetujuan`, `alur.hapus`, `alur.putuskan`,
+  `alur.otp`, `alur.hentikan`. Kode OTP dan isian tidak dicatat.
 

@@ -29,6 +29,7 @@ export type MemberStatus = "active" | "invited" | "disabled";
 export type OrganizationStatus = "pending" | "active" | "suspended";
 import type { MockTwoFactor } from "./two-factor";
 import type { MockVaultAccount } from "./vault";
+import type { MockBrowserRun, MockFlow } from "./browser";
 
 export interface MockOrganization {
   id: string;
@@ -166,10 +167,13 @@ export interface MockDatabase {
   two_factors: MockTwoFactor[];
   /** Brankas akun aplikasi luar per role (E4a) */
   vault_accounts: MockVaultAccount[];
+  /** Alur aplikasi luar dan putarannya (E4b) */
+  browser_flows: MockFlow[];
+  browser_runs: MockBrowserRun[];
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 15;
+export const MOCK_DB_VERSION = 16;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -294,6 +298,8 @@ const createBase = (): MockDatabase => ({
   session: null,
   two_factors: [],
   vault_accounts: [],
+  browser_flows: [],
+  browser_runs: [],
 });
 
 /** Data contoh lengkap, termasuk tugas yang riwayatnya dijalankan mesin simulasi. */

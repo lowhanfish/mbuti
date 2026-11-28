@@ -61,6 +61,15 @@ const ACTIONS: Array<[string, RegExp, string, string]> = [
   ["POST", /dua-langkah\/aktifkan$/, "auth.dua_langkah_aktif", "Mengaktifkan verifikasi dua langkah"],
   ["POST", /dua-langkah\/matikan$/, "auth.dua_langkah_mati", "Mematikan verifikasi dua langkah"],
   ["POST", /dua-langkah\/kode-cadangan$/, "auth.kode_cadangan", "Membuat ulang kode cadangan"],
+  ["POST", /role\/[^/]+\/alur$/, "alur.belajar", "Mengajari alur aplikasi"],
+  ["POST", /alur\/[^/]+\/pelajari$/, "alur.belajar", "Mengajari alur aplikasi"],
+  ["POST", /alur\/[^/]+\/setujui$/, "alur.setujui", "Menyetujui alur aplikasi"],
+  ["POST", /alur\/[^/]+\/jalankan$/, "alur.jalankan", "Menjalankan alur aplikasi"],
+  ["POST", /alur\/[^/]+\/tanpa-persetujuan$/, "alur.persetujuan", "Mengubah persetujuan alur"],
+  ["POST", /alur\/[^/]+\/hapus$/, "alur.hapus", "Menghapus alur aplikasi"],
+  ["POST", /alur-jalan\/[^/]+\/putuskan$/, "alur.putuskan", "Memutuskan putaran alur"],
+  ["POST", /alur-jalan\/[^/]+\/otp$/, "alur.otp", "Mengirim kode OTP"],
+  ["POST", /alur-jalan\/[^/]+\/hentikan$/, "alur.hentikan", "Menghentikan putaran alur"],
   ["POST", /brankas$/, "brankas.tambah", "Menambah akun brankas"],
   ["PUT", /brankas\/[^/]+$/, "brankas.ubah", "Mengubah akun brankas"],
   ["POST", /brankas\/[^/]+\/hapus$/, "brankas.hapus", "Menghapus akun brankas"],
@@ -80,6 +89,7 @@ export const auditTarget = (db: MockDatabase, pathname: string, body: unknown) =
     const approval = db.approvals.find((a) => a.id === part);
     const found =
       db.vault_accounts.find((a) => a.id === part)?.name ??
+      db.browser_flows.find((a) => a.id === (db.browser_runs.find((r) => r.id === part)?.flow_id ?? part))?.name ??
       db.agents.find((a) => a.id === part)?.name ??
       db.units.find((u) => u.id === part)?.name ??
       db.documents.find((d) => d.id === part)?.title ??

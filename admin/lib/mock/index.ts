@@ -4,7 +4,9 @@ import { advanceTasks } from "./engine";
 import { advanceFormations } from "./formation";
 import { promoteVersions } from "./knowledge";
 import { fail, matchRoute, type MockRoute } from "./router";
+import { advanceRuns } from "./browser";
 import { akunRoutes } from "./routes/akun";
+import { alurRoutes } from "./routes/alur";
 import { auditRoutes } from "./routes/audit";
 import { authRoutes } from "./routes/auth";
 import { brankasRoutes } from "./routes/brankas";
@@ -26,7 +28,7 @@ import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...akunRoutes, ...brankasRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...rutinRoutes, ...suratRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
+const routes: MockRoute[] = [...authRoutes, ...akunRoutes, ...brankasRoutes, ...alurRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...rutinRoutes, ...suratRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -59,7 +61,8 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const promoted = promoteVersions(db);
   const formed = advanceFormations(db, Date.now());
   const scheduled = advanceSchedules(db, Date.now());
-  const advanced = advanceTasks(db, Date.now()) || scheduled || promoted || formed;
+  const browsed = advanceRuns(db, Date.now());
+  const advanced = advanceTasks(db, Date.now()) || scheduled || promoted || formed || browsed;
 
   const body = parseBody(init.body);
   // Pelaku dan sasaran dibaca sebelum tindakan: keluar menghapus sesi, hapus menghilangkan nama
