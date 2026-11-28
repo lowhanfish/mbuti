@@ -32,6 +32,7 @@ from app.models import (
     Task,
     Unit,
     User,
+    VaultAccount,
     WorkShift,
 )
 
@@ -91,6 +92,19 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("POST", "/role/{role_id}/pembentukan/final"): Action("role.final", "Mem-Final versi role"),
     ("POST", "/role/{role_id}/versi/{version_id}/pulihkan"): Action(
         "role.pulihkan", "Memulihkan versi role"
+    ),
+    ("POST", "/role/{role_id}/brankas"): Action("brankas.tambah", "Menambah akun brankas"),
+    ("PUT", "/role/{role_id}/brankas/{account_id}"): Action(
+        "brankas.ubah", "Mengubah akun brankas"
+    ),
+    ("POST", "/role/{role_id}/brankas/{account_id}/hapus"): Action(
+        "brankas.hapus", "Menghapus akun brankas"
+    ),
+    ("POST", "/role/{role_id}/brankas/{account_id}/konfirmasi"): Action(
+        "brankas.konfirmasi", "Mengonfirmasi akun brankas"
+    ),
+    ("POST", "/role/{role_id}/brankas/{account_id}/kode"): Action(
+        "brankas.kode", "Melihat kode authenticator"
     ),
     ("POST", "/relasi/create"): Action("relasi.buat", "Membuat relasi"),
     ("PUT", "/relasi/update/{relation_id}"): Action("relasi.ubah", "Mengubah relasi"),
@@ -165,6 +179,10 @@ AUTH_ACTIONS = {
     "auth.verifikasi": "Memverifikasi email",
     "auth.sandi": "Mengatur ulang kata sandi",
     "anggota.terima": "Menerima undangan",
+    "auth.cadangan": "Masuk dengan kode cadangan",
+    "auth.dua_langkah_aktif": "Mengaktifkan verifikasi dua langkah",
+    "auth.dua_langkah_mati": "Mematikan verifikasi dua langkah",
+    "auth.kode_cadangan": "Membuat ulang kode cadangan",
 }
 LABELS = {a.code: a.label for a in ACTIONS.values() if a} | AUTH_ACTIONS
 PREFIX = "/api/v1/admin"
@@ -250,6 +268,7 @@ async def _name_of(
             "register_id": (LetterRegister, LetterRegister.name),
             "sample_id": (LetterSample, LetterSample.file_name),
             "task_id": (Task, Task.title),
+            "account_id": (VaultAccount, VaultAccount.name),
         }[key]
         query = select(column).where(model.id == wanted, model.organization_id == organization_id)
     return await session.scalar(query) or ""
@@ -278,6 +297,15 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
     """Nama sasaran, dibaca sebelum tindakan agar yang dihapus tetap punya nama."""
     organization_id = member.organization_id
     params = request.path_params
+    # Brankas: nama akun dan nama role saja. Isian lain di kirimannya berisi rahasia
+    if "/brankas" in getattr(request.scope.get("route"), "path", ""):
+        account = (
+            await _name_of(session, organization_id, "account_id", params["account_id"])
+            if "account_id" in params
+            else str((await _payload(request)).get("name", "")).strip()[:80]
+        )
+        role = await _name_of(session, organization_id, "role_id", params.get("role_id"))
+        return " · ".join(part for part in (account, role) if part)
     # Parameter pertama menyebut benda utamanya, mis. dokumen sebelum versinya
     for key in (
         "approval_id",

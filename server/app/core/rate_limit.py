@@ -65,6 +65,28 @@ async def clear_login_failures(email: str, ip: str) -> None:
         raise _unavailable(exc) from exc
 
 
+async def count_code_attempt(user_id: str) -> None:
+    """
+    Dihitung sebelum kode diperiksa, sehingga percobaan bersamaan tidak lolos dari batas.
+    Berlaku per akun dari alamat mana pun.
+    """
+    try:
+        async with Redis.from_url(settings.REDIS_URL) as client:
+            total = await _count(client, f"{key_prefix()}kode:{user_id}", FAILURE_WINDOW_SECONDS)
+    except RedisError as exc:
+        raise _unavailable(exc) from exc
+    if total > settings.TWO_FACTOR_FAILURE_LIMIT:
+        raise RateLimitException("Terlalu banyak kode salah. Coba lagi beberapa menit lagi.")
+
+
+async def clear_code_attempts(user_id: str) -> None:
+    try:
+        async with Redis.from_url(settings.REDIS_URL) as client:
+            await client.delete(f"{key_prefix()}kode:{user_id}")
+    except RedisError as exc:
+        raise _unavailable(exc) from exc
+
+
 async def check_rate(scope: str, identity: str, limit: int, window: int = 60) -> None:
     """
     Batas pemakaian per jendela waktu (bawaan semenit) untuk tindakan yang mahal: memanggil

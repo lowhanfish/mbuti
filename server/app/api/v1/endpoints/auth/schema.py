@@ -15,6 +15,8 @@ class LoginRequest(RequestModel):
     email: str = Field(max_length=150)
     # Spasi pada kata sandi dipertahankan
     password: str = Field(max_length=200, json_schema_extra={"format": "password"})
+    # Kode authenticator atau kode cadangan, bila akun memakai verifikasi dua langkah
+    code: str = Field(default="", max_length=20)
 
     model_config = {"str_strip_whitespace": False}
 
@@ -35,6 +37,7 @@ class UserProfile(BaseModel):
     is_verified: bool
     access_role: str | None
     organization: OrganizationSummary | None
+    two_factor_enabled: bool
     created_at: datetime.datetime
 
 
@@ -137,6 +140,7 @@ class ResetPasswordRequest(PasswordModel):
 class AcceptInviteRequest(PasswordModel):
     token: str = Field(max_length=200)
     full_name: str
+    code: str = Field(default="", max_length=20)
 
     @field_validator("token")
     @classmethod
@@ -156,3 +160,42 @@ class InvitePreview(BaseModel):
     inviter_name: str
     access_role: str
     expires_at: datetime.datetime
+
+
+# ==========================
+# VERIFIKASI DUA LANGKAH (kontrak API bagian 21)
+# ==========================
+
+
+class PasswordCheck(RequestModel):
+    """Kata sandi akun yang sedang masuk, untuk memastikan ulang."""
+
+    model_config = {"str_strip_whitespace": False}
+
+    password: str = Field(max_length=200, json_schema_extra={"format": "password"})
+
+
+class CodeRequest(RequestModel):
+    code: str = Field(min_length=1, max_length=20)
+
+
+class DisableTwoFactorRequest(PasswordCheck):
+    code: str = Field(min_length=1, max_length=20)
+
+
+class TwoFactorStatus(BaseModel):
+    enabled: bool
+    enabled_at: datetime.datetime | None
+    recovery_codes_left: int
+    # Akun brankas pada role yang ditanggung pengguna ini
+    vault_accounts: int
+
+
+class TwoFactorSetup(BaseModel):
+    secret: str
+    otpauth_url: str
+    qr_svg: str
+
+
+class RecoveryCodes(BaseModel):
+    recovery_codes: list[str]

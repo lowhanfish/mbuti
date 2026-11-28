@@ -11,11 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.auth.schema import OrganizationSummary, UserProfile
 from app.core import rate_limit
 from app.core.config import settings
-from app.core.exceptions import ForbiddenException, UnauthorizedException
+from app.core.exceptions import AppException, ForbiddenException, UnauthorizedException
 from app.core.security import create_access_token, hash_token, random_token, verify_password
 from app.models import Membership, Organization, RefreshSession, User
 from app.models.base import utcnow
-from app.services import audit
+from app.services import audit, two_factor
 
 logger = logging.getLogger("mbuti.auth")
 
@@ -72,6 +72,7 @@ async def build_profile(session: AsyncSession, user: User) -> UserProfile:
         )
         if organization
         else None,
+        two_factor_enabled=await two_factor.is_enabled(session, user.id),
         created_at=user.created_at,
     )
 
@@ -125,8 +126,28 @@ async def _record_failure(
     await session.commit()
 
 
+async def check_second_factor(session: AsyncSession, user: User, code: str) -> None:
+    """
+    Dipanggil setelah kata sandi atau tautan terbukti. Tanpa verifikasi dua langkah tidak
+    melakukan apa pun. Pemakaian kode baru berlaku setelah pemanggil melakukan commit.
+    """
+    row = await two_factor.find(session, user.id, lock=True)
+    if row is None or row.enabled_at is None:
+        return
+    if not code.strip():
+        raise ForbiddenException(two_factor.REQUIRED, code="two_factor_required")
+    if await two_factor.verify(session, row, code) == "cadangan":
+        membership = await membership_of(session, user.id)
+        audit.add_entry(
+            session,
+            action="auth.cadangan",
+            organization_id=membership.organization_id if membership else None,
+            user=user,
+        )
+
+
 async def login(
-    session: AsyncSession, email: str, password: str, client: ClientInfo
+    session: AsyncSession, email: str, password: str, client: ClientInfo, code: str = ""
 ) -> IssuedSession:
     email = email.strip().lower()
     await rate_limit.check_login_allowed(email, client.ip)
@@ -148,6 +169,13 @@ async def login(
     if not user.is_verified:
         raise ForbiddenException(NOT_VERIFIED, code="email_not_verified")
 
+    try:
+        await check_second_factor(session, user, code)
+    except AppException as exc:
+        if exc.code == "two_factor_invalid":
+            await rate_limit.record_login_failure(email, client.ip)
+            await _record_failure(session, email, user, client)
+        raise
     await rate_limit.clear_login_failures(email, client.ip)
     issued = await open_session(session, user, client, "auth.masuk")
     await session.commit()

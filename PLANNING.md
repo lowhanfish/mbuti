@@ -1096,10 +1096,28 @@ desktop dan ponsel tidak termasuk.
 
 **Tahapan** (tiap tahap: halaman data contoh → kontrak API → backend → uji dengan aplikasi tiruan lokal):
 
-- [ ] E4a verifikasi dua langkah akun MBUTI, brankas, dan kode authenticator
+- [x] E4a verifikasi dua langkah akun MBUTI, brankas, dan kode authenticator (29 November 2026)
 - [ ] E4b belajar alur, memutar ulang, dan bukti. Memerlukan Playwright (Apache) dan Chromium (BSD), sekitar 500 MB:
       minta izin sebelum memasang
 - [ ] E4c alur dipakai dalam tugas dan tugas rutin, dengan persetujuan
+
+**Catatan E4a** (29 November 2026):
+
+- Halaman: **Akun Saya** (dibuka dari nama pengguna di menu samping), isian kode di halaman masuk dan undangan, tab
+  **Brankas** di halaman role. Mock `lib/mock/two-factor.ts` dan `vault.ts`. Dicoba di peramban mode data contoh
+- Kontrak: bagian 21 di `admin/API_CONTRACT.md`
+- Backend: `core/totp.py` (tanpa pustaka), `core/encryption.py` (AES-256-GCM), `services/two_factor.py`,
+  `services/vault/`, migrasi `a7e1c4d92b36`. Pustaka: cryptography (Apache/BSD) dan segno (BSD, gambar QR)
+- Kunci enkripsi pengembangan dibuat otomatis di `server/.vault-key` (tidak masuk git). Di produksi `VAULT_KEY` wajib.
+  Skrip cadangan **tidak** menyertakan kunci: simpan terpisah
+- Pengaman yang ditambahkan saat membangun: alamat situs baru mewajibkan password diketik ulang; akun terkunci bila
+  penanggung jawab role berganti; sesi lain dicabut saat verifikasi dua langkah diaktifkan; batas 5 kode salah per
+  5 menit per akun
+- Verifikasi dua langkah yang hilang dimatikan pengelola: `python -m scripts.matikan_dua_langkah <email>`
+- Uji: seluruh tes unit (223) lulus; tes integrasi terarah (8, termasuk migrasi) lulus; migrasi terpasang di database
+  dev. Tidak memanggil model
+- Belum dicoba dari halaman aplikasi terhadap backend asli, termasuk memindai QR dengan aplikasi authenticator
+  sungguhan: masuk sesi perbaikan
 
 #### Pertanyaan terbuka fase E
 

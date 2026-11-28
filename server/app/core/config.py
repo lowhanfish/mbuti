@@ -1,5 +1,7 @@
 """Pengaturan aplikasi dari variabel lingkungan dan `server/.env`."""
 
+import base64
+import binascii
 import json
 import secrets
 from pathlib import Path
@@ -10,6 +12,18 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
 SERVER_DIR = Path(__file__).resolve().parents[2]
+
+
+def parse_vault_key(value: str) -> bytes:
+    """Kunci enkripsi 32 byte dalam base64. Pesan galat tidak memuat nilainya."""
+    text = value.strip()
+    try:
+        raw = base64.urlsafe_b64decode(text.replace("+", "-").replace("/", "_"))
+    except (ValueError, binascii.Error):
+        raw = b""
+    if len(raw) != 32:
+        raise ValueError("VAULT_KEY harus 32 byte dalam base64.")
+    return raw
 
 
 def parse_database_url(raw: str) -> URL:
@@ -103,6 +117,16 @@ class Settings(BaseSettings):
     # Percobaan masuk per menit dari satu alamat, dan kegagalan per 5 menit untuk satu email
     LOGIN_LIMIT_PER_MINUTE: int = 20
     LOGIN_FAILURE_LIMIT: int = 5
+    # Kode verifikasi dua langkah yang salah per 5 menit untuk satu akun
+    TWO_FACTOR_FAILURE_LIMIT: int = 5
+
+    # ==========================
+    # BRANKAS (E4a)
+    # ==========================
+    # Kunci enkripsi isi brankas dan kunci authenticator: 32 byte base64. Wajib di produksi.
+    VAULT_KEY: SecretStr = Field(default=SecretStr(""))
+    # Dipakai di pengembangan saat VAULT_KEY kosong; dibuat otomatis, tidak masuk git
+    VAULT_KEY_FILE: Path = SERVER_DIR / ".vault-key"
 
     # ==========================
     # AKUN MANDIRI DAN EMAIL
@@ -267,6 +291,13 @@ class Settings(BaseSettings):
             raise ValueError("TEST_DB_NAME harus berakhiran '_test'.")
         return value
 
+    @field_validator("VAULT_KEY")
+    @classmethod
+    def validate_vault_key(cls, value: SecretStr) -> SecretStr:
+        if value.get_secret_value():
+            parse_vault_key(value.get_secret_value())
+        return value
+
     @model_validator(mode="after")
     def secure_session_settings(self) -> "Settings":
         secret = self.JWT_SECRET_KEY.get_secret_value()
@@ -275,6 +306,8 @@ class Settings(BaseSettings):
                 raise ValueError("JWT_SECRET_KEY wajib diisi, minimal 32 karakter, di produksi.")
             if not self.COOKIE_SECURE:
                 raise ValueError("COOKIE_SECURE harus true di produksi.")
+            if not self.VAULT_KEY.get_secret_value():
+                raise ValueError("VAULT_KEY wajib diisi di produksi.")
         elif not secret:
             self.JWT_SECRET_KEY = SecretStr(secrets.token_urlsafe(48))
         return self

@@ -30,6 +30,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 18. [Surat dan berkas hasil (E3a)](#18-surat-dan-berkas-hasil-e3a)
 19. [Spreadsheet (E3b)](#19-spreadsheet-e3b)
 20. [Mode penyusunan dan laporan (E3c)](#20-mode-penyusunan-dan-laporan-e3c)
+21. [Verifikasi dua langkah dan brankas role (E4a)](#21-verifikasi-dua-langkah-dan-brankas-role-e4a)
 
 ---
 
@@ -2811,4 +2812,141 @@ export interface ReportResult {
 
 Hanya simulasi, jangan ditiru backend: daftar bagian buatan memakai isi tetap menurut mode, dan halaman laporan
 digambar sederhana dari judul dan arahan.
+
+---
+
+## 21. Verifikasi dua langkah dan brankas role (E4a)
+
+Rancangannya ada di `PLANNING.md` (E4). Kode authenticator memakai TOTP (RFC 6238): 6 angka, berganti tiap 30 detik.
+
+### 21.1 Masuk dengan verifikasi dua langkah
+
+- `UserProfile` bertambah `two_factor_enabled: boolean`.
+- `POST /auth/login` dan `POST /auth/accept-invite` menerima `code?: string` (maks 20 karakter): kode authenticator
+  atau satu kode cadangan.
+
+| Keadaan | Jawaban |
+|---|---|
+| Kata sandi salah (dengan atau tanpa kode) | `401`, pesan seperti sebelumnya; keberadaan verifikasi dua langkah tidak diungkap |
+| Kata sandi benar, akun memakai dua langkah, `code` kosong | `403`, `code: "two_factor_required"` |
+| Kode salah atau sudah dipakai | `422`, `code: "two_factor_invalid"`; dihitung sebagai percobaan gagal |
+| Terlalu banyak kode salah | `429` (5 kali per 5 menit per akun, dari alamat mana pun) |
+
+- Satu kode authenticator hanya berlaku sekali. Toleransi waktu satu putaran (30 detik) ke belakang dan ke depan.
+- Kode cadangan sekali pakai; pemakaiannya dicatat di jejak audit (`auth.cadangan`).
+- Verifikasi email dan atur ulang kata sandi tidak mematikan verifikasi dua langkah.
+- Bila ponsel dan kode cadangan hilang, pengelola platform mematikannya dengan
+  `python -m scripts.matikan_dua_langkah <email>`.
+
+### 21.2 Mengatur verifikasi dua langkah
+
+Perlu sesi masuk dan token CSRF. Tidak bergantung pada status organisasi.
+
+| Method dan alamat | Isian | `data` |
+|---|---|---|
+| `GET /auth/dua-langkah` | | `TwoFactorStatus` |
+| `POST /auth/dua-langkah/mulai` | `{ password }` | `TwoFactorSetup` |
+| `POST /auth/dua-langkah/aktifkan` | `{ code }` | `RecoveryCodes` |
+| `POST /auth/dua-langkah/kode-cadangan` | `{ code }` | `RecoveryCodes` |
+| `POST /auth/dua-langkah/matikan` | `{ password, code }` | `null` |
+
+```ts
+export interface TwoFactorStatus {
+  enabled: boolean;
+  enabled_at: string | null;
+  recovery_codes_left: number;
+  vault_accounts: number; // akun brankas pada role yang ditanggung
+}
+
+export interface TwoFactorSetup {
+  secret: string;      // base32
+  otpauth_url: string;
+  qr_svg: string;      // data URI SVG
+}
+
+export interface RecoveryCodes {
+  recovery_codes: string[]; // 8 kode "xxxxx-xxxxx", ditampilkan sekali
+}
+```
+
+- Kata sandi salah dijawab `422` (bukan `401`, agar sesi tidak dianggap berakhir).
+- `mulai` saat sudah aktif, `aktifkan` tanpa `mulai`, serta `matikan` dan `kode-cadangan` saat belum aktif: `409`.
+- `mulai` yang diulang mengganti kunci yang belum dikonfirmasi.
+- `aktifkan` hanya menerima kode authenticator. `kode-cadangan` dan `matikan` juga menerima kode cadangan.
+- Setelah `aktifkan`, sesi masuk lain pada akun itu dicabut.
+- Ketiga perubahan dicatat di jejak audit: `auth.dua_langkah_aktif`, `auth.dua_langkah_mati`, `auth.kode_cadangan`.
+
+### 21.3 Brankas akun per role
+
+Alamat: `/admin/role/{role_id}/brankas`. Role organisasi lain dijawab `404`.
+
+| Method dan alamat | Isian | `data` |
+|---|---|---|
+| `GET /…/brankas` | | `VaultResponse` |
+| `POST /…/brankas` | `VaultInput` | `VaultAccount` (201) |
+| `PUT /…/brankas/{account_id}` | `VaultInput` | `VaultAccount` |
+| `POST /…/brankas/{account_id}/hapus` | `{ code }` | `null` |
+| `POST /…/brankas/{account_id}/konfirmasi` | `{ code }` | `VaultAccount` |
+| `POST /…/brankas/{account_id}/kode` | `{ code }` | `VaultCode` |
+
+```ts
+export interface VaultAccount {
+  id: string;
+  name: string;
+  url: string;
+  other_urls: string[];
+  username: string;      // "" kecuali untuk pemilik, admin, dan penanggung jawab role
+  has_password: boolean;
+  has_totp: boolean;
+  locked: boolean;       // penanggung jawab berganti
+  password_changed_at: string;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type VaultBlocker = "" | "viewer" | "no_responsible" | "not_responsible" | "two_factor_off";
+
+export interface VaultResponse {
+  accounts: VaultAccount[]; // urut nama
+  access: { can_manage: boolean; blocker: VaultBlocker; responsible_name: string | null };
+}
+
+export interface VaultInput {
+  name: string;          // 2–80, unik per role
+  url: string;           // http/https, maks 500
+  other_urls: string[];  // maks 5
+  username: string;      // 1–200
+  password: string;      // wajib saat menambah; "" saat mengubah berarti tidak diganti; maks 500
+  totp_key: string;      // opsional: base32 atau otpauth://totp/…; "" berarti tidak diganti
+  remove_totp: boolean;
+  code: string;          // kode verifikasi dua langkah pengguna MBUTI
+}
+
+export interface VaultCode {
+  code: string;
+  expires_in: number;    // detik
+  period: number;
+}
+```
+
+**Siapa yang boleh.** Melihat daftar: semua anggota. Semua perubahan dan `kode`: hanya **penanggung jawab role** yang
+bukan pemantau, memakai verifikasi dua langkahnya sendiri. Selain itu `403`; kode salah `422`
+`two_factor_invalid`.
+
+**Aturan.**
+
+- Password dan kunci authenticator **tidak pernah dikirim kembali**, tidak masuk jejak audit, log, atau permintaan ke
+  model AI. Jejak audit hanya memuat nama akun dan nama role.
+- Alamat, username, password, dan kunci authenticator disimpan terenkripsi (AES-256-GCM, terikat pada organisasi,
+  baris, dan kolomnya). Kunci enkripsi: `VAULT_KEY`; di pengembangan dibuat otomatis di `server/.vault-key`.
+- Alamat tidak boleh memuat `pengguna:sandi@`. Di produksi wajib `https`.
+- Yang diizinkan untuk diisi program adalah asal (`skema://host:port`) dari `url` dan `other_urls`. Bila perubahan
+  menambah asal baru, `password` wajib diisi ulang, dan kunci authenticator diisi ulang atau dihapus (`422`).
+- Bila penanggung jawab role berganti, akun menjadi `locked`: tidak dipakai program, tidak bisa diubah, dan kodenya
+  tidak ditampilkan (`409`) sampai penanggung jawab baru menekan `konfirmasi`. `hapus` tetap bisa.
+- Maksimal 20 akun per role. Menghapus role menghapus isi brankasnya.
+- `kode` tanpa kunci authenticator: `409`. Setiap tampilan dicatat (`brankas.kode`).
+- Jejak audit: `brankas.tambah`, `brankas.ubah`, `brankas.hapus`, `brankas.konfirmasi`, `brankas.kode`.
+- Batas laju kode salah sama dengan 21.1, dihitung per akun pengguna.
 

@@ -31,6 +31,9 @@ dependencies = [
     # Spreadsheet (E3b); openpyxl MIT, defusedxml PSF (menolak XML berbahaya di berkas unggahan)
     "openpyxl>=3.1.5,<4",
     "defusedxml>=0.7.1",
+    # Brankas dan verifikasi dua langkah (E4a); cryptography Apache/BSD, segno BSD (gambar QR)
+    "cryptography>=44",
+    "segno>=1.6,<2",
 ]
 
 [project.optional-dependencies]

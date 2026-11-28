@@ -43,6 +43,12 @@ def test_example_environment_uses_known_settings_and_holds_no_secret():
 
     unknown = {k for k in values if k not in Settings.model_fields and "GEMINI_API_KEY" not in k}
     assert unknown == set()
-    for secret in ("DATABASE_URL", "JWT_SECRET_KEY", "GEMINI_API_KEY", "SMTP_PASSWORD"):
+    for secret in (
+        "DATABASE_URL",
+        "JWT_SECRET_KEY",
+        "VAULT_KEY",
+        "GEMINI_API_KEY",
+        "SMTP_PASSWORD",
+    ):
         assert values[secret] == ""
     assert values["APP_ENV"] == "production" and values["COOKIE_SECURE"] == "true"

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.api.v1.common import ApiResponse
-from app.api.v1.endpoints.auth import accounts, service
+from app.api.v1.endpoints.auth import accounts, service, two_factor
 from app.api.v1.endpoints.auth.schema import (
     AcceptInviteRequest,
     AuthData,
@@ -32,6 +32,7 @@ from app.core.security import PASSWORD_MIN_LENGTH, random_token, read_access_tok
 from app.models import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+router.include_router(two_factor.router)
 
 
 def client_info(request: Request) -> service.ClientInfo:
@@ -49,7 +50,9 @@ async def login(
     session: AsyncSession = Depends(get_db),
 ) -> ApiResponse[AuthData]:
     check_origin(request)
-    issued = await service.login(session, body.email, body.password, client_info(request))
+    issued = await service.login(
+        session, body.email, body.password, client_info(request), body.code
+    )
     return await _signed_in(session, response, issued, "Berhasil masuk.")
 
 

@@ -32,6 +32,7 @@ from app.models import (
     TaskStep,
     Unit,
     User,
+    VaultAccount,
 )
 from app.models.agent.formation import OPEN_REVISION_STATUSES
 from app.models.base import utcnow
@@ -371,6 +372,8 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
         .values(deleted_at=now)
     )
     await session.execute(delete(FlowPosition).where(FlowPosition.node_id == agent.id))
+    # Rahasia tidak disimpan setelah role dihapus
+    await session.execute(delete(VaultAccount).where(VaultAccount.agent_id == agent.id))
     await session.commit()
 
 

@@ -58,6 +58,10 @@ def load(tmp_path: Path, content: str, monkeypatch: pytest.MonkeyPatch) -> Setti
     return Settings(_env_file=env_file)
 
 
+# 32 byte nol dalam base64, hanya untuk memeriksa validasi pengaturan
+KEY = "A" * 43 + "="
+
+
 def test_development_generates_a_secret(tmp_path, monkeypatch):
     value = load(tmp_path, "", monkeypatch).JWT_SECRET_KEY.get_secret_value()
 
@@ -67,9 +71,11 @@ def test_development_generates_a_secret(tmp_path, monkeypatch):
 @pytest.mark.parametrize(
     "content",
     [
-        "APP_ENV=production\nCOOKIE_SECURE=true\n",
-        "APP_ENV=production\nCOOKIE_SECURE=true\nJWT_SECRET_KEY=pendek\n",
-        f"APP_ENV=production\nJWT_SECRET_KEY={'x' * 40}\n",
+        f"APP_ENV=production\nCOOKIE_SECURE=true\nVAULT_KEY={KEY}\n",
+        f"APP_ENV=production\nCOOKIE_SECURE=true\nVAULT_KEY={KEY}\nJWT_SECRET_KEY=pendek\n",
+        f"APP_ENV=production\nVAULT_KEY={KEY}\nJWT_SECRET_KEY={'x' * 40}\n",
+        f"APP_ENV=production\nCOOKIE_SECURE=true\nJWT_SECRET_KEY={'x' * 40}\n",
+        f"APP_ENV=production\nCOOKIE_SECURE=true\nJWT_SECRET_KEY={'x' * 40}\nVAULT_KEY=pendek\n",
     ],
 )
 def test_production_requires_secret_and_secure_cookies(tmp_path, monkeypatch, content):

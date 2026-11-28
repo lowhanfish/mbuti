@@ -20,6 +20,8 @@ out/
 
 # Berkas unggahan dan data lokal
 server/uploads/
+# Kunci enkripsi pengembangan yang dibuat otomatis (E4a)
+server/.vault-key
 
 # Sistem
 .DS_Store

@@ -24,6 +24,7 @@ from app.api.v1.endpoints.auth.schema import (
 from app.api.v1.endpoints.auth.service import (
     ClientInfo,
     IssuedSession,
+    check_second_factor,
     membership_of,
     open_session,
     revoke_user_sessions,
@@ -246,6 +247,9 @@ async def accept_invite(
     )
     if elsewhere is not None:
         raise ConflictException(OTHER_ORGANIZATION)
+
+    # Akun lama yang diundang lagi dan memakai verifikasi dua langkah tetap diminta kodenya
+    await check_second_factor(session, user, body.code)
 
     now = utcnow()
     found.used_at = now

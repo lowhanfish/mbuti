@@ -21,6 +21,7 @@ PROFILE_KEYS = {
     "is_verified",
     "access_role",
     "organization",
+    "two_factor_enabled",
     "created_at",
 }
 

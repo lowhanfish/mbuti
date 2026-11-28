@@ -37,8 +37,10 @@ sudo -u mbuti .venv/bin/alembic upgrade head
 sudo -u mbuti .venv/bin/python -m scripts.create_account
 ```
 
-Aplikasi menolak menyala di produksi bila `JWT_SECRET_KEY` kurang dari 32 karakter atau
-`COOKIE_SECURE` bukan `true`. Skrip akun meminta kata sandi secara tersembunyi.
+Aplikasi menolak menyala di produksi bila `JWT_SECRET_KEY` kurang dari 32 karakter,
+`VAULT_KEY` kosong, atau `COOKIE_SECURE` bukan `true`. Simpan salinan `VAULT_KEY` terpisah dari
+cadangan database. Verifikasi dua langkah yang tidak bisa dibuka pemiliknya dimatikan dengan
+`.venv/bin/python -m scripts.matikan_dua_langkah <email>`. Skrip akun meminta kata sandi secara tersembunyi.
 
 ## 4. Frontend
 
