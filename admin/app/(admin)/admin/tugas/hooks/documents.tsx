@@ -15,6 +15,8 @@ export const useResponseDocuments = (taskId: string, status: TaskStatus) => {
   const { data } = useQuery({
     queryFn: () => fetchData<ApiResponse<ResultDocument[]>>(base(url, taskId)),
     queryKey: ["tugas", "berkas", taskId, status],
+    // Berkas dibuat di latar belakang: dibaca ulang selama tugas berjalan atau masih diproses
+    refetchInterval: (query) => (status === "queued" || status === "running" || query.state.data?.data.some((d) => d.processing) ? 5000 : false),
   });
   return { Documents: data?.data ?? [] };
 };

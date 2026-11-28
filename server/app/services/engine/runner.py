@@ -36,6 +36,7 @@ from app.services.engine.prompts import (
 from app.services.engine.web import number_sources, public_query, searches_today, should_search
 from app.services.knowledge.scope import visible_to
 from app.services.knowledge.search import Hit, rank_chunks, reference_order, to_hit, tokenize
+from app.services.letters.content import NO_RULES_LETTER, asks_for_letter, clean_letter
 from app.services.llm.catalog import cost_in_rupiah
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import (
@@ -75,6 +76,8 @@ class RunResult:
     tokens: int = 0
     # Hanya untuk pemeriksaan: approved atau revise
     verdict: str | None = None
+    # Isi surat bila hasilnya surat (E3a)
+    letter: dict | None = None
 
 
 @dataclass
@@ -183,7 +186,7 @@ async def _private_names(session: AsyncSession, organization_id: uuid.UUID) -> l
     return [*members, *agents]
 
 
-async def _search_web(
+async def search_web(
     session: AsyncSession,
     caller: Caller,
     agent: Agent,
@@ -331,9 +334,14 @@ async def run_agent(
         if await searches_today(session, caller.organization_id) < settings.WEB_SEARCH_PER_DAY:
             await budget.require_budget(session, caller.organization_id)
             title = next((text for label, text in materials or [] if label == "Judul tugas"), brief)
-            web, web_cost = await _search_web(session, caller, agent, llm, query, title)
+            web, web_cost = await search_web(session, caller, agent, llm, query, title)
     if images or web:
         system = system_prompt(role, reviewing, with_images=bool(images), with_web=bool(web))
+    # Surat tetap disusun tanpa aturan: formatnya dicari kemudian dan ditandai (kontrak 18.1)
+    title = next((text for label, text in materials or [] if label == "Judul tugas"), "")
+    letter_request = not reviewing and asks_for_letter(f"{title} {brief}")
+    if letter_request and not excerpts:
+        system = f"{system}\n\n{NO_RULES_LETTER}"
     user = user_prompt(
         brief,
         labelled,
@@ -343,7 +351,7 @@ async def run_agent(
         web,
     )
     preview = f"{system}\n\n{user}"
-    if not excerpts and not reviewing and not images and not web:
+    if not excerpts and not reviewing and not images and not web and not letter_request:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
@@ -391,7 +399,9 @@ async def run_agent(
             f"{notes} Hasil ini tidak merujuk dokumen mana pun; periksa sebelum dipakai.".strip()
         )
     terms = tokenize(query)
+    letter = None if reviewing or status != "done" else clean_letter(data.get("letter"))
     return RunResult(
+        letter=letter,
         status=status,
         output=output,
         notes=notes,

@@ -51,7 +51,15 @@ async def _api_keys() -> list[ApiKeyInfo]:
 
 
 # Jenis pemakaian di layar menurut `llm_calls.kind` (kontrak 16.8)
-PURPOSES = ("task", "trial", "formation", "vision_ingest", "web_search", "schedule_parse")
+PURPOSES = (
+    "task",
+    "trial",
+    "formation",
+    "vision_ingest",
+    "web_search",
+    "schedule_parse",
+    "letter_format",
+)
 KIND_TO_PURPOSE = {"step": "task", "condition": "task"}
 
 

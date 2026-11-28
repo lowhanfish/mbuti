@@ -10,7 +10,7 @@ from app.core.exceptions import (
     NotFoundException,
     UnprocessableEntityException,
 )
-from app.models import Approval, Task
+from app.models import Approval, ResultDocument, Task
 from app.services.engine import decisions, flow
 from app.services.engine.dispatch import enqueue_task
 from app.services.engine.views import MANAGERS, ApprovalItem, approval_items, can_decide
@@ -87,6 +87,10 @@ async def decide(
         )
     await decisions.decide(session, task, approval, body.decision, body.comment, member.membership)
     await session.commit()
-    if task.status in ("queued", "running"):
+    # Tugas yang selesai lewat persetujuan ini masih perlu nomor dan berkas suratnya
+    has_letter = await session.scalar(
+        select(ResultDocument.id).where(ResultDocument.task_id == task.id).limit(1)
+    )
+    if task.status in ("queued", "running") or has_letter:
         await enqueue_task(task.id)
     return (await approval_items(session, Approval.id == wanted))[0][1]

@@ -186,6 +186,8 @@ export interface ResultDocument {
   number: string | null;
   /** Benar bila pengguna ini boleh memberi nomor sekarang */
   can_number: boolean;
+  /** Benar selama format, nomor, atau berkasnya masih dikerjakan server */
+  processing: boolean;
   /** Gambar tiap halaman PDF */
   pages: string[];
   docx_url: string | null;

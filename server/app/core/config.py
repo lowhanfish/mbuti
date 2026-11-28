@@ -181,6 +181,9 @@ class Settings(BaseSettings):
     WEB_SEARCH_BACKENDS: str = "yahoo,auto"
     WEB_SEARCH_PROVIDER_FALLBACK: bool = True
     WEB_SEARCH_TIMEOUT_SECONDS: int = 25
+    # Surat dan berkas hasil (E3a); kosong berarti `soffice` dicari otomatis
+    LIBREOFFICE_PATH: str = ""
+    DOCUMENT_CONVERT_TIMEOUT_SECONDS: int = 60
 
     # ==========================
     # PEMBENTUKAN ROLE (E1a)
@@ -196,6 +199,7 @@ class Settings(BaseSettings):
     RATE_ATTACHMENT_PER_MINUTE: int = 30
     RATE_PROPOSAL_PER_MINUTE: int = 20
     RATE_SCHEDULE_PARSE_PER_MINUTE: int = 10
+    RATE_LETTER_CORRECTION_PER_MINUTE: int = 10
     RATE_UPLOAD_PER_MINUTE: int = 20
     RATE_TASK_PER_MINUTE: int = 20
     RATE_SEARCH_PER_MINUTE: int = 60

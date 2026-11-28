@@ -31,7 +31,7 @@ const usageToday = (db: MockDatabase, orgId: string): UsageToday[] => {
   const tasks = new Set(db.tasks.filter((t) => t.organization_id === orgId).map((t) => t.id));
   for (const s of db.task_steps) if (tasks.has(s.task_id) && s.finished_at?.startsWith(day) && s.model) add("task", s.cost);
   for (const c of db.llm_calls) if (c.organization_id === orgId && c.created_at.startsWith(day)) add(c.purpose ?? "trial", c.cost);
-  return (["task", "trial", "formation", "vision_ingest", "web_search", "schedule_parse"] as UsagePurpose[]).map((p) => totals.get(p) ?? { purpose: p, calls: 0, cost: 0 });
+  return (["task", "trial", "formation", "vision_ingest", "web_search", "schedule_parse", "letter_format"] as UsagePurpose[]).map((p) => totals.get(p) ?? { purpose: p, calls: 0, cost: 0 });
 };
 
 const toModels = (db: MockDatabase, self: MockMembership): ModelResponse => {

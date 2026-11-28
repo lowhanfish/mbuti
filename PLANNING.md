@@ -987,7 +987,10 @@ organisasi (alur usulan E1).
 - [x] E3a kontrak API bagian 18 (28 November 2026). Diperjelas saat menulis: surat yang selesai tanpa persetujuan
       manusia diberi nomor lewat tombol **Beri nomor**; surat bernomor tidak bisa diubah; urutan nomor kembali ke 1
       tiap tahun
-- [ ] E3a backend dan uji
+- [x] E3a backend dan uji (28 November 2026): isi surat dari role, catatan format, DOCX dan PDF (LibreOffice),
+      nomor register, koreksi, dan pengaturan persuratan; migrasi `d9b4c7a2e815` terpasang di database dev. Belum
+      dicoba dengan Gemini maupun di peramban dengan backend. Server produksi nanti memerlukan LibreOffice
+- [ ] Coba E3a sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan
 - [ ] E3b spreadsheet
 - [ ] E3c mode penyusunan
 

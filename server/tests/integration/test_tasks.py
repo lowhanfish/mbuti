@@ -394,7 +394,10 @@ async def test_conditions_and_inactive_targets(world, database, office):
 async def test_missing_rules_go_to_a_human(world, sign_in, database):
     client = await sign_in("a_owner")
     (rani,) = await add_agents(world, "a", "Rani")
-    task_id = await create_task(client, rani)
+    # Bukan permintaan surat: surat tetap disusun walau belum ada aturannya (kontrak 18.1)
+    task_id = await create_task(
+        client, rani, title="Syarat cuti tahunan", brief="Jelaskan syarat cuti tahunan."
+    )
     llm = ScriptedLlm()
 
     await run(database, task_id, llm)

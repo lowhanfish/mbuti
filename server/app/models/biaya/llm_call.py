@@ -20,7 +20,7 @@ class LlmCall(Base):
     # Tugas dan langkahnya; kosong untuk uji coba
     task_id = Column(UUID(as_uuid=True), nullable=True)
     step_id = Column(UUID(as_uuid=True), nullable=True)
-    # step, condition, trial, formation, vision_ingest, web_search, schedule_parse
+    # step, condition, trial, formation, vision_ingest, web_search, schedule_parse, letter_format
     kind = Column(String(16), nullable=False)
     provider = Column(String(20), nullable=False)
     model = Column(String(60), nullable=False)

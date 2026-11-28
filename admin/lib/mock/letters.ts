@@ -159,6 +159,7 @@ export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] 
       version: 1,
       number: null,
       can_number: false,
+      processing: false,
       pages: [],
       docx_url: null,
       pdf_url: null,

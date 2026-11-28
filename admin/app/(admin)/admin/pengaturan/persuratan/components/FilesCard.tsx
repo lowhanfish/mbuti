@@ -2,9 +2,11 @@
 
 import React, { useRef } from "react";
 import { confirmAlert } from "@/lib/show_swall";
+import { useUrlStore } from "@/store/useUrlStore";
 import { formatDate } from "@/utilities/labels";
 import { Button, Card, CardContent, CardHeader, CardTitle, IconButton } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
+import { mediaSrc } from "../../../pengetahuan/types";
 import { useDeleteLetterhead, useDeleteSample, useUploadLetterhead, useUploadSample } from "../hooks/crud";
 import type { Letterhead, LetterSample } from "../types";
 
@@ -31,6 +33,7 @@ function Picker({ label, accept, loading, onFile }: { label: string; accept: str
 export function LetterheadCard({ letterheads, canEdit }: { letterheads: Letterhead[]; canEdit: boolean }) {
   const add = useUploadLetterhead();
   const remove = useDeleteLetterhead();
+  const apiBase = useUrlStore((state) => state.URL.APP);
   return (
     <Card>
       <CardHeader className="flex-wrap">
@@ -43,7 +46,7 @@ export function LetterheadCard({ letterheads, canEdit }: { letterheads: Letterhe
         {letterheads.map((k) => (
           <div key={k.id} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={k.image_url} alt={`Kop ${k.unit_name ?? "organisasi"}`} className="flex-1 min-w-0 max-h-24 object-contain" />
+            <img src={mediaSrc(k.image_url, apiBase)} alt={`Kop ${k.unit_name ?? "organisasi"}`} className="flex-1 min-w-0 max-h-24 object-contain" />
             <span className="text-xs text-slate-600">{k.unit_name ?? "Organisasi"}</span>
             {canEdit && (
               <IconButton label="Hapus kop" tone="danger" onClick={async () => (await confirmAlert("Hapus kop ini?", "Surat berikutnya tidak memakainya lagi.", "Ya, hapus")) && remove.mutate(k.id)}>

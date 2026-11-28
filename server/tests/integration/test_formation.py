@@ -353,6 +353,7 @@ async def test_catalog_and_usage_today(world, sign_in, run_jobs, database):
         "vision_ingest": 0,
         "web_search": 0,
         "schedule_parse": 0,
+        "letter_format": 0,
     }
     async with database() as session:
         assert (await session.scalars(select(ToolRequest))).all() == []

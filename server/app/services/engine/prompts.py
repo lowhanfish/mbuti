@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 from app.services.knowledge.search import Chunk
+from app.services.letters.content import LETTER_PROPERTY, LETTER_RULES
 
 # Temuan dan bacaan halaman hanya diisi bila ada gambar (E1c, kontrak 16.6)
 FINDINGS_PROPERTY = {
@@ -48,6 +49,7 @@ RESPONSE_SCHEMA = {
         "notes": {"type": "STRING"},
         "findings": FINDINGS_PROPERTY,
         "page_readings": READINGS_PROPERTY,
+        "letter": LETTER_PROPERTY,
     },
     "required": ["status", "output", "sources", "notes"],
 }
@@ -75,7 +77,7 @@ IMAGE_RULES = [
 REVIEW_SCHEMA = {
     "type": "OBJECT",
     "properties": {
-        **RESPONSE_SCHEMA["properties"],
+        **{k: v for k, v in RESPONSE_SCHEMA["properties"].items() if k != "letter"},
         "verdict": {"type": "STRING", "enum": ["approved", "revise"]},
     },
     "required": [*RESPONSE_SCHEMA["required"], "verdict"],
@@ -179,6 +181,8 @@ def system_prompt(
         "sebutkan perbedaannya di `notes`.",
         "6. Selain itu jawab `done`. Tulis dalam bahasa Indonesia.",
     ]
+    if not reviewing:
+        lines += LETTER_RULES
     if reviewing:
         lines += [
             "",

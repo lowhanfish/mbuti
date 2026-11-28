@@ -29,7 +29,8 @@ export type LetterFormat = {
 
 export type Letterhead = { id: string; unit_id: string | null; unit_name: string | null; image_url: string; created_at: string };
 
-export type IssuedNumber = { number: string; title: string; task_id: string; issued_at: string };
+/** task_id null bila tugasnya sudah dihapus */
+export type IssuedNumber = { number: string; title: string; task_id: string | null; issued_at: string };
 
 export type NumberRegister = {
   id: string;

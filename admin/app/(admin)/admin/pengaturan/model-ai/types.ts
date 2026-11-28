@@ -43,7 +43,7 @@ export interface ResponseInterface {
   updated_at: string;
 }
 
-export type UsagePurpose = "task" | "trial" | "formation" | "vision_ingest" | "web_search" | "schedule_parse";
+export type UsagePurpose = "task" | "trial" | "formation" | "vision_ingest" | "web_search" | "schedule_parse" | "letter_format";
 
 export interface UsageToday {
   purpose: UsagePurpose;
@@ -59,6 +59,7 @@ export const USAGE_PURPOSE_LABEL: Record<UsagePurpose, string> = {
   vision_ingest: "Gambar halaman (embedding)",
   web_search: "Pencarian internet",
   schedule_parse: "Memahami jadwal",
+  letter_format: "Format surat",
 };
 
 export interface UpdateInterface {

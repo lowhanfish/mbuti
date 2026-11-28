@@ -22,6 +22,14 @@ from app.models.pengetahuan import (
     DocumentVersion,
     KnowledgeProposal,
 )
+from app.models.surat import (
+    LetterFormat,
+    Letterhead,
+    LetterNumber,
+    LetterRegister,
+    LetterSample,
+    ResultDocument,
+)
 from app.models.tugas import Approval, Citation, Task, TaskAttachment, TaskEvent, TaskStep
 
 __all__ = [
@@ -41,6 +49,12 @@ __all__ = [
     "DocumentVersion",
     "KnowledgeProposal",
     "LlmCall",
+    "LetterFormat",
+    "LetterNumber",
+    "LetterRegister",
+    "LetterSample",
+    "Letterhead",
+    "ResultDocument",
     "MemberLeave",
     "FlowHuman",
     "FlowPosition",

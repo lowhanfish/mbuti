@@ -33,7 +33,11 @@ function Register({ register, canEdit }: { register: NumberRegister; canEdit: bo
           {register.issued.map((n) => (
             <li key={n.number} className="flex flex-wrap gap-x-2">
               <span className="font-mono text-ink">{n.number}</span>
-              <Link href={`/admin/tugas/${n.task_id}`} className="text-brand hover:underline">{n.title}</Link>
+              {n.task_id ? (
+                <Link href={`/admin/tugas/${n.task_id}`} className="text-brand hover:underline">{n.title}</Link>
+              ) : (
+                <span className="text-muted">{n.title}</span>
+              )}
               <span className="text-faint">{formatDate(n.issued_at)}</span>
             </li>
           ))}

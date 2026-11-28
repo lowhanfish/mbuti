@@ -224,6 +224,8 @@ class MockLlm:
     ) -> Generation:
         if "skills" in schema.get("properties", {}):
             return Generation(_mock_formation(user), len(system + user) // 4, 600)
+        if "margins" in schema.get("properties", {}):
+            return Generation(_mock_format(user), len(system + user) // 4, 80)
         if "time_mode" in schema.get("properties", {}):
             return Generation(_mock_schedule(user), len(system + user) // 4, 120)
         numbers = [int(n) for n in re.findall(r'<dokumen nomor="(\d+)"', user)]
@@ -233,6 +235,8 @@ class MockLlm:
             "sources": numbers[:1],
             "notes": "Dijawab penyedia tiruan.",
         }
+        if "letter" in schema.get("properties", {}) and "buat surat" in user.lower():
+            data.update(status="done", output="Surat disusun.", letter=_mock_letter(user))
         if images:
             # Satu temuan per gambar, merujuk potongan pertama bila ada
             data["status"] = "done"
@@ -342,6 +346,44 @@ def _mock_schedule(user: str) -> dict:
     clock = re.search(r"(?:pukul|jam)\s*(\d{1,2})[.:](\d{2})", text)
     if clock:
         data["time"] = f"{int(clock.group(1)):02d}:{clock.group(2)}"
+    return data
+
+
+def _mock_letter(user: str) -> dict:
+    subject = re.search(r"buat surat ([^\n.<]+)", user, re.IGNORECASE)
+    return {
+        "letter_type": "Surat Undangan" if "undangan" in user.lower() else "Surat Dinas",
+        "nature": "Biasa",
+        "subject": (subject.group(1).strip() if subject else "Pemberitahuan").capitalize(),
+        "recipients": ["Para Kepala Bidang"],
+        "blocks": [
+            {"type": "paragraph", "text": "Dengan hormat, kami mengundang Saudara."},
+            {"type": "fields", "rows": [["Hari", "Senin"], ["Tempat", "Ruang rapat"]]},
+        ],
+        "closing": "Atas perhatiannya diucapkan terima kasih.",
+        "signer_position": "Kepala Dinas",
+        "copies": ["Arsip"],
+    }
+
+
+def _mock_format(user: str) -> dict:
+    """Format tiruan: koreksi tembusan dan margin; selain itu ketentuan F4 dari "aturan"."""
+    correction = re.search(r"<koreksi>(.*?)</koreksi>", user, re.DOTALL)
+    if not correction:
+        return {
+            "paper": "F4",
+            "margins": {"top": 2, "left": 3},
+            "font_name": "Arial",
+            "number_pattern": "005/[urut]/UJI/[bulan]/[tahun]",
+        }
+    text = correction.group(1).lower()
+    data: dict = {}
+    side = re.search(r"tembusan.*?(kiri|kanan)", text)
+    if side:
+        data["copies_side"] = "left" if side.group(1) == "kiri" else "right"
+    margin = re.search(r"margin atas (\d)", text)
+    if margin:
+        data["margins"] = {"top": int(margin.group(1))}
     return data
 
 

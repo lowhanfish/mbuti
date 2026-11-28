@@ -15,10 +15,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.db.engine import build_async_engine
-from app.models import Task
+from app.models import ResultDocument, Task
 from app.models.base import utcnow
 from app.services.engine import flow
 from app.services.engine.execution import Providers, RetryLater, advance
+from app.services.letters import documents as letters
 from app.services.llm.embedding import get_embedding_provider
 from app.services.llm.generation import get_llm_provider
 from app.workers.celery_app import celery_app
@@ -48,6 +49,24 @@ async def _advance(sessions, task_id: uuid.UUID) -> bool:
     return await advance(sessions, task_id, Providers(get_llm_provider(), get_embedding_provider()))
 
 
+async def _documents(sessions, task_id: uuid.UUID) -> None:
+    """Berkas hasil dibuat di luar transaksi tugas; kegagalannya tidak mengubah tugas."""
+    await letters.finalize(sessions, task_id, get_llm_provider(), get_embedding_provider())
+
+
+async def _unfinished(sessions) -> list[str]:
+    async with sessions() as session:
+        ids = await session.scalars(
+            select(ResultDocument.task_id)
+            .where(
+                letters.pending_condition(),
+                ResultDocument.updated_at < utcnow() - IDLE_AFTER,
+            )
+            .distinct()
+        )
+        return [str(task_id) for task_id in ids]
+
+
 async def _give_up(sessions, task_id: uuid.UUID) -> None:
     async with sessions() as session:
         task = await flow.lock_task(session, task_id)
@@ -75,6 +94,7 @@ def execute_task(self, task_id: str) -> None:
             _run(lambda sessions: _give_up(sessions, uuid.UUID(task_id)))
             return
         raise self.retry(countdown=exc.seconds) from exc
+    _run(lambda sessions: _documents(sessions, uuid.UUID(task_id)))
     if more:
         # Pesan baru, agar hitungan percobaan ulang mulai dari nol untuk langkah berikutnya
         execute_task.apply_async(args=[task_id])
@@ -84,6 +104,7 @@ def execute_task(self, task_id: str) -> None:
 def recover_stalled() -> int:
     """Kirim ulang tugas yang pesannya hilang, mis. karena worker atau Redis mati."""
     stalled = _run(_stalled)
+    stalled = list(dict.fromkeys([*stalled, *_run(_unfinished)]))
     for task_id in stalled:
         execute_task.apply_async(args=[task_id])
     if stalled:

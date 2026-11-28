@@ -20,6 +20,7 @@ from app.services import budget
 from app.services.engine import flow, routing
 from app.services.engine.images import ImageInput, attachment_images
 from app.services.engine.runner import Caller, RunResult, evaluate_condition, run_agent
+from app.services.letters import documents as letters
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
 
@@ -434,6 +435,8 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
                     source_kind=hit.source_kind,
                 )
             )
+        if result.letter and step.kind == "work":
+            await letters.record(session, task, step, result.letter)
         agent = await session.get(Agent, step.agent_id)
         blocked = {
             "need_info": "butuh data tambahan",

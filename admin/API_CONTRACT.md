@@ -2414,6 +2414,9 @@ export interface ResultDocument {
 
 - `pages`, `docx_url`, dan `pdf_url` berisi alamat dua endpoint terakhir; hanya bisa dibuka dengan sesi anggota
   organisasi itu. Nama unduhan = judul berkas yang sudah dibersihkan.
+- **Permintaan membuat surat** ("buat/susun/siapkan … surat, undangan, nota dinas, edaran") tetap dikerjakan walau
+  tidak ada potongan aturan: model dipanggil, diberi tahu bahwa belum ada aturan persuratan, dan dilarang mengarang
+  data. Pertanyaan lain tanpa potongan tetap tidak memanggil model.
 - **Kapan berkas dibuat.** Jawaban model untuk langkah kerja boleh memuat objek `letter` bila hasilnya surat: jenis
   naskah, sifat, lampiran, hal, tujuan, isi berupa blok berurutan (paragraf, daftar, tabel, pasangan label-nilai),
   penutup, jabatan dan nama penanda tangan, serta tembusan. Tidak ada panggilan model tambahan untuk isinya. Program
@@ -2424,6 +2427,7 @@ export interface ResultDocument {
   dibuat dari PDF. Bila PDF gagal, `pdf_url` `null`, `pages` kosong, pemeriksaan menyebutnya, dan DOCX tetap ada.
 - Model **tidak** menulis nomor surat dan tidak membubuhkan tanda tangan. Nama pejabat yang tidak ada di rujukan atau
   arahan dikosongkan.
+- `processing` benar selama format, nomor otomatis, atau berkas masih dikerjakan; halaman membaca ulang selama itu.
 - `checks` dihitung program: bagian wajib menurut catatan format ada, penanda tangan terisi, nomor dari register, PDF
   terbuat.
 - `official` benar bila salah satu sumber berjenis `rule` atau `sample`.
@@ -2456,7 +2460,7 @@ export interface ResultDocument {
 
   Aturan menentukan ketentuan dan contoh menentukan tampilan; keduanya dicantumkan di `sources`. Pertentangan
   disebut di `checks`.
-- Penyusunan memakai **satu** panggilan model (tidak ada untuk `general`), dicatat dengan `kind: "letter_format"`.
+- Penyusunan memakai **satu** panggilan model (tidak ada bila hanya contoh Word atau `general`), dicatat dengan `kind: "letter_format"`.
   Server memeriksa hasilnya: margin 0,5–5 cm, huruf 8–16 pt, susunan bagian dari daftar yang dikenal; yang tidak sah
   memakai nilai bawaan. Model gagal → format `general`, tugas tetap jalan.
 - `koreksi`: teks 5–300 karakter. Satu panggilan model mengubah catatan format (kertas, margin, huruf, urutan bagian,

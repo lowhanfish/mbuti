@@ -24,6 +24,9 @@ from app.models import (
     AuditLog,
     CalendarDay,
     Document,
+    LetterFormat,
+    LetterRegister,
+    LetterSample,
     Membership,
     Schedule,
     Task,
@@ -50,6 +53,9 @@ CALENDAR_CHANGE = Action("kalender.ubah", "Mengubah kalender kerja")
 LEAVE_CHANGE = Action("cuti.ubah", "Mengubah cuti anggota")
 SCHEDULE_CHANGE = Action("rutin.ubah", "Mengubah tugas rutin")
 SCHEDULE_RUN = Action("rutin.jalankan", "Menjalankan tugas rutin")
+LETTER_CORRECTION = Action("surat.koreksi", "Mengoreksi format surat")
+LETTER_NUMBER = Action("surat.nomor", "Mengatur nomor surat")
+LETTER_SETTINGS = Action("surat.pengaturan", "Mengubah pengaturan persuratan")
 
 # Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta, atau
 # permintaan yang tidak menyimpan apa pun).
@@ -124,6 +130,18 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ("POST", "/tugas-rutin/{schedule_id}/jalankan"): SCHEDULE_RUN,
     ("POST", "/tugas-rutin/{schedule_id}/susulan/{run_id}"): SCHEDULE_RUN,
     ("POST", "/tugas-rutin/pahami"): None,
+    ("POST", "/tugas/{task_id}/berkas/{result_id}/koreksi"): LETTER_CORRECTION,
+    ("POST", "/tugas/{task_id}/berkas/{result_id}/nomor"): LETTER_NUMBER,
+    ("PUT", "/pengaturan/persuratan/register/{register_id}"): LETTER_NUMBER,
+    ("PUT", "/pengaturan/persuratan/format/{format_id}"): LETTER_SETTINGS,
+    ("DELETE", "/pengaturan/persuratan/format/{format_id}"): LETTER_SETTINGS,
+    ("DELETE", "/pengaturan/persuratan/format/{format_id}/koreksi/{correction_id}"): (
+        LETTER_SETTINGS
+    ),
+    ("POST", "/pengaturan/persuratan/kop"): LETTER_SETTINGS,
+    ("DELETE", "/pengaturan/persuratan/kop/{letterhead_id}"): LETTER_SETTINGS,
+    ("POST", "/pengaturan/persuratan/contoh"): LETTER_SETTINGS,
+    ("DELETE", "/pengaturan/persuratan/contoh/{sample_id}"): LETTER_SETTINGS,
     ("POST", "/tugas-rutin/pratinjau"): None,
     ("POST", "/pengetahuan/usulan"): Action("dokumen.usulan", "Mengusulkan temuan internet"),
     ("POST", "/pengetahuan/usulan/{proposal_id}/setujui"): Action(
@@ -228,6 +246,9 @@ async def _name_of(
             "shift_id": (WorkShift, WorkShift.name),
             "day_id": (CalendarDay, CalendarDay.name),
             "schedule_id": (Schedule, Schedule.title),
+            "format_id": (LetterFormat, LetterFormat.name),
+            "register_id": (LetterRegister, LetterRegister.name),
+            "sample_id": (LetterSample, LetterSample.file_name),
             "task_id": (Task, Task.title),
         }[key]
         query = select(column).where(model.id == wanted, model.organization_id == organization_id)
@@ -269,6 +290,9 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
         "shift_id",
         "day_id",
         "schedule_id",
+        "format_id",
+        "register_id",
+        "sample_id",
     ):
         if key in params:
             name = await _name_of(session, organization_id, key, params[key])
