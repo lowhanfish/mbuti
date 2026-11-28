@@ -1,9 +1,10 @@
 import { isFailure, newId, nowIso, requireManager, requireMember, text } from "../context";
 import { saveDb } from "../db";
-import { documentsOf, numberOf, redraw } from "../letters";
+import { assignNumber, documentsOf, numberOf, redraw, type MockResultFile } from "../letters";
 import { readImage } from "../media";
 import { fail, ok, type MockContext, type MockRoute } from "../router";
-import type { MockMembership } from "../seed";
+import type { MockTask } from "../engine";
+import type { MockDatabase, MockMembership } from "../seed";
 
 const BASE = "/api/v1/admin/pengaturan/persuratan";
 const TASK = "/api/v1/admin/tugas/:id/berkas";
@@ -11,6 +12,12 @@ const TASK = "/api/v1/admin/tugas/:id/berkas";
 const fileOf = (ctx: MockContext) => (ctx.body instanceof FormData ? ctx.body.get("file") : null);
 
 const findTask = (ctx: MockContext, self: MockMembership) => ctx.db.tasks.find((t) => t.id === ctx.params.id && t.organization_id === self.organization_id);
+
+/** Pemilik, admin, atau penanggung jawab role yang mengerjakan tugas */
+const canNumber = (db: MockDatabase, self: MockMembership, task: MockTask, doc: MockResultFile) =>
+  task.status === "completed" &&
+  !doc.number &&
+  (self.access_role === "owner" || self.access_role === "admin" || db.agents.find((a) => a.id === task.entry_agent_id)?.owner_member_id === self.id);
 
 /** Route pengaturan yang hanya boleh diubah pemilik dan admin */
 const managed = (method: string, path: string, run: (ctx: MockContext, self: MockMembership) => ReturnType<typeof ok> | Promise<ReturnType<typeof ok>>): MockRoute => ({
@@ -34,7 +41,7 @@ export const suratRoutes: MockRoute[] = [
       const documents = documentsOf(ctx.db, task);
       // Berkas dan nomornya dibuat saat pertama dibaca, jadi perlu disimpan
       saveDb();
-      return ok(documents);
+      return ok(documents.map((d) => ({ ...d, can_number: canNumber(ctx.db, self, task, d) })));
     },
   },
   {
@@ -48,6 +55,7 @@ export const suratRoutes: MockRoute[] = [
       const doc = task && documentsOf(ctx.db, task).find((d) => d.id === ctx.params.docId);
       const format = doc && ctx.db.letter_formats.find((f) => f.id === doc.format_id);
       if (!task || !doc || !format) return fail(404, "Berkas tidak ditemukan.");
+      if (doc.number) return fail(409, "Surat sudah bernomor dan tidak bisa diubah.");
       const correction = text((ctx.body as { text?: unknown })?.text, 300);
       if (correction.length < 5) return fail(422, "Tulis koreksinya lebih lengkap.");
       const author = ctx.db.users.find((u) => u.id === self.user_id)?.full_name ?? "Anggota";
@@ -56,6 +64,22 @@ export const suratRoutes: MockRoute[] = [
       Object.assign(doc, { version: doc.version + 1, updated_at: nowIso() });
       redraw(ctx.db, task, doc);
       return ok(doc, "Format diperbaiki.");
+    },
+  },
+  {
+    method: "POST",
+    path: `${TASK}/:docId/nomor`,
+    handler: (ctx) => {
+      const self = requireMember(ctx);
+      if (isFailure(self)) return self;
+      const task = findTask(ctx, self);
+      const doc = task && documentsOf(ctx.db, task).find((d) => d.id === ctx.params.docId);
+      if (!task || !doc) return fail(404, "Berkas tidak ditemukan.");
+      if (task.status !== "completed" || doc.number) return fail(409, "Surat belum selesai atau sudah bernomor.");
+      if (!canNumber(ctx.db, self, task, doc)) return fail(403, "Anda tidak dapat memberi nomor surat ini.");
+      assignNumber(ctx.db, task, doc);
+      redraw(ctx.db, task, doc);
+      return ok({ ...doc, can_number: false }, "Nomor surat diberikan.");
     },
   },
   {

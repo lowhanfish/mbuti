@@ -984,7 +984,9 @@ organisasi (alur usulan E1).
 - [x] E3a halaman dengan data contoh (28 November 2026): kartu Berkas hasil di detail tugas dan Pengaturan →
       Persuratan; mock `lib/mock/letters.ts` dan `routes/surat.ts`. Tombol unggah, koreksi, dan simpan register belum
       dicoba di peramban
-- [ ] E3a kontrak API
+- [x] E3a kontrak API bagian 18 (28 November 2026). Diperjelas saat menulis: surat yang selesai tanpa persetujuan
+      manusia diberi nomor lewat tombol **Beri nomor**; surat bernomor tidak bisa diubah; urutan nomor kembali ke 1
+      tiap tahun
 - [ ] E3a backend dan uji
 - [ ] E3b spreadsheet
 - [ ] E3c mode penyusunan

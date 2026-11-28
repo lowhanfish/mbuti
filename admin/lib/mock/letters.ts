@@ -131,7 +131,15 @@ const draw = (db: MockDatabase, task: MockTask, doc: MockResultFile) => {
   doc.format_checked = Boolean(format?.checked);
 };
 
-/** Berkas milik tugas surat; dibuat saat hasilnya ada, nomornya saat tugas selesai. */
+export const assignNumber = (db: MockDatabase, task: MockTask, doc: MockResultFile) => {
+  const at = new Date().toISOString();
+  const register = registerOf(db, task.organization_id, doc.letter_type);
+  doc.number = numberOf(register.pattern, register.next_number, at);
+  register.issued.unshift({ number: doc.number, title: task.title, task_id: task.id, issued_at: at });
+  register.next_number += 1;
+};
+
+/** Berkas milik tugas surat; dibuat saat hasilnya ada, nomornya saat disetujui manusia. */
 export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] => {
   if (!["waiting_approval", "completed"].includes(task.status) || !LETTER.test(`${task.title} ${task.brief}`)) return [];
   const at = new Date().toISOString();
@@ -150,6 +158,7 @@ export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] 
       format_id: format.id,
       version: 1,
       number: null,
+      can_number: false,
       pages: [],
       docx_url: null,
       pdf_url: null,
@@ -166,12 +175,8 @@ export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] 
     };
     db.task_documents.push(doc);
   }
-  if (task.status === "completed" && !doc.number) {
-    const register = registerOf(db, task.organization_id, doc.letter_type);
-    doc.number = numberOf(register.pattern, register.next_number, at);
-    register.issued.unshift({ number: doc.number, title: task.title, task_id: task.id, issued_at: at });
-    register.next_number += 1;
-  }
+  const approved = db.approvals.some((a) => a.task_id === task.id && a.status === "approved");
+  if (task.status === "completed" && approved && !doc.number) assignNumber(db, task, doc);
   registerOf(db, task.organization_id, doc.letter_type);
   draw(db, task, doc);
   return [doc];

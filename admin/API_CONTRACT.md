@@ -27,6 +27,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 15. [Akun mandiri (D1)](#15-akun-mandiri-d1)
 16. [Pembentukan role dan pengetahuan (E1)](#16-pembentukan-role-dan-pengetahuan-e1)
 17. [Tugas rutin, kalender kerja, dan cuti (E2)](#17-tugas-rutin-kalender-kerja-dan-cuti-e2)
+18. [Surat dan berkas hasil (E3a)](#18-surat-dan-berkas-hasil-e3a)
 
 ---
 
@@ -2360,3 +2361,213 @@ tanda kutip) dan tidak membatasi jumlah baris; tanggal dan jam memakai jam peram
 sebaran memakai hash sederhana; akhir shift lintas tengah malam belum pindah hari; libur di akhir pekan masih ikut
 dihitung untuk `workdays`; tidak ada coba ulang, susulan otomatis, atau email; `jalankan` dan `susulan` membuat tugas
 simulasi.
+
+## 18. Surat dan berkas hasil (E3a)
+
+Ditambahkan pada fase E (rancangan di `PLANNING.md`, bagian "E3. Surat dan berkas hasil"). Hasil tugas yang berupa
+surat menjadi berkas DOCX dan PDF. Tidak ada templat wajib dan tidak ada penanda isian. Semua rujukan, catatan
+format, kop, contoh, dan nomor milik satu organisasi.
+
+### 18.1 Berkas hasil
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| GET | `/admin/tugas/{id}/berkas` | Semua | | `ResultDocument[]` |
+| POST | `/admin/tugas/{id}/berkas/{berkasId}/koreksi` | Anggota+ | `{ text: string }` | `ResultDocument` |
+| POST | `/admin/tugas/{id}/berkas/{berkasId}/nomor` | Pemberi nomor | | `ResultDocument` |
+| GET | `/admin/tugas/{id}/berkas/{berkasId}/halaman/{n}` | Semua | | gambar halaman |
+| GET | `/admin/tugas/{id}/berkas/{berkasId}/unduh/{docx|pdf}` | Semua | | berkas |
+
+```ts
+/** Pemeriksaan hasil terhadap ketentuan rujukan */
+export interface DocumentCheck {
+  text: string;
+  passed: boolean;
+  /** Letak ketentuannya, mis. "Aturan, hlm. 14"; boleh kosong */
+  ref: string;
+}
+
+/** Berkas hasil tugas (E3a); dibuat program dari susunan yang ditulis role */
+export interface ResultDocument {
+  id: string;
+  title: string;
+  letter_type: string;
+  format_id: string | null;
+  version: number;
+  /** Diberikan saat surat disetujui; null sebelum itu */
+  number: string | null;
+  /** Benar bila pengguna ini boleh memberi nomor sekarang */
+  can_number: boolean;
+  /** Gambar tiap halaman PDF */
+  pages: string[];
+  docx_url: string | null;
+  pdf_url: string | null;
+  sources: LetterSource[];
+  format_checked: boolean;
+  /** Benar bila formatnya bersumber dari aturan atau contoh resmi organisasi */
+  official: boolean;
+  checks: DocumentCheck[];
+  created_at: string;
+  updated_at: string;
+}
+```
+
+- `pages`, `docx_url`, dan `pdf_url` berisi alamat dua endpoint terakhir; hanya bisa dibuka dengan sesi anggota
+  organisasi itu. Nama unduhan = judul berkas yang sudah dibersihkan.
+- **Kapan berkas dibuat.** Jawaban model untuk langkah kerja boleh memuat objek `letter` bila hasilnya surat: jenis
+  naskah, sifat, lampiran, hal, tujuan, isi berupa blok berurutan (paragraf, daftar, tabel, pasangan label-nilai),
+  penutup, jabatan dan nama penanda tangan, serta tembusan. Tidak ada panggilan model tambahan untuk isinya. Program
+  memeriksa panjang dan jumlah blok; isi yang tidak sah diabaikan dan hasil teks tetap tersimpan.
+- Satu berkas per pasangan tugas dan role; hasil revisi menaikkan `version` pada berkas yang sama. `title` = judul
+  tugas.
+- Program membuat DOCX (python-docx) dari isi dan catatan format, lalu LibreOffice membuat PDF dan gambar halaman
+  dibuat dari PDF. Bila PDF gagal, `pdf_url` `null`, `pages` kosong, pemeriksaan menyebutnya, dan DOCX tetap ada.
+- Model **tidak** menulis nomor surat dan tidak membubuhkan tanda tangan. Nama pejabat yang tidak ada di rujukan atau
+  arahan dikosongkan.
+- `checks` dihitung program: bagian wajib menurut catatan format ada, penanda tangan terisi, nomor dari register, PDF
+  terbuat.
+- `official` benar bila salah satu sumber berjenis `rule` atau `sample`.
+
+### 18.2 Nomor surat
+
+- Nomor diberikan **otomatis** saat tugas menjadi `completed` dan sedikitnya satu persetujuan tugas itu disetujui
+  manusia.
+- Tugas yang selesai tanpa persetujuan manusia tidak mendapat nomor sendiri. **Pemberi nomor** (pemilik, admin, atau
+  penanggung jawab role pembuat berkas) menekan `nomor`. `can_number` benar bila tugas `completed`, belum bernomor,
+  dan pengguna termasuk pemberi nomor; selain itu endpoint dijawab `409` (belum selesai atau sudah bernomor) atau
+  `403`.
+- Satu register per jenis naskah per organisasi. Pola boleh memuat `[urut]` (wajib, tiga angka), `[bulan]` (angka
+  Romawi), dan `[tahun]`, menurut zona waktu organisasi. Urutan kembali ke 1 saat tahun berganti. Pola awal diambil
+  dari rujukan; bila tidak ada, `[urut]/[bulan]/[tahun]`.
+- Baris register dikunci saat nomor diambil, dan nomor unik per register: dua persetujuan bersamaan tidak
+  menghasilkan nomor sama. Nomor yang sudah terbit tidak dipakai ulang walau tugasnya dihapus.
+- Sesudah bernomor, DOCX dan PDF dibuat ulang dengan nomornya. **Surat bernomor tidak bisa diubah** (`409` pada
+  koreksi); isi baru memakai tugas baru.
+
+### 18.3 Catatan format dan koreksi
+
+- Saat sebuah jenis naskah **pertama kali** dibuat di organisasi itu, server menyusun catatan format dari sumber
+  pertama yang tersedia:
+  1. `rule`: potongan pengetahuan organisasi tentang persuratan (pustaka kebijakan didahulukan);
+  2. `sample`: contoh surat Word (nama berkas yang memuat jenis naskahnya, selain itu yang terbaru): ukuran kertas,
+     margin, huruf, dan kop dibaca langsung dari berkasnya;
+  3. `internet`: pencarian (16.7), hanya bila role dan tugas mengizinkan internet;
+  4. `general`: A4, margin atas 2,5, kanan 2, bawah 2,5, kiri 3 cm, Arial 12 pt.
+
+  Aturan menentukan ketentuan dan contoh menentukan tampilan; keduanya dicantumkan di `sources`. Pertentangan
+  disebut di `checks`.
+- Penyusunan memakai **satu** panggilan model (tidak ada untuk `general`), dicatat dengan `kind: "letter_format"`.
+  Server memeriksa hasilnya: margin 0,5–5 cm, huruf 8–16 pt, susunan bagian dari daftar yang dikenal; yang tidak sah
+  memakai nilai bawaan. Model gagal → format `general`, tugas tetap jalan.
+- `koreksi`: teks 5–300 karakter. Satu panggilan model mengubah catatan format (kertas, margin, huruf, urutan bagian,
+  posisi tanggal, tanda tangan, dan tembusan). Koreksi yang tidak bisa diterapkan → `422` dan tidak disimpan. Bila
+  berhasil: koreksi dicatat, `checked` kembali `false`, berkas dibuat ulang dengan `version` naik. Isi surat tidak
+  diubah lewat koreksi.
+- Perubahan catatan format tidak mengubah berkas lain yang sudah ada.
+
+### 18.4 Pengaturan persuratan
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| GET | `/admin/pengaturan/persuratan` | Semua | | `LetterSettings` |
+| PUT | `/admin/pengaturan/persuratan/format/{id}` | Admin+ | `{ checked: boolean }` | `null` |
+| DELETE | `/admin/pengaturan/persuratan/format/{id}` | Admin+ | | `null` |
+| DELETE | `/admin/pengaturan/persuratan/format/{id}/koreksi/{koreksiId}` | Admin+ | | `null` |
+| POST | `/admin/pengaturan/persuratan/kop` | Admin+ | `multipart/form-data`: `file`, `unit_id` (opsional) | `null` (201) |
+| GET | `/admin/pengaturan/persuratan/kop/{id}/gambar` | Semua | | gambar |
+| DELETE | `/admin/pengaturan/persuratan/kop/{id}` | Admin+ | | `null` |
+| PUT | `/admin/pengaturan/persuratan/register/{id}` | Admin+ | `RegisterRequest` | `null` |
+| POST | `/admin/pengaturan/persuratan/contoh` | Admin+ | `multipart/form-data`: `file` | `null` (201) |
+| DELETE | `/admin/pengaturan/persuratan/contoh/{id}` | Admin+ | | `null` |
+
+```ts
+/** Urutan rujukan format surat (E3a): aturan, contoh Word, internet, lalu bentuk umum */
+export type LetterSourceKind = "rule" | "sample" | "internet" | "general";
+
+export type LetterSource = {
+  kind: LetterSourceKind;
+  title: string;
+  /** Letak di rujukan, mis. "hlm. 14"; boleh kosong */
+  detail: string;
+  url: string | null;
+  document_id: string | null;
+};
+
+export type FormatCorrection = { id: string; text: string; author_name: string; created_at: string };
+
+/** Catatan format satu jenis naskah, disusun saat pertama kali diminta */
+export type LetterFormat = {
+  id: string;
+  name: string;
+  paper: string;
+  /** Sentimeter */
+  margins: { top: number; right: number; bottom: number; left: number };
+  font: string;
+  sections: string[];
+  sources: LetterSource[];
+  checked: boolean;
+  corrections: FormatCorrection[];
+  updated_at: string;
+};
+
+export type Letterhead = { id: string; unit_id: string | null; unit_name: string | null; image_url: string; created_at: string };
+
+export type IssuedNumber = { number: string; title: string; task_id: string; issued_at: string };
+
+export type NumberRegister = {
+  id: string;
+  name: string;
+  /** Boleh memuat [urut], [bulan], dan [tahun]; [urut] wajib */
+  pattern: string;
+  next_number: number;
+  /** Contoh nomor berikutnya menurut pola */
+  preview: string;
+  issued: IssuedNumber[];
+};
+
+export type RegisterRequest = { pattern: string; next_number: number };
+
+export type LetterSample = { id: string; file_name: string; size_bytes: number; uploaded_by_name: string | null; created_at: string };
+
+export type LetterSettings = {
+  formats: LetterFormat[];
+  letterheads: Letterhead[];
+  registers: NumberRegister[];
+  samples: LetterSample[];
+  can_edit: boolean;
+};
+```
+
+- Menghapus catatan format: berkas yang sudah ada tetap; catatan disusun lagi saat surat berikutnya. Menghapus satu
+  koreksi hanya menghapus catatannya, tata letak yang sudah berubah tidak dikembalikan (gunakan susun ulang).
+- Kop: PNG atau JPG ≤ 2 MB, ditulis ulang oleh server (metadata dibuang); satu per organisasi atau unit, unggahan
+  baru menggantikan. Surat memakai kop unit role, lalu kop organisasi, lalu kop dari contoh Word, lalu teks nama
+  organisasi. Halaman saat ini mengelola kop organisasi saja.
+- Register: `pattern` ≤ 80 karakter memuat `[urut]`; `next_number` 1–999999 (`422`). Nomor hasil yang sudah pernah
+  terbit → `409`. `preview` = nomor berikutnya hari ini; `issued` = 50 terbaru.
+- Contoh: `.docx` ≤ 10 MB, isi terurai ≤ 50 MB, tanpa makro (`422`).
+
+### 18.5 Keamanan pengolahan berkas
+
+Berkas dari tenant dianggap tidak tepercaya. LibreOffice dijalankan sebagai proses terpisah tanpa layar, dengan
+profil sementara, makro dan pembaruan tautan luar dimatikan, serta batas waktu. Berkas disimpan per organisasi di
+folder unggahan. Isi rujukan dan contoh masuk prompt sebagai data, bukan perintah.
+
+### 18.6 Pengaturan server, batas laju, dan jejak audit
+
+| `.env` | Bawaan | Dipakai untuk |
+|---|---|---|
+| `LIBREOFFICE_PATH` | dicari otomatis | Program `soffice` |
+| `DOCUMENT_CONVERT_TIMEOUT_SECONDS` | 60 | Batas waktu membuat PDF |
+| `RATE_LETTER_CORRECTION_PER_MINUTE` | 10 | Koreksi format, per pengguna |
+
+`UsagePurpose` (16.8) bertambah `letter_format` ("Format surat"), sehingga `usage_today` menjadi tujuh baris.
+
+Jejak audit baru: `surat.koreksi`, `surat.nomor` (memberi nomor dan mengubah register), dan `surat.pengaturan`
+(catatan format, kop, contoh). Isi surat tidak dicatat.
+
+### 18.7 Khusus data contoh
+
+Hanya simulasi, jangan ditiru backend: surat dikenali dari kata di judul atau arahan; isi dan pemeriksaan memakai
+pola tetap; halaman berupa gambar SVG; DOCX berupa HTML berekstensi `.doc` dan PDF tidak ada; koreksi hanya memahami
+letak tembusan; pola awal register dikarang; urutan tidak diulang per tahun; berkas dibuat saat pertama dibaca.

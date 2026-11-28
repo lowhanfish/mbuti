@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { confirmAlert } from "@/lib/show_swall";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Modal } from "../../../../_components/ui";
 import { buttonClasses } from "../../../../_components/ui/button-classes";
 import { SOURCE_KIND } from "../../../pengaturan/persuratan/types";
-import { useCorrectDocument, useResponseDocuments } from "../../hooks/documents";
+import { useCorrectDocument, useNumberDocument, useResponseDocuments } from "../../hooks/documents";
 import type { ResultDocument, TaskStatus } from "../../types";
 
 function DocumentView({ taskId, doc }: { taskId: string; doc: ResultDocument }) {
   const [text, setText] = useState("");
   const [page, setPage] = useState<string | null>(null);
   const correct = useCorrectDocument(taskId);
+  const assign = useNumberDocument(taskId);
   const failed = doc.checks.filter((c) => !c.passed).length;
 
   return (
@@ -28,7 +30,7 @@ function DocumentView({ taskId, doc }: { taskId: string; doc: ResultDocument }) 
         <div>
           <p className="font-semibold text-ink">{doc.title}</p>
           <p className="text-xs text-muted">
-            {doc.letter_type} · versi {doc.version} · Nomor: {doc.number ?? "diberikan saat disetujui"}
+            {doc.letter_type} · versi {doc.version} · Nomor: {doc.number ?? (doc.can_number ? "belum diberikan" : "diberikan saat disetujui")}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -72,20 +74,36 @@ function DocumentView({ taskId, doc }: { taskId: string; doc: ResultDocument }) 
           ) : (
             <Button size="sm" variant="outline" disabled title="PDF dibuat oleh server">Unduh PDF</Button>
           )}
+          {doc.can_number && (
+            <Button
+              size="sm"
+              variant="accent"
+              loading={assign.isPending}
+              onClick={async () => {
+                if (await confirmAlert("Beri nomor surat ini?", "Surat yang sudah bernomor tidak bisa diubah lagi.", "Ya, beri nomor")) assign.mutate(doc.id);
+              }}
+            >
+              Beri nomor
+            </Button>
+          )}
           <Link href="/admin/pengaturan/persuratan" className="self-center text-xs font-semibold text-brand hover:underline">Catatan format</Link>
         </div>
-        <form
-          className="flex flex-col sm:flex-row gap-2 sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            correct.mutate({ id: doc.id, text: text.trim() }, { onSuccess: () => setText("") });
-          }}
-        >
-          <div className="flex-1">
-            <Input label="Perbaiki format" maxLength={300} value={text} onChange={(e) => setText(e.target.value)} placeholder="mis. tembusan taruh di kiri bawah" />
-          </div>
-          <Button type="submit" variant="outline" size="sm" disabled={text.trim().length < 5} loading={correct.isPending}>Perbaiki</Button>
-        </form>
+        {doc.number ? (
+          <p className="text-xs text-faint">Surat sudah bernomor dan tidak bisa diubah.</p>
+        ) : (
+          <form
+            className="flex flex-col sm:flex-row gap-2 sm:items-end"
+            onSubmit={(e) => {
+              e.preventDefault();
+              correct.mutate({ id: doc.id, text: text.trim() }, { onSuccess: () => setText("") });
+            }}
+          >
+            <div className="flex-1">
+              <Input label="Perbaiki format" maxLength={300} value={text} onChange={(e) => setText(e.target.value)} placeholder="mis. tembusan taruh di kiri bawah" />
+            </div>
+            <Button type="submit" variant="outline" size="sm" disabled={text.trim().length < 5} loading={correct.isPending}>Perbaiki</Button>
+          </form>
+        )}
       </div>
       <Modal isOpen={Boolean(page)} onClose={() => setPage(null)} title={doc.title} maxWidth="lg">
         {/* eslint-disable-next-line @next/next/no-img-element */}

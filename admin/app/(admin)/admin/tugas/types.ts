@@ -184,6 +184,8 @@ export interface ResultDocument {
   version: number;
   /** Diberikan saat surat disetujui; null sebelum itu */
   number: string | null;
+  /** Benar bila pengguna ini boleh memberi nomor sekarang */
+  can_number: boolean;
   /** Gambar tiap halaman PDF */
   pages: string[];
   docx_url: string | null;

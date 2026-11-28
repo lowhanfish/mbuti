@@ -32,3 +32,17 @@ export const useCorrectDocument = (taskId: string) => {
     onError: (err: Error) => swallAlert(`gagal: ${err.message}`, "error"),
   });
 };
+
+export const useNumberDocument = (taskId: string) => {
+  const url = useUrlStore((state) => state.URL.APP);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fetchData(`${base(url, taskId)}/${id}/nomor`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tugas", "berkas", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["pengaturan", "persuratan"] });
+      swallAlert("nomor surat diberikan", "success");
+    },
+    onError: (err: Error) => swallAlert(`gagal: ${err.message}`, "error"),
+  });
+};
