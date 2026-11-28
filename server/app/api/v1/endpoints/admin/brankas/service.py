@@ -26,9 +26,10 @@ from app.core.exceptions import (
 )
 from app.core.totp import TotpKey, parse_key
 from app.db.transaction import commit_or_raise_unique_conflict
-from app.models import Agent, Membership, User, VaultAccount
+from app.models import Agent, BrowserFlow, Membership, User, VaultAccount
 from app.models.base import utcnow
 from app.services import two_factor
+from app.services.browser.accounts import is_locked
 from app.services.vault import secrets
 from app.services.vault.addresses import origin_of
 
@@ -111,15 +112,6 @@ async def _account(session: AsyncSession, scope: Scope, account_id: str) -> Vaul
     return account
 
 
-def is_locked(account: VaultAccount, responsible: Membership | None) -> bool:
-    """Tidak dipakai sampai penanggung jawab yang sekarang menyimpan atau mengonfirmasinya."""
-    return (
-        responsible is None
-        or responsible.status != "active"
-        or account.responsible_member_id != responsible.id
-    )
-
-
 def _item(scope: Scope, account: VaultAccount) -> VaultAccountItem:
     sees_username = scope.member.access_role in ("owner", "admin") or (
         scope.responsible is not None and scope.responsible.id == scope.member.membership.id
@@ -133,6 +125,7 @@ def _item(scope: Scope, account: VaultAccount) -> VaultAccountItem:
         has_password=True,
         has_totp=account.totp_encrypted is not None,
         locked=is_locked(account, scope.responsible),
+        login_failed=account.login_blocked_at is not None,
         password_changed_at=account.password_changed_at,
         last_used_at=account.last_used_at,
         created_at=account.created_at,
@@ -238,10 +231,21 @@ async def update_account(
                 "Alamat berubah ke situs lain: isi ulang kunci authenticator atau hapus."
             )
     await two_factor.require_code(session, member.user.id, body.code)
+    changed_identity = bool(
+        password
+        or body.url != secrets.open_text(account, "url")
+        or body.username != secrets.open_text(account, "username")
+    )
     _write(account, body)
     if password:
         secrets.seal(account, "password", password)
         account.password_changed_at = utcnow()
+        account.login_blocked_at = None
+    if changed_identity or origins != known:
+        # Sesi lama milik akun atau alamat sebelumnya
+        account.session_encrypted = None
+    if origins - known:
+        await _distrust(session, account, "Alamat akun berubah. Pelajari ulang alur ini.")
     if key is not None:
         secrets.seal_totp(account, key)
     elif body.remove_totp:
@@ -249,6 +253,22 @@ async def update_account(
     account.updated_at = utcnow()
     await commit_or_raise_unique_conflict(session, NAME_TAKEN)
     return _item(scope, account)
+
+
+async def _distrust(session: AsyncSession, account: VaultAccount, repair: str = "") -> None:
+    """
+    Alur akun ini tidak boleh lagi mengirim tanpa persetujuan. `repair` diisi bila langkahnya
+    juga tidak bisa dipakai lagi.
+    """
+    flows = await session.scalars(
+        select(BrowserFlow).where(BrowserFlow.account_id == account.id).with_for_update()
+    )
+    for flow in flows:
+        flow.trusted_submit = False
+        if repair and flow.status != "learning":
+            flow.status = "needs_repair"
+            flow.note = repair
+        flow.updated_at = utcnow()
 
 
 async def delete_account(
@@ -268,6 +288,8 @@ async def confirm_account(
     account = await _account(session, scope, account_id)
     await two_factor.require_code(session, member.user.id, code)
     account.responsible_member_id = member.membership.id
+    account.login_blocked_at = None
+    await _distrust(session, account)
     account.updated_at = utcnow()
     await session.commit()
     return _item(scope, account)

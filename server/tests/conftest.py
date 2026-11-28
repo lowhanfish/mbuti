@@ -13,6 +13,8 @@ os.environ["ALLOWED_ORIGINS"] = '["http://localhost:3000"]'
 os.environ["EMBEDDING_PROVIDER"] = "mock"
 os.environ["LLM_PROVIDER"] = "mock"
 # Kunci brankas acak per pengujian; tes tidak membuat atau membaca server/.vault-key
+os.environ["BROWSER_ACTION_DELAY_MS"] = "0"
+os.environ["BROWSER_TIMEOUT_MS"] = "5000"
 os.environ["VAULT_KEY"] = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
 # Tes tidak pernah mencari di internet sungguhan
 os.environ["WEB_SEARCH_FREE"] = "false"

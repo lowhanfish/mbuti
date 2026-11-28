@@ -21,6 +21,7 @@ from app.api.deps import get_db
 from app.core.config import SERVER_DIR, settings
 from app.core.rate_limit import key_prefix
 from app.db.engine import build_async_engine
+from app.workers.browser import execute_browser_run
 from app.workers.execution import execute_task
 from app.workers.formation import run_formation
 from app.workers.ingestion import process_version
@@ -121,6 +122,16 @@ def queued_formations(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Analisis dan putaran tanya jawab: tes menjalankan pekerjaannya sendiri."""
     queued: list[str] = []
     monkeypatch.setattr(run_formation, "apply_async", lambda args, **_: queued.append(args[0]))
+    return queued
+
+
+@pytest.fixture(autouse=True)
+def queued_runs(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Putaran aplikasi luar: tes menjalankan pelarinya sendiri."""
+    queued: list[str] = []
+    monkeypatch.setattr(
+        execute_browser_run, "apply_async", lambda args, **_: queued.append(args[0])
+    )
     return queued
 
 

@@ -22,6 +22,8 @@ from app.models import (
     AgentRelation,
     Approval,
     AuditLog,
+    BrowserFlow,
+    BrowserRun,
     CalendarDay,
     Document,
     LetterFormat,
@@ -57,6 +59,7 @@ SCHEDULE_RUN = Action("rutin.jalankan", "Menjalankan tugas rutin")
 LETTER_CORRECTION = Action("surat.koreksi", "Mengoreksi format surat")
 LETTER_NUMBER = Action("surat.nomor", "Mengatur nomor surat")
 LETTER_SETTINGS = Action("surat.pengaturan", "Mengubah pengaturan persuratan")
+FLOW_LEARN = Action("alur.belajar", "Mengajari alur aplikasi")
 
 # Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta, atau
 # permintaan yang tidak menyimpan apa pun).
@@ -105,6 +108,21 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ),
     ("POST", "/role/{role_id}/brankas/{account_id}/kode"): Action(
         "brankas.kode", "Melihat kode authenticator"
+    ),
+    ("POST", "/role/{role_id}/alur"): FLOW_LEARN,
+    ("POST", "/alur/{flow_id}/pelajari"): FLOW_LEARN,
+    ("POST", "/alur/{flow_id}/setujui"): Action("alur.setujui", "Menyetujui alur aplikasi"),
+    ("POST", "/alur/{flow_id}/jalankan"): Action("alur.jalankan", "Menjalankan alur aplikasi"),
+    ("POST", "/alur/{flow_id}/tanpa-persetujuan"): Action(
+        "alur.persetujuan", "Mengubah persetujuan alur"
+    ),
+    ("POST", "/alur/{flow_id}/hapus"): Action("alur.hapus", "Menghapus alur aplikasi"),
+    ("POST", "/alur-jalan/{browser_run_id}/putuskan"): Action(
+        "alur.putuskan", "Memutuskan putaran alur"
+    ),
+    ("POST", "/alur-jalan/{browser_run_id}/otp"): Action("alur.otp", "Mengirim kode OTP"),
+    ("POST", "/alur-jalan/{browser_run_id}/hentikan"): Action(
+        "alur.hentikan", "Menghentikan putaran alur"
     ),
     ("POST", "/relasi/create"): Action("relasi.buat", "Membuat relasi"),
     ("PUT", "/relasi/update/{relation_id}"): Action("relasi.ubah", "Mengubah relasi"),
@@ -236,6 +254,12 @@ async def _name_of(
             .join(Membership, Membership.user_id == User.id)
             .where(Membership.id == wanted, Membership.organization_id == organization_id)
         )
+    elif key == "browser_run_id":
+        query = (
+            select(BrowserFlow.name)
+            .join(BrowserRun, BrowserRun.flow_id == BrowserFlow.id)
+            .where(BrowserRun.id == wanted, BrowserFlow.organization_id == organization_id)
+        )
     elif key == "approval_id":
         query = (
             select(Task.title)
@@ -269,6 +293,7 @@ async def _name_of(
             "sample_id": (LetterSample, LetterSample.file_name),
             "task_id": (Task, Task.title),
             "account_id": (VaultAccount, VaultAccount.name),
+            "flow_id": (BrowserFlow, BrowserFlow.name),
         }[key]
         query = select(column).where(model.id == wanted, model.organization_id == organization_id)
     return await session.scalar(query) or ""
@@ -308,6 +333,8 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
         return " · ".join(part for part in (account, role) if part)
     # Parameter pertama menyebut benda utamanya, mis. dokumen sebelum versinya
     for key in (
+        "flow_id",
+        "browser_run_id",
         "approval_id",
         "task_id",
         "document_id",
@@ -324,6 +351,9 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
     ):
         if key in params:
             name = await _name_of(session, organization_id, key, params[key])
+            if key == "browser_run_id":
+                decision = DECISIONS.get((await _payload(request)).get("decision", ""), "")
+                return f"{name} ({decision})" if decision else name
             if key == "approval_id":
                 decision = DECISIONS.get((await _payload(request)).get("decision", ""), "")
                 return f"{name} ({decision})" if decision else name

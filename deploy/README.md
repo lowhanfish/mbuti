@@ -31,6 +31,9 @@ sudo -u mbuti git clone https://github.com/lowhanfish/mbuti.git /opt/mbuti
 cd /opt/mbuti/server
 sudo -u mbuti python3.12 -m venv .venv
 sudo -u mbuti .venv/bin/pip install -e .
+# Chromium untuk bekerja di aplikasi luar (E4b): pustaka sistemnya, lalu perambannya
+sudo .venv/bin/playwright install-deps chromium-headless-shell
+sudo -u mbuti env PLAYWRIGHT_BROWSERS_PATH=/var/lib/mbuti/browsers .venv/bin/playwright install --only-shell chromium
 sudo install -o mbuti -g mbuti -m 600 /opt/mbuti/deploy/env/server.env.contoh .env
 sudo -u mbuti nano .env
 sudo -u mbuti .venv/bin/alembic upgrade head
@@ -57,7 +60,7 @@ sudo -u mbuti npm run build
 ```bash
 sudo cp /opt/mbuti/deploy/systemd/* /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now mbuti-api mbuti-worker mbuti-worker-eksekusi mbuti-beat mbuti-web
+sudo systemctl enable --now mbuti-api mbuti-worker mbuti-worker-eksekusi mbuti-worker-browser mbuti-beat mbuti-web
 sudo systemctl enable --now mbuti-cadangan.timer mbuti-periksa.timer
 ```
 
@@ -85,7 +88,7 @@ sudo systemctl start mbuti-cadangan
 cd /opt/mbuti && sudo -u mbuti git pull
 cd server && sudo -u mbuti .venv/bin/pip install -e . && sudo -u mbuti .venv/bin/alembic upgrade head
 cd ../admin && sudo -u mbuti npm ci && sudo -u mbuti npm run build
-sudo systemctl restart mbuti-api mbuti-worker mbuti-worker-eksekusi mbuti-beat mbuti-web
+sudo systemctl restart mbuti-api mbuti-worker mbuti-worker-eksekusi mbuti-worker-browser mbuti-beat mbuti-web
 ```
 
 ## Cadangan dan pemulihan
@@ -115,3 +118,11 @@ dibutuhkan. Uji pemulihan ke database percobaan secara berkala.
 
 Pemberitahuan otomatis (email atau pesan) belum ada; hubungkan status layanan systemd ke alat
 pemantauan Anda.
+
+## Aplikasi luar (E4b)
+
+- Worker `mbuti-worker-browser` menjalankan satu Chromium per putaran. Aplikasi menolak sambungan peramban ke alamat
+  jaringan internal. Pasang juga aturan firewall keluar untuk pengguna `mbuti` sebagai lapis kedua.
+- Bila Chromium gagal menyala karena kotak pasir tidak didukung server, aktifkan *user namespaces*; jalan terakhir
+  `BROWSER_SANDBOX=false`.
+

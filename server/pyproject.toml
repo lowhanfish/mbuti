@@ -34,6 +34,9 @@ dependencies = [
     # Brankas dan verifikasi dua langkah (E4a); cryptography Apache/BSD, segno BSD (gambar QR)
     "cryptography>=44",
     "segno>=1.6,<2",
+    # Membuka aplikasi luar (E4b); Playwright Apache, Chromium BSD.
+    # Sesudah dipasang: playwright install --only-shell chromium
+    "playwright>=1.55,<2",
 ]
 
 [project.optional-dependencies]

@@ -1135,8 +1135,8 @@ desktop dan ponsel tidak termasuk.
 **Tahapan** (tiap tahap: halaman data contoh → kontrak API → backend → uji dengan aplikasi tiruan lokal):
 
 - [x] E4a verifikasi dua langkah akun MBUTI, brankas, dan kode authenticator (29 November 2026)
-- [ ] E4b belajar alur, memutar ulang, dan bukti. Memerlukan Playwright (Apache) dan Chromium (BSD), sekitar 500 MB:
-      minta izin sebelum memasang
+- [x] E4b belajar alur, memutar ulang, dan bukti (29 November 2026). Playwright (Apache) dan Chromium (BSD) dipasang
+      dengan izin
 - [ ] E4c alur dipakai dalam tugas dan tugas rutin, dengan persetujuan
 
 **Catatan E4a** (29 November 2026):
@@ -1156,6 +1156,34 @@ desktop dan ponsel tidak termasuk.
   dev. Tidak memanggil model
 - Belum dicoba dari halaman aplikasi terhadap backend asli, termasuk memindai QR dengan aplikasi authenticator
   sungguhan: masuk sesi perbaikan
+
+**Catatan E4b** (29 November 2026):
+
+- Dipasang dengan izin: pustaka `playwright` 1.65.2 (Apache) dan Chromium tanpa jendela (BSD), sekitar 370 MB
+- Halaman: tab **Alur aplikasi** di role, halaman alur dan putaran. Kontrak bagian 22
+- Backend: `services/browser/` (belajar, putaran, pengaman jaringan, bukti), antrean Celery `browser`, migrasi
+  `b4d9e2f7a1c3`
+- Aplikasi tiruan lokal: `python -m scripts.aplikasi_tiruan` (akun ujinya ada di berkas itu)
+- Keputusan saat membangun:
+  - belajar tidak menekan kirim, simpan, atau hapus; alur berakhir di tombol itu, jadi satu alur paling banyak satu
+    langkah berisiko
+  - selain penggolongan tombol, penjaga jaringan menahan setiap permintaan yang mengubah data di luar formulir masuk
+    dan langkah yang disetujui; WebSocket ditutup
+  - semua sambungan peramban lewat perantara lokal yang menolak alamat jaringan internal (kecuali alamat aplikasi
+    terdaftar di luar produksi)
+  - "terbukti" = 3 putaran berhasil, lalu penanggung jawab membebaskan persetujuan kirim dengan kode verifikasinya
+  - tangkapan layar dan isi putaran hanya untuk penanggung jawab role, pemilik, dan admin
+  - perbaikan alur otomatis satu kali saat tampilan berubah, lalu menunggu diperiksa
+  - sesi masuk disimpan terenkripsi per akun brankas
+- Belum didukung: aplikasi yang menyimpan di tiap halaman formulir, unggah berkas, WebSocket, jendela baru, CAPTCHA,
+  dan pembayaran
+- Uji: 249 tes unit, 10 tes browser terhadap aplikasi tiruan, dan 6 tes integrasi terarah (termasuk migrasi) lulus
+- Coba Gemini sungguhan di `mbuti_test` lalu dibatalkan (29 November 2026): satu kali belajar 10 panggilan
+  `gemini-3.5-flash-lite` (6.508 token masuk, 251 keluar, sekitar Rp51), 11 langkah tersusun benar, username dan
+  password tidak ada di permintaan, tidak ada yang terkirim saat belajar, lalu putaran menunggu persetujuan dan
+  terkirim sesudah disetujui
+- Belum dicoba: aplikasi web sungguhan, halaman dari aplikasi terhadap backend asli (masuk sesi perbaikan), dan kotak
+  pasir Chromium di server Linux
 
 #### Pertanyaan terbuka fase E
 

@@ -14,6 +14,7 @@ from app.models.audit import AuditLog
 from app.models.auth import AuthToken, RefreshSession, User, UserTwoFactor
 from app.models.biaya import LlmCall, OrganizationSettings
 from app.models.brankas import VaultAccount
+from app.models.browser import BrowserFlow, BrowserRun, BrowserRunEvent
 from app.models.jadwal import CalendarDay, MemberLeave, Schedule, ScheduleRun, WorkShift
 from app.models.organisasi import Membership, Organization, Unit
 from app.models.pengetahuan import (
@@ -42,6 +43,9 @@ __all__ = [
     "Approval",
     "AuditLog",
     "AuthToken",
+    "BrowserFlow",
+    "BrowserRun",
+    "BrowserRunEvent",
     "CalendarDay",
     "Citation",
     "Document",

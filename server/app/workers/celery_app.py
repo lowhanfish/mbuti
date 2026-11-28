@@ -25,6 +25,7 @@ celery_app = Celery(
         "app.workers.execution",
         "app.workers.formation",
         "app.workers.schedule",
+        "app.workers.browser",
     ],
 )
 
@@ -35,11 +36,12 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_default_queue="default",
-    task_queues=(Queue("default"), Queue("ingestion"), Queue("execution")),
+    task_queues=(Queue("default"), Queue("ingestion"), Queue("execution"), Queue("browser")),
     task_routes={
         "app.workers.ingestion.*": {"queue": "ingestion"},
         "app.workers.execution.*": {"queue": "execution"},
         "app.workers.formation.*": {"queue": "execution"},
+        "app.workers.browser.*": {"queue": "browser"},
     },
     # Pekerjaan baru dianggap selesai setelah dikerjakan, dan diambil satu per satu.
     task_acks_late=True,
@@ -56,6 +58,10 @@ celery_app.conf.update(
         },
         "recover-stalled-tasks": {
             "task": "app.workers.execution.recover_stalled",
+            "schedule": 300.0,
+        },
+        "recover-browser-runs": {
+            "task": "app.workers.browser.recover_browser_runs",
             "schedule": 300.0,
         },
         "purge-unused-attachments": {

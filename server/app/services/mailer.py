@@ -192,6 +192,16 @@ def schedule_problem(to: str, name: str, title: str, reason: str, schedule_id: s
     )
 
 
+def browser_notice(to: str, name: str, title: str, message: str, run_id: str) -> Email:
+    return Email(
+        to=to,
+        subject=f"Alur aplikasi perlu diperiksa: {title}",
+        text=f'Halo {name},\n\nPutaran alur "{title}" memerlukan perhatian Anda.\n{message}',
+        link=settings.app_link(f"/admin/alur/jalan/{run_id}"),
+        link_label="Buka putaran",
+    )
+
+
 def organization_approved(to: str, name: str, organization: str) -> Email:
     return Email(
         to=to,

@@ -37,6 +37,10 @@ class VaultAccount(Base):
     )
     password_changed_at = Column(DateTime(timezone=True), nullable=False)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
+    # Sesi masuk tersimpan (cookie dan penyimpanan peramban), terenkripsi (E4b)
+    session_encrypted = Column(Text, nullable=True)
+    # Gagal masuk 2 kali: tidak dipakai sampai password diganti atau dikonfirmasi
+    login_blocked_at = Column(DateTime(timezone=True), nullable=True)
     created_at = created_at()
     updated_at = updated_at()
     created_by = created_by()

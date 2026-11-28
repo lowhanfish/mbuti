@@ -1,0 +1,26 @@
+[Unit]
+Description=MBUTI worker aplikasi luar (Chromium)
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+User=mbuti
+Group=mbuti
+WorkingDirectory=/opt/mbuti/server
+# Chromium dipasang sekali dengan: playwright install --only-shell chromium
+Environment=PLAYWRIGHT_BROWSERS_PATH=/var/lib/mbuti/browsers
+# Satu putaran membuka satu Chromium (±150–400 MB); naikkan bila memori mencukupi
+ExecStart=/opt/mbuti/server/.venv/bin/celery -A app.workers.celery_app worker -Q browser --concurrency=1 -n browser@%%h --loglevel=info
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/mbuti
+# Putaran bisa menunggu kode OTP beberapa menit
+TimeoutStopSec=330
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

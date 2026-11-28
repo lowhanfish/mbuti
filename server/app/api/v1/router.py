@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends
 
+from app.api.v1.endpoints.admin.alur.route import router as alur_router
 from app.api.v1.endpoints.admin.audit.route import router as audit_router
 from app.api.v1.endpoints.admin.brankas.route import router as brankas_router
 from app.api.v1.endpoints.admin.cuti.route import router as cuti_router
@@ -35,6 +36,7 @@ admin_router.include_router(cuti_router)
 admin_router.include_router(pembentukan_router)
 admin_router.include_router(role_router)
 admin_router.include_router(brankas_router)
+admin_router.include_router(alur_router)
 admin_router.include_router(tools_router)
 admin_router.include_router(relasi_router)
 admin_router.include_router(usulan_router)

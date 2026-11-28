@@ -210,6 +210,20 @@ class Settings(BaseSettings):
     DOCUMENT_CONVERT_TIMEOUT_SECONDS: int = 60
 
     # ==========================
+    # APLIKASI LUAR (E4b)
+    # ==========================
+    BROWSER_HEADLESS: bool = True
+    # Kotak pasir Chromium; matikan hanya bila server tidak mendukungnya
+    BROWSER_SANDBOX: bool = True
+    # Jeda antar-aksi agar aplikasi sasaran tidak dibanjiri
+    BROWSER_ACTION_DELAY_MS: int = 600
+    BROWSER_TIMEOUT_MS: int = 15_000
+    # Panggilan model paling banyak saat mempelajari satu alur
+    BROWSER_LEARN_MAX_STEPS: int = 20
+    # Lama menunggu kode OTP dari pemilik, dengan browser tetap terbuka
+    BROWSER_OTP_WAIT_SECONDS: int = 300
+
+    # ==========================
     # PEMBENTUKAN ROLE (E1a)
     # ==========================
     # Batas putaran tanya jawab sebelum role harus di-Final
@@ -222,6 +236,7 @@ class Settings(BaseSettings):
     RATE_FORMATION_PER_MINUTE: int = 10
     RATE_ATTACHMENT_PER_MINUTE: int = 30
     RATE_PROPOSAL_PER_MINUTE: int = 20
+    RATE_BROWSER_PER_MINUTE: int = 10
     RATE_SCHEDULE_PARSE_PER_MINUTE: int = 10
     RATE_LETTER_CORRECTION_PER_MINUTE: int = 10
     RATE_UPLOAD_PER_MINUTE: int = 20

@@ -22,6 +22,8 @@ from app.models import (
     Agent,
     AgentRelation,
     AgentRevision,
+    BrowserFlow,
+    BrowserRun,
     Document,
     FlowPosition,
     Membership,
@@ -38,6 +40,7 @@ from app.models.agent.formation import OPEN_REVISION_STATUSES
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services.appearance import UNIT_COLOR_HEX, avatar_from_seed
+from app.services.browser import evidence
 from app.services.engine.images import attachment_images
 from app.services.engine.runner import Caller, run_agent
 from app.services.formation.versions import (
@@ -330,6 +333,15 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
             "Role masih terlibat dalam tugas yang berjalan. Selesaikan atau hentikan tugasnya "
             "terlebih dahulu."
         )
+    if await session.scalar(
+        select(BrowserRun.id)
+        .join(BrowserFlow, BrowserFlow.id == BrowserRun.flow_id)
+        .where(BrowserFlow.agent_id == agent.id, BrowserRun.status.in_(("running", "waiting_otp")))
+        .limit(1)
+    ):
+        raise ConflictException(
+            "Role sedang membuka aplikasi. Hentikan putarannya terlebih dahulu."
+        )
     now = utcnow()
     agent.deleted_at = now
     await session.execute(
@@ -372,9 +384,15 @@ async def delete_role(session: AsyncSession, organization_id: uuid.UUID, role_id
         .values(deleted_at=now)
     )
     await session.execute(delete(FlowPosition).where(FlowPosition.node_id == agent.id))
-    # Rahasia tidak disimpan setelah role dihapus
+    # Rahasia, alur, dan bukti tangkapan layar tidak disimpan setelah role dihapus
+    flow_ids = list(
+        await session.scalars(select(BrowserFlow.id).where(BrowserFlow.agent_id == agent.id))
+    )
+    await session.execute(delete(BrowserFlow).where(BrowserFlow.agent_id == agent.id))
     await session.execute(delete(VaultAccount).where(VaultAccount.agent_id == agent.id))
     await session.commit()
+    for flow_id in flow_ids:
+        evidence.delete_flow(organization_id, flow_id)
 
 
 async def run_trial(

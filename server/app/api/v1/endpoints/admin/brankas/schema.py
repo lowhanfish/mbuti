@@ -89,6 +89,7 @@ class VaultAccountItem(BaseModel):
     has_password: bool
     has_totp: bool
     locked: bool
+    login_failed: bool
     password_changed_at: datetime.datetime
     last_used_at: datetime.datetime | None
     created_at: datetime.datetime
