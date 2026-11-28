@@ -1,3 +1,4 @@
+import type { LetterSource } from "../pengaturan/persuratan/types";
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
 import type { SearchHit, WebSource } from "../pengetahuan/types";
 import type { RelationType } from "../relasi/types";
@@ -164,6 +165,36 @@ export interface DetailInterface extends ResponseInterface {
   steps: StepInterface[];
   approvals: ApprovalInterface[];
   events: EventInterface[];
+}
+
+/** Pemeriksaan hasil terhadap ketentuan rujukan */
+export interface DocumentCheck {
+  text: string;
+  passed: boolean;
+  /** Letak ketentuannya, mis. "Aturan, hlm. 14"; boleh kosong */
+  ref: string;
+}
+
+/** Berkas hasil tugas (E3a); dibuat program dari susunan yang ditulis role */
+export interface ResultDocument {
+  id: string;
+  title: string;
+  letter_type: string;
+  format_id: string | null;
+  version: number;
+  /** Diberikan saat surat disetujui; null sebelum itu */
+  number: string | null;
+  /** Gambar tiap halaman PDF */
+  pages: string[];
+  docx_url: string | null;
+  pdf_url: string | null;
+  sources: LetterSource[];
+  format_checked: boolean;
+  /** Benar bila formatnya bersumber dari aturan atau contoh resmi organisasi */
+  official: boolean;
+  checks: DocumentCheck[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ResponseListInterface {

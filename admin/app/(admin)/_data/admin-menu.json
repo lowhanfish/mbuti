@@ -22,6 +22,7 @@
     "icon": "settings",
     "children": [
       { "title": "Kalender Kerja", "path": "/admin/pengaturan/kalender", "icon": "dot", "children": null },
+      { "title": "Persuratan", "path": "/admin/pengaturan/persuratan", "icon": "dot", "children": null },
       { "title": "Model AI", "path": "/admin/pengaturan/model-ai", "icon": "dot", "children": null },
       { "title": "Batas Biaya", "path": "/admin/pengaturan/batas-biaya", "icon": "dot", "children": null },
       { "title": "Jejak Audit", "path": "/admin/pengaturan/jejak-audit", "icon": "dot", "children": null }

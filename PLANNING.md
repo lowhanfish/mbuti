@@ -981,7 +981,9 @@ organisasi (alur usulan E1).
 
 **Urutan kerja:** halaman dengan data contoh → kontrak API → backend → uji dengan dokumen contoh atau publik.
 
-- [ ] E3a halaman dengan data contoh
+- [x] E3a halaman dengan data contoh (28 November 2026): kartu Berkas hasil di detail tugas dan Pengaturan →
+      Persuratan; mock `lib/mock/letters.ts` dan `routes/surat.ts`. Tombol unggah, koreksi, dan simpan register belum
+      dicoba di peramban
 - [ ] E3a kontrak API
 - [ ] E3a backend dan uji
 - [ ] E3b spreadsheet

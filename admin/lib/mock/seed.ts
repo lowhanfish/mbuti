@@ -17,6 +17,7 @@ import type { MockProposal } from "./web";
 import { seedFormation } from "./seed-formation";
 import { seedPolicies } from "./seed-policies";
 import { seedSchedules } from "./seed-schedules";
+import type { MockLetterFormat, MockLetterhead, MockRegister, MockResultFile, MockSample } from "./letters";
 import type { MockCalendarDay, MockLeave, MockRun, MockSchedule, MockShift } from "./schedule";
 
 export type { MockDocVersion, MockDocument };
@@ -134,6 +135,11 @@ export interface MockDatabase {
   calendar_days: MockCalendarDay[];
   member_leaves: MockLeave[];
   schedules: MockSchedule[];
+  letter_formats: MockLetterFormat[];
+  letterheads: MockLetterhead[];
+  letter_registers: MockRegister[];
+  letter_samples: MockSample[];
+  task_documents: MockResultFile[];
   schedule_runs: MockRun[];
   /** Usulan temuan internet menjadi pengetahuan (E1d) */
   knowledge_proposals: MockProposal[];
@@ -157,7 +163,7 @@ export interface MockDatabase {
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 12;
+export const MOCK_DB_VERSION = 13;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -264,6 +270,11 @@ const createBase = (): MockDatabase => ({
   member_leaves: [],
   schedules: [],
   schedule_runs: [],
+  letter_formats: [],
+  letterheads: [],
+  letter_registers: [],
+  letter_samples: [],
+  task_documents: [],
   task_attachments: [],
   task_steps: [],
   approvals: [],

@@ -12,6 +12,7 @@ import { AgentStack, BudgetMeter, TaskStatusBadge } from "../components/TaskPart
 import { useCancelTask, useResponseDetailTask } from "../hooks/crud";
 import { PRIORITY_LABEL, TASK_STATUS, formatRupiah } from "../types";
 import { AttachmentStrip } from "../../../_components/media/image-findings";
+import ResultDocuments from "./components/ResultDocuments";
 import Timeline from "./components/Timeline";
 
 function TaskDetail() {
@@ -96,6 +97,8 @@ function TaskDetail() {
       )}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_320px] items-start">
+        <div className="space-y-4 min-w-0">
+        <ResultDocuments taskId={Task.id} status={Task.status} />
         <Card>
           <CardHeader>
             <CardTitle>Linimasa</CardTitle>
@@ -110,6 +113,7 @@ function TaskDetail() {
             <Timeline task={Task} />
           </CardContent>
         </Card>
+        </div>
 
         <div className="space-y-4 xl:sticky xl:top-24">
           <Card>

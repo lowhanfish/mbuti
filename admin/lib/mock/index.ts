@@ -16,6 +16,7 @@ import { pembentukanRoutes } from "./routes/pembentukan";
 import { pengetahuanRoutes } from "./routes/pengetahuan";
 import { usulanRoutes } from "./routes/usulan";
 import { rutinRoutes } from "./routes/rutin";
+import { suratRoutes } from "./routes/surat";
 import { advanceSchedules } from "./schedule";
 import { relasiRoutes } from "./routes/relasi";
 import { roleRoutes } from "./routes/role";
@@ -23,7 +24,7 @@ import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...rutinRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...rutinRoutes, ...suratRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
