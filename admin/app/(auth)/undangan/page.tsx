@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 import { callAPI } from "@/lib/api";
+import { ApiError } from "@/lib/transport";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
 import { ACCESS_ROLE_DESCRIPTION, ACCESS_ROLE_LABEL, formatDate } from "@/utilities/labels";
-import { Button, Input } from "../../(admin)/_components/ui";
+import { Button, CodeInput, Input } from "../../(admin)/_components/ui";
 import { buttonClasses } from "../../(admin)/_components/ui/button-classes";
 import { Icon } from "../../(admin)/_components/admin-icons";
 import { AuthShell, Eyebrow, Notice } from "../_components/AuthShell";
@@ -31,6 +32,9 @@ function AcceptInvite() {
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Diminta server bila akun ini sudah memakai verifikasi dua langkah
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -50,7 +54,7 @@ function AcceptInvite() {
     event.preventDefault();
     setTouched(true);
     if (fullName.trim().length < 2 || passwordPairError(passwords)) return;
-    const body: AcceptInviteInterface = { token, full_name: fullName.trim(), password: passwords.password };
+    const body: AcceptInviteInterface = { token, full_name: fullName.trim(), password: passwords.password, ...(needsCode ? { code } : {}) };
     setSubmitting(true);
     setError(null);
     try {
@@ -58,6 +62,11 @@ function AcceptInvite() {
       setUser(res.data.user);
       router.replace(landingPathFor(res.data.user));
     } catch (err) {
+      if (err instanceof ApiError && err.code === "two_factor_required") {
+        setNeedsCode(true);
+        setSubmitting(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Gagal menerima undangan.");
       setSubmitting(false);
     }
@@ -111,6 +120,9 @@ function AcceptInvite() {
           onChange={(e) => setFullName(e.target.value)}
         />
         <PasswordFields value={passwords} onChange={setPasswords} touched={touched} />
+        {needsCode && (
+          <CodeInput value={code} onValueChange={setCode} recovery autoFocus helperText="Akun ini memakai verifikasi dua langkah." />
+        )}
         {error && <Notice tone="error">{error}</Notice>}
         <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting}>
           Terima undangan

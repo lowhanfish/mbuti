@@ -132,7 +132,8 @@ function SidebarNav({ onItemClick }: { onItemClick: () => void }) {
 
 function HeaderTitle() {
   const pathname = usePathname();
-  const pageTitle = findPageTitle(adminMenu, pathname) ?? "Dashboard";
+  // Akun Saya tidak ada di menu samping; dibuka dari nama pengguna
+  const pageTitle = pathname.startsWith("/admin/akun") ? "Akun Saya" : (findPageTitle(adminMenu, pathname) ?? "Dashboard");
   return (
     <div className="flex flex-col min-w-0">
       <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-faint">
@@ -332,12 +333,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-strong text-ink font-bold text-sm flex items-center justify-center uppercase shrink-0">
                 {(user?.full_name || user?.email || "?")[0]}
               </div>
-              <div className="flex flex-col min-w-0 leading-tight flex-1">
+              <Link
+                href="/admin/akun"
+                onClick={() => setSidebarOpen(false)}
+                className="flex flex-col min-w-0 leading-tight flex-1 hover:underline"
+                title="Akun Saya"
+              >
                 <span className="text-xs font-semibold truncate">{user?.full_name ?? ""}</span>
                 <span className="text-[10px] text-white/60">
-                  {user?.access_role ? ACCESS_ROLE_LABEL[user.access_role] : "Tanpa akses"}
+                  {user?.access_role ? ACCESS_ROLE_LABEL[user.access_role] : "Tanpa akses"} · Akun Saya
                 </span>
-              </div>
+              </Link>
               <button
                 type="button"
                 onClick={() => logout()}

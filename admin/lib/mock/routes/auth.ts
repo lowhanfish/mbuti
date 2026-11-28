@@ -19,6 +19,7 @@ import { newId, nowIso, text } from "../context";
 import { fail, ok, type MockRoute } from "../router";
 import type { MockDatabase, MockUser } from "../seed";
 import { defaultSettings } from "../settings";
+import { checkCode, twoFactorEnabled } from "../two-factor";
 
 /** Mode pendaftaran data contoh; backend membacanya dari `REGISTRATION_MODE`. */
 const REGISTRATION_MODE = "approval" as AuthOptionsResponse["registration"];
@@ -41,6 +42,7 @@ export const toProfile = (db: MockDatabase, user: MockUser): UserProfile => {
     organization: organization
       ? { id: organization.id, name: organization.name, slug: organization.slug, status: organization.status }
       : null,
+    two_factor_enabled: twoFactorEnabled(db, user.id),
     created_at: user.created_at,
   };
 };
@@ -86,7 +88,7 @@ export const authRoutes: MockRoute[] = [
     method: "POST",
     path: "/api/v1/auth/login",
     handler: ({ db, body }) => {
-      const { email, password } = (body ?? {}) as { email?: string; password?: string };
+      const { email, password, code } = (body ?? {}) as { email?: string; password?: string; code?: string };
       const user = findUserByEmail(db, email);
       if (!user || !user.password || user.password !== password) {
         return fail(401, "Email atau kata sandi salah.");
@@ -96,6 +98,10 @@ export const authRoutes: MockRoute[] = [
       }
       if (!user.is_verified) {
         return fail(403, "Email belum diverifikasi. Buka tautan di email Anda, atau minta tautan baru.", "email_not_verified");
+      }
+      if (twoFactorEnabled(db, user.id)) {
+        if (!code) return fail(403, "Masukkan kode dari aplikasi authenticator.", "two_factor_required");
+        if (!checkCode(db, user.id, code)) return fail(422, "Kode verifikasi salah.", "two_factor_invalid");
       }
       db.session = { user_id: user.id };
       return ok({ user: toProfile(db, user) }, "Berhasil masuk.");
@@ -281,6 +287,11 @@ export const authRoutes: MockRoute[] = [
       if (fullName.length < 2) return fail(422, "Nama minimal 2 karakter.");
       const weak = passwordProblem(b.password);
       if (weak) return fail(422, weak);
+      // Undangan ke akun yang sudah memakai verifikasi dua langkah tetap memerlukan kodenya
+      if (twoFactorEnabled(db, user.id)) {
+        if (!b.code) return fail(403, "Masukkan kode dari aplikasi authenticator.", "two_factor_required");
+        if (!checkCode(db, user.id, b.code)) return fail(422, "Kode verifikasi salah.", "two_factor_invalid");
+      }
 
       found.used_at = nowIso();
       user.full_name = fullName;

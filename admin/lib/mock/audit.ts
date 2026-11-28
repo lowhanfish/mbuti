@@ -58,6 +58,14 @@ const ACTIONS: Array<[string, RegExp, string, string]> = [
   ["POST", /auth\/verify-email$/, "auth.verifikasi", "Memverifikasi email"],
   ["POST", /auth\/accept-invite$/, "anggota.terima", "Menerima undangan"],
   ["POST", /auth\/logout$/, "auth.keluar", "Keluar"],
+  ["POST", /dua-langkah\/aktifkan$/, "auth.dua_langkah_aktif", "Mengaktifkan verifikasi dua langkah"],
+  ["POST", /dua-langkah\/matikan$/, "auth.dua_langkah_mati", "Mematikan verifikasi dua langkah"],
+  ["POST", /dua-langkah\/kode-cadangan$/, "auth.kode_cadangan", "Membuat ulang kode cadangan"],
+  ["POST", /brankas$/, "brankas.tambah", "Menambah akun brankas"],
+  ["PUT", /brankas\/[^/]+$/, "brankas.ubah", "Mengubah akun brankas"],
+  ["POST", /brankas\/[^/]+\/hapus$/, "brankas.hapus", "Menghapus akun brankas"],
+  ["POST", /brankas\/[^/]+\/konfirmasi$/, "brankas.konfirmasi", "Mengonfirmasi akun brankas"],
+  ["POST", /brankas\/[^/]+\/kode$/, "brankas.kode", "Melihat kode authenticator"],
 ];
 
 const DECISIONS: Record<string, string> = { approved: "disetujui", rejected: "ditolak", revise: "minta revisi" };
@@ -71,6 +79,7 @@ export const auditTarget = (db: MockDatabase, pathname: string, body: unknown) =
   for (const part of [...parts].reverse()) {
     const approval = db.approvals.find((a) => a.id === part);
     const found =
+      db.vault_accounts.find((a) => a.id === part)?.name ??
       db.agents.find((a) => a.id === part)?.name ??
       db.units.find((u) => u.id === part)?.name ??
       db.documents.find((d) => d.id === part)?.title ??

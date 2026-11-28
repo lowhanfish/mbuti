@@ -11,3 +11,4 @@ export * from "./pagination";
 export * from "./skeleton";
 export * from "./empty-state";
 export * from "./fullscreen";
+export * from "./code-input";

@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useUrlStore } from "@/store/useUrlStore";
 import type { ApiResponse, AuthDataResponse } from "@/types/global";
 import { Icon } from "../../(admin)/_components/admin-icons";
-import { Button, Input } from "../../(admin)/_components/ui";
+import { Button, CodeInput, Input, codeReady } from "../../(admin)/_components/ui";
 import { AuthShell, Eyebrow, FooterLink, Notice, Wave } from "../_components/AuthShell";
 import { landingPathFor } from "../_components/redirect";
 
@@ -26,8 +26,11 @@ export default function LoginPage() {
   const [resent, setResent] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Diminta server bila akun memakai verifikasi dua langkah
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
 
-  const signIn = async (credentials: { email: string; password: string }) => {
+  const signIn = async (credentials: { email: string; password: string; code?: string }) => {
     setSubmitting(true);
     setError(null);
     setUnverified(false);
@@ -40,6 +43,11 @@ export default function LoginPage() {
       setUser(res.data.user);
       router.replace(landingPathFor(res.data.user));
     } catch (err) {
+      if (err instanceof ApiError && err.code === "two_factor_required") {
+        setNeedsCode(true);
+        setSubmitting(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Gagal masuk. Coba lagi.");
       setUnverified(err instanceof ApiError && err.code === "email_not_verified");
       setSubmitting(false);
@@ -65,7 +73,7 @@ export default function LoginPage() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    signIn({ email, password });
+    signIn({ email, password, ...(needsCode ? { code } : {}) });
   };
 
   return (
@@ -118,6 +126,16 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {needsCode && (
+          <CodeInput
+            value={code}
+            onValueChange={setCode}
+            recovery
+            autoFocus
+            helperText="Buka aplikasi authenticator, atau pakai salah satu kode cadangan."
+          />
+        )}
+
         {error && (
           <Notice tone="error">
             {error}
@@ -135,7 +153,7 @@ export default function LoginPage() {
         )}
         {resent && <Notice tone="success">{resent}</Notice>}
 
-        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting} disabled={!email || !password}>
+        <Button type="submit" size="lg" className="w-full auth-shine" loading={submitting} disabled={!email || !password || (needsCode && !codeReady(code))}>
           Masuk
           <Icon name="arrow" size={18} />
         </Button>
@@ -165,7 +183,7 @@ export default function LoginPage() {
           <p className="text-xs text-amber-900 leading-relaxed">
             <strong>Mode data contoh.</strong> Belum ada backend; semua data tersimpan di peramban ini.
           </p>
-          <Button variant="dark" size="md" className="w-full" disabled={submitting} onClick={() => signIn(DEMO_ACCOUNT)}>
+          <Button variant="dark" size="md" className="w-full" disabled={submitting} onClick={() => signIn({ ...DEMO_ACCOUNT, ...(needsCode ? { code } : {}) })}>
             🐝 Masuk dengan akun demo
           </Button>
         </div>

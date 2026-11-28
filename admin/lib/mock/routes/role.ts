@@ -304,6 +304,8 @@ export const roleRoutes: MockRoute[] = [
       if (ctx.db.task_steps.some((s) => s.agent_id === removed.id)) ctx.db.archived_agents.push(removed);
       removeRelations(ctx.db, (r) => r.source_id === removed.id || r.target_id === removed.id);
       delete ctx.db.flow_positions[removed.id];
+      // Rahasia di brankas tidak disimpan setelah role dihapus
+      ctx.db.vault_accounts = ctx.db.vault_accounts.filter((a) => a.agent_id !== removed.id);
       return ok(null, "Role dihapus.");
     },
   },

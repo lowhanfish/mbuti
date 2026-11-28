@@ -44,6 +44,8 @@ export interface AcceptInviteInterface {
   token: string;
   full_name: string;
   password: string;
+  /** Hanya bila akun sudah memakai verifikasi dua langkah (E4a) */
+  code?: string;
 }
 
 export const PASSWORD_MIN_LENGTH = 10;

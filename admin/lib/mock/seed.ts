@@ -27,6 +27,8 @@ export type UnitColor = "violet" | "honey" | "pink" | "teal" | "sky" | "lime" | 
 export type MemberStatus = "active" | "invited" | "disabled";
 /** `pending` = baru mendaftar dan menunggu persetujuan pengelola platform. */
 export type OrganizationStatus = "pending" | "active" | "suspended";
+import type { MockTwoFactor } from "./two-factor";
+import type { MockVaultAccount } from "./vault";
 
 export interface MockOrganization {
   id: string;
@@ -160,10 +162,14 @@ export interface MockDatabase {
   /** Email yang "terkirim"; di mode data contoh ditampilkan di panel Kotak keluar */
   outbox: MockEmail[];
   session: { user_id: string } | null;
+  /** Verifikasi dua langkah per pengguna (E4a) */
+  two_factors: MockTwoFactor[];
+  /** Brankas akun aplikasi luar per role (E4a) */
+  vault_accounts: MockVaultAccount[];
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 14;
+export const MOCK_DB_VERSION = 15;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -286,6 +292,8 @@ const createBase = (): MockDatabase => ({
   auth_tokens: [],
   outbox: [],
   session: null,
+  two_factors: [],
+  vault_accounts: [],
 });
 
 /** Data contoh lengkap, termasuk tugas yang riwayatnya dijalankan mesin simulasi. */

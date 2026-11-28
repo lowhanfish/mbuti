@@ -45,6 +45,8 @@ export interface UserProfile {
   is_verified: boolean;
   access_role: AccessRole | null;
   organization: OrganizationSummary | null;
+  /** Masuk memerlukan kode dari aplikasi authenticator (E4a) */
+  two_factor_enabled: boolean;
   created_at: string;
 }
 
