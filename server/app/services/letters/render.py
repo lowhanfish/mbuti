@@ -72,6 +72,9 @@ class _Writer:
         table = self.document.add_table(rows=0, cols=3)
         table.autofit = False
         widths = (Cm(3), Cm(0.5), Cm(max(self.width - 3.5 - indent, 4)))
+        # Lebar kolom di kisi tabel; LibreOffice mengabaikan lebar yang hanya dipasang per sel
+        for column, width in zip(table.columns, widths, strict=True):
+            column.width = width
         for row in rows:
             cells = table.add_row().cells
             values = (row[0], ":", row[1] if len(row) > 1 else "")

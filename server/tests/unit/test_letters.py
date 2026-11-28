@@ -10,7 +10,7 @@ from docx.shared import Cm, Pt
 
 from app.core.exceptions import UnprocessableEntityException
 from app.services.letters import render
-from app.services.letters.content import asks_for_letter, clean_letter
+from app.services.letters.content import asks_for_letter, blanks, clean_letter
 from app.services.letters.numbering import format_number
 from app.services.letters.sample import check_docx, read_sample
 from app.services.letters.spec import DEFAULT_SPEC, differences, merged, valid_changes
@@ -46,6 +46,19 @@ def test_letter_content_is_cleaned():
     assert letter["blocks"][2]["rows"] == [["Hari", "Senin"]]
     assert clean_letter({"letter_type": "Nota", "blocks": []}) is None
     assert clean_letter("surat") is None
+
+
+def test_blank_placeholders_are_not_names_and_are_reported():
+    letter = clean_letter(
+        {
+            **LETTER,
+            "signer_name": "[nama kepala dinas]",
+            "blocks": [{"type": "paragraph", "text": "Di [alamat kantor], lihat aturan [2]."}],
+        }
+    )
+
+    assert letter["signer_name"] == ""
+    assert blanks(letter) == ["[alamat kantor]"]
 
 
 def test_letter_requests_are_recognised():
@@ -97,6 +110,9 @@ def test_docx_follows_format_and_can_be_read_back():
     expected = ("DINAS UJI", "28 November 2026", "005/001", "Yth. Para Camat", "Rapat <evaluasi>")
     assert all(part in text for part in expected)
     assert "Kepala Dinas," in text and "(nama pejabat berwenang)" in text
+    # Kolom label sempit, kolom isi lebar
+    columns = [c.width for c in Document(io.BytesIO(data)).tables[0].columns]
+    assert abs(columns[0] - Cm(3)) < 1000 and columns[2] > columns[0] * 3
     check_docx(data)
     changes, _ = read_sample(data)
     assert changes["paper"] == "F4" and changes["margins"]["top"] == 1.5

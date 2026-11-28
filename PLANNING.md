@@ -990,7 +990,10 @@ organisasi (alur usulan E1).
 - [x] E3a backend dan uji (28 November 2026): isi surat dari role, catatan format, DOCX dan PDF (LibreOffice),
       nomor register, koreksi, dan pengaturan persuratan; migrasi `d9b4c7a2e815` terpasang di database dev. Belum
       dicoba dengan Gemini maupun di peramban dengan backend. Server produksi nanti memerlukan LibreOffice
-- [ ] Coba E3a sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan
+- [x] Coba E3a sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan (28 November 2026): dari pedoman contoh
+      fiktif, format (F4, margin, huruf, susunan, pola nomor) terbaca benar, koreksi dan nomor bekerja. Dua temuan
+      diperbaiki: kolom label terlalu lebar, dan isian kosong dianggap nama pejabat. Belum dicoba dengan aturan asli,
+      contoh Word, kop gambar, atau pencarian internet
 - [ ] E3b spreadsheet
 - [ ] E3c mode penyusunan
 

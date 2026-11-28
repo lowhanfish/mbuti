@@ -88,6 +88,26 @@ def _lines(value: object, count: int, limit: int) -> list[str]:
     return [line for item in value[:count] if (line := _line(item, limit))]
 
 
+def _name(value: object) -> str:
+    """Isian kosong bertanda, mis. "[nama kepala dinas]", bukan nama."""
+    name = _line(value, 150)
+    return "" if "[" in name or name.lower().startswith("(nama") else name
+
+
+# Isian yang belum dilengkapi, mis. [alamat kantor]; rujukan bernomor seperti [2] bukan
+_BLANK = re.compile(r"\[(?!\d+\])[^\[\]]{2,80}\]")
+
+
+def blanks(letter: dict) -> list[str]:
+    """Isian bertanda yang masih ada di dalam surat."""
+    texts = [letter["subject"], letter["closing"], *letter["recipients"], *letter["copies"]]
+    for block in letter["blocks"]:
+        texts.append(block.get("text", ""))
+        texts += block.get("items", [])
+        texts += [cell for row in block.get("rows", []) for cell in row]
+    return list(dict.fromkeys(found for text in texts for found in _BLANK.findall(text)))
+
+
 def _block(raw: object) -> dict | None:
     if not isinstance(raw, dict) or raw.get("type") not in BLOCK_TYPES:
         return None
@@ -128,6 +148,6 @@ def clean_letter(data: object) -> dict | None:
         "blocks": blocks,
         "closing": clean_text(data.get("closing"), 1000),
         "signer_position": _line(data.get("signer_position"), 150),
-        "signer_name": _line(data.get("signer_name"), 150),
+        "signer_name": _name(data.get("signer_name")),
         "copies": _lines(data.get("copies"), 20, 200),
     }

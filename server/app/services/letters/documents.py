@@ -27,6 +27,7 @@ from app.models.base import utcnow
 from app.services.knowledge import storage, visual
 from app.services.letters import formats, render
 from app.services.letters import spec as letter_spec
+from app.services.letters.content import blanks
 from app.services.letters.numbering import format_number
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
@@ -185,6 +186,10 @@ def _checks(document: ResultDocument, note: LetterFormat, has_pdf: bool) -> list
             "ref": "Buku register",
         },
     ]
+    if empty := blanks(letter):
+        checks.append(
+            {"text": f"Masih ada isian kosong: {', '.join(empty[:5])}", "passed": False, "ref": ""}
+        )
     checks += [{"text": text, "passed": False, "ref": ref} for text in note.notes]
     if not has_pdf:
         checks.append({"text": "PDF gagal dibuat; gunakan DOCX", "passed": False, "ref": ""})
