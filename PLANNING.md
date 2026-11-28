@@ -997,6 +997,29 @@ organisasi (alur usulan E1).
 - [ ] E3b spreadsheet
 - [ ] E3c mode penyusunan
 
+#### E3b. Spreadsheet: rancangan (disepakati 28 November 2026)
+
+Role menghasilkan berkas Excel dengan rumus hidup; **angka dihitung program, bukan model**.
+
+1. **Lampiran tugas menerima Excel (`.xlsx`) dan CSV.** Program membaca datanya; role hanya melihat nama kolom, jumlah
+   baris, dan beberapa contoh baris.
+2. Role merancang tabel: kolom yang dipakai, pengelompokan, rumus, total, penanda baris, dan urutan.
+3. Program mengisi **semua baris dari berkas asli**, menulis rumus ke Excel, lalu LibreOffice menghitungnya.
+4. Hasil tampil di **Berkas hasil** sebagai pratinjau tabel, bisa diunduh, dan mengikuti persetujuan tugas.
+5. Tanpa lampiran, role boleh mengisi tabel dari arahan atau dokumen; hasilnya ditandai **angka dari teks, periksa
+   dulu**.
+
+**Termasuk:** beberapa lembar; jumlah, rata-rata, hitung, minimum, maksimum; operasi antar kolom (mis. realisasi ÷
+pagu); kelompok dengan subtotal, penanda warna, urutan; format angka, rupiah, persen, tanggal.
+**Ditunda:** grafik, tabel pivot, rumus bebas dan makro, meniru gaya contoh Excel, PDF dari spreadsheet.
+**Keamanan:** berkas dianggap tidak tepercaya (makro ditolak, ukuran dan jumlah baris dibatasi); teks yang diawali `=`
+disimpan sebagai teks. Pustaka `openpyxl` (MIT).
+**Contoh acuan:** rekap realisasi anggaran per bidang dengan data fiktif (berlaku bagi instansi maupun perusahaan).
+
+- [ ] E3b halaman dengan data contoh
+- [ ] E3b kontrak API
+- [ ] E3b backend dan uji
+
 #### Pertanyaan terbuka fase E
 
 1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
