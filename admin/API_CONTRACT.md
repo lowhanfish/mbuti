@@ -2575,3 +2575,132 @@ Jejak audit baru: `surat.koreksi`, `surat.nomor` (memberi nomor dan mengubah reg
 Hanya simulasi, jangan ditiru backend: surat dikenali dari kata di judul atau arahan; isi dan pemeriksaan memakai
 pola tetap; halaman berupa gambar SVG; DOCX berupa HTML berekstensi `.doc` dan PDF tidak ada; koreksi hanya memahami
 letak tembusan; pola awal register dikarang; urutan tidak diulang per tahun; berkas dibuat saat pertama dibaca.
+
+## 19. Spreadsheet (E3b)
+
+Ditambahkan pada fase E (rancangan di `PLANNING.md`, bagian "E3b. Spreadsheet: rancangan"). Role merancang tabel;
+program membaca datanya, mengisi semua baris, menulis rumus, dan menghitung. Model tidak menghitung dan tidak menulis
+rumus.
+
+### 19.1 Lampiran data
+
+`POST /admin/tugas/lampiran` (16.6) juga menerima Excel (`.xlsx`) dan CSV.
+
+```ts
+export interface TableSummary {
+  name: string;
+  columns: string[];
+  row_count: number;
+}
+```
+
+- `TaskAttachment` mendapat `table: TableSummary[] | null` (satu per lembar berisi data); `null` untuk gambar dan PDF.
+  Lampiran data punya `width`, `height`, dan `page_count` 0 serta `pages` kosong.
+- Baris pertama yang berisi menjadi judul kolom. Judul kosong menjadi `Kolom N`, judul kembar diberi nomor.
+- Batas: 10 MB; isi XLSX terurai 50 MB; 10 lembar berisi data; 50 kolom per lembar; 5.000 baris data per berkas;
+  sel 1.000 karakter. Melewati batas, tanpa baris data, bermakro, rusak, atau terkunci → `422` dengan alasannya.
+- XLSX: nilai sel yang dipakai (hasil tersimpan untuk sel berumus; rumus tanpa hasil tersimpan terbaca kosong).
+  CSV: pemisah koma, titik koma, atau tab; UTF-8 atau Windows-1252.
+- Jenis kolom (`teks`, `angka`, `tanggal`) ditentukan program. Angka bertulisan Indonesia (`Rp 1.250.000`, `12,5`,
+  `45%`) dikenali. Angka berawalan nol atau lebih dari 15 digit (NIP, telepon) tetap teks.
+
+### 19.2 Yang dilihat role
+
+- Role hanya menerima, per lembar (`D1`, `D2`, …): nama berkas dan lembar, nama dan jenis kolom, jumlah baris, dan
+  paling banyak 5 baris contoh; paling banyak 10 lembar per langkah. Sisa baris tidak dikirim ke model. Isinya masuk prompt sebagai data, bukan perintah.
+- Lampiran data dibaca langkah yang sama dengan lampiran gambar (16.6).
+- Model dipanggil walau tidak ada potongan dokumen bila ada lampiran data, atau arahan meminta dibuatkan
+  Excel/spreadsheet.
+- Rancangan tabel (`sheet` di jawaban model) hanya diminta bila ada lampiran data atau judul/arahan menyebut rekap,
+  Excel, atau spreadsheet. Tidak ada panggilan model tambahan.
+- Uji coba role membaca ringkasan data yang sama, tetapi tidak membuat berkas.
+
+### 19.3 Rancangan tabel dan perhitungan
+
+Per lembar hasil (maksimal 10, kolom maksimal 30):
+
+| Isian | Arti |
+|---|---|
+| sumber | Lembar data yang dipakai (`D1`, …) |
+| kolom | Judul, kolom data asalnya **atau** operasi antar kolom sebelumnya (`add`, `subtract`, `multiply`, `divide`), format (`text`, `number`, `currency`, `percent`, `date`), dan total (`sum`, `average`, `count`, `min`, `max`, `none`) |
+| kelompok | Satu kolom; tiap kelompok diberi baris subtotal |
+| urutan | Satu kolom, naik atau turun; di dalam kelompok |
+| penanda | Satu kolom, pembanding (`lt`, `lte`, `gt`, `gte`, `eq`, `ne`, `empty`), dan nilai |
+
+- Bila ada lampiran data, setiap lembar wajib memakai sumber data; **semua baris** diambil dari berkas asli. Nilai
+  yang diketik model diabaikan.
+- Tanpa lampiran data, baris boleh diisi model dari arahan atau dokumen (maksimal 200), `origin` = `text`.
+- Bagian rancangan yang tidak sah diabaikan dan disebut di `checks`. Tanpa satu pun lembar sah, tidak ada berkas;
+  hasil teks tetap tersimpan.
+- Excel memuat rumus: operasi antar kolom (pembagian dengan nol atau operand kosong menghasilkan kosong), subtotal
+  dan total memakai `SUBTOTAL`. Pada baris subtotal dan total, kolom hasil bagi, tambah, dan kurang dihitung ulang
+  dari total kolomnya; hasil kali dijumlahkan.
+- Teks yang diawali `=` disimpan sebagai teks. Nama lembar dibersihkan dan dibuat unik.
+- LibreOffice membuka dan menyimpan ulang berkas untuk menghitung rumus; hasilnya dicocokkan dengan hitungan program.
+  Bila LibreOffice gagal, berkas berumus tetap tersedia (dihitung saat dibuka) dan `checks` menyebutnya.
+
+### 19.4 Berkas hasil
+
+`GET /admin/tugas/{id}/berkas` mengembalikan `ResultDocument = LetterResult | SheetResult`. `LetterResult` = bentuk 18.1
+ditambah `kind: "letter"`.
+
+```ts
+export type CellFormat = "text" | "number" | "currency" | "percent" | "date";
+
+export interface SheetColumn {
+  header: string;
+  format: CellFormat;
+  /** Rumus dalam kata, mis. "Realisasi ÷ Pagu"; kosong untuk kolom data */
+  formula: string;
+}
+
+export interface SheetRow {
+  /** flag = ditandai menurut aturan penanda */
+  style: "normal" | "flag" | "subtotal" | "total";
+  /** Nilai siap tampil, sudah dihitung dan diformat */
+  cells: string[];
+}
+
+export interface SheetPreview {
+  name: string;
+  columns: SheetColumn[];
+  rows: SheetRow[];
+  /** Jumlah baris data seluruhnya; pratinjau bisa lebih sedikit */
+  row_count: number;
+  flagged: number;
+  /** Penjelasan penanda, mis. "Persentase di bawah 50%"; kosong bila tidak ada */
+  flag_rule: string;
+}
+
+export interface SheetResult {
+  kind: "sheet";
+  id: string;
+  title: string;
+  version: number;
+  processing: boolean;
+  checks: DocumentCheck[];
+  created_at: string;
+  updated_at: string;
+  xlsx_url: string | null;
+  /** text = angkanya berasal dari arahan atau dokumen, bukan berkas data */
+  origin: "attachment" | "text";
+  source_files: string[];
+  sheets: SheetPreview[];
+}
+```
+
+| Method | Path | Akses | `data` |
+|---|---|---|---|
+| GET | `/admin/tugas/{id}/berkas/{berkasId}/unduh/xlsx` | Semua | berkas |
+
+- Satu spreadsheet per pasangan tugas dan role (terpisah dari surat); revisi menaikkan `version`.
+- Pratinjau memuat paling banyak 50 baris data per lembar beserta subtotal kelompoknya dan total seluruh data;
+  `flagged` dihitung dari semua baris.
+- `koreksi` dan `nomor` pada spreadsheet → `409`. Perubahan isi memakai minta revisi pada persetujuan.
+- Pemeriksa (langkah `review`) menerima ringkasan spreadsheet pembuat: kolom, jumlah baris, penanda, dan baris total.
+
+### 19.5 Khusus data contoh
+
+Hanya simulasi, jangan ditiru backend: rancangan memakai pola tetap, XLSX unggahan tidak dibaca (diganti tabel
+contoh), dan unduhan berupa CSV.
+
