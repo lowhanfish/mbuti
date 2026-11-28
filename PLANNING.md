@@ -660,7 +660,7 @@ diblokir), bukan WhatsApp Business Platform berbayar. Telegram bisa menjadi salu
 - [x] **E1. Pembentukan role dan pengetahuan** (selesai 28 November 2026; dicoba dengan Gemini di mbuti_test lalu dibatalkan: analisis, tanya jawab, dan temuan poster berjalan baik; pencarian internet kena 429 di semua kunci, kemungkinan kuota grounding tier gratis): bahan uraian jabatan dan daftar alat, analisis AI, kartu
       keterampilan, tanya jawab, Final, versi role; pustaka kebijakan dan aturan; pencarian internet per role;
       PDF kompleks dan gambar dengan Gemini multimodal, termasuk lampiran gambar pada tugas.
-- [ ] **E2. Tugas rutin:** jadwal dari bahasa biasa, kalender libur dan kalender kerja tenant, cuti pemilik role,
+- [x] **E2. Tugas rutin** (selesai 28 November 2026): jadwal dari bahasa biasa, kalender libur dan kalender kerja tenant, cuti pemilik role,
       coba ulang dan susulan, riwayat putaran.
 - [ ] **E3. Alat dokumen dan data:** konversi dan olah PDF, templat dokumen dari aturan organisasi, spreadsheet, mode
       penyusunan, lampiran otomatis.
@@ -927,7 +927,10 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
 - [x] E2c backend dan uji (28 November 2026): penjadwal Celery beat tiap menit, riwayat putaran, coba ulang,
       susulan, jalankan sekarang, email pemberitahuan; migrasi `c3a8d1e6f257` terpasang di database dev. Worker dan
       beat perlu dinyalakan ulang agar penjadwal aktif
-- [ ] Coba E2 sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan
+- [x] Coba E2 sungguhan di `mbuti_test` dengan Gemini lalu dibatalkan (28 November 2026): libur dilewati, jalankan
+      sekarang, penjadwal, coba ulang, susulan, dan email berjalan. Pemahaman kalimat bershift dan cuti semula salah;
+      sesudah prompt diperbaiki, tiga kalimat contoh benar. Role tanpa dokumen tidak memanggil model dan menunggu
+      keputusan manusia (perilaku mesin yang sudah ada), sehingga hasil kerja role terjadwal belum diuji dengan Gemini
 
 #### Pertanyaan terbuka fase E
 
