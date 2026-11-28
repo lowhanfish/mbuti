@@ -15,7 +15,7 @@ import { useResponseListRole } from "../../role/hooks/crud";
 import type { InputField } from "../../role/types";
 import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type TaskPriority, type TaskAttachment, type WebSearchMode } from "../types";
 
-function InputControl({ field, value, onChange }: { field: InputField; value: string; onChange: (v: string) => void }) {
+export function InputControl({ field, value, onChange }: { field: InputField; value: string; onChange: (v: string) => void }) {
   if (field.type === "long_text") return <Textarea label={field.label} required={field.required} rows={2} value={value} onChange={(e) => onChange(e.target.value)} />;
   if (field.type === "choice")
     return (

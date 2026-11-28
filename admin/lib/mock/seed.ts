@@ -16,6 +16,8 @@ import type { MockAttachment } from "./media";
 import type { MockProposal } from "./web";
 import { seedFormation } from "./seed-formation";
 import { seedPolicies } from "./seed-policies";
+import { seedSchedules } from "./seed-schedules";
+import type { MockCalendarDay, MockLeave, MockRun, MockSchedule, MockShift } from "./schedule";
 
 export type { MockDocVersion, MockDocument };
 
@@ -126,6 +128,13 @@ export interface MockDatabase {
   /** Posisi node di peta relasi; kosong = disusun otomatis */
   flow_positions: Record<string, { x: number; y: number }>;
   tasks: MockTask[];
+  /** Kalender kerja, cuti, dan tugas rutin (E2) */
+  workdays: Record<string, number[]>;
+  work_shifts: MockShift[];
+  calendar_days: MockCalendarDay[];
+  member_leaves: MockLeave[];
+  schedules: MockSchedule[];
+  schedule_runs: MockRun[];
   /** Usulan temuan internet menjadi pengetahuan (E1d) */
   knowledge_proposals: MockProposal[];
   /** Lampiran tugas dan uji coba (E1c) */
@@ -148,7 +157,7 @@ export interface MockDatabase {
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 11;
+export const MOCK_DB_VERSION = 12;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -249,6 +258,12 @@ const createBase = (): MockDatabase => ({
   flow_positions: {},
   tasks: [],
   knowledge_proposals: [],
+  workdays: {},
+  work_shifts: [],
+  calendar_days: [],
+  member_leaves: [],
+  schedules: [],
+  schedule_runs: [],
   task_attachments: [],
   task_steps: [],
   approvals: [],
@@ -266,6 +281,7 @@ const createBase = (): MockDatabase => ({
 export const createSeed = (): MockDatabase => {
   const db = createBase();
   seedPolicies(db);
+  seedSchedules(db);
   seedFormation(db);
   seedTasks(db);
   return db;

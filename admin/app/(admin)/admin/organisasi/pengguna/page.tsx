@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "../../../_components/ui";
 import { Icon } from "../../../_components/admin-icons";
+import LeaveModal from "./components/LeaveModal";
 import { EditMemberModal, InviteMemberModal } from "./components/MemberModals";
 import { MemberAvatar, RoleBadge, StatusBadge } from "./components/MemberParts";
 import { useDeleteMember, useInviteMember, useResendInvite, useResponseListMember, useUpdateMember } from "./hooks/crud";
@@ -68,6 +69,7 @@ export default function OrganisasiPenggunaPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteKey, setInviteKey] = useState(0);
   const [editing, setEditing] = useState<ResponseInterface | null>(null);
+  const [leaveFor, setLeaveFor] = useState<ResponseInterface | null>(null);
 
   const rows = List?.data ?? [];
   const summary = List?.summary ?? { active: 0, invited: 0, disabled: 0 };
@@ -83,9 +85,14 @@ export default function OrganisasiPenggunaPage() {
   };
 
   const rowActions = (member: ResponseInterface) =>
-    canEdit && (
+    (canEdit || member.is_self) && (
       <div className="flex items-center justify-end gap-0.5">
-        {member.status === "invited" && (
+        {member.status === "active" && accessRole !== "viewer" && (
+          <IconButton label={`Cuti ${member.full_name}`} onClick={() => setLeaveFor(member)}>
+            <Icon name="sun" size={16} />
+          </IconButton>
+        )}
+        {canEdit && member.status === "invited" && (
           <IconButton
             label={`Kirim ulang undangan ke ${member.full_name}`}
             disabled={resendMutation.isPending}
@@ -94,10 +101,12 @@ export default function OrganisasiPenggunaPage() {
             <Icon name="mail" size={16} />
           </IconButton>
         )}
-        <IconButton label={`Ubah ${member.full_name}`} onClick={() => setEditing(member)}>
-          <Icon name="edit" size={16} />
-        </IconButton>
-        {!member.is_self && (
+        {canEdit && (
+          <IconButton label={`Ubah ${member.full_name}`} onClick={() => setEditing(member)}>
+            <Icon name="edit" size={16} />
+          </IconButton>
+        )}
+        {canEdit && !member.is_self && (
           <IconButton label={`Keluarkan ${member.full_name}`} tone="danger" onClick={() => handleRemove(member)}>
             <Icon name="trash" size={16} />
           </IconButton>
@@ -297,6 +306,8 @@ export default function OrganisasiPenggunaPage() {
           onSubmit={(body) => inviteMutation.mutate(body, { onSuccess: () => setInviteOpen(false) })}
         />
       )}
+
+      {leaveFor && <LeaveModal key={leaveFor.id} member={leaveFor} onClose={() => setLeaveFor(null)} />}
 
       {editing && (
         <EditMemberModal

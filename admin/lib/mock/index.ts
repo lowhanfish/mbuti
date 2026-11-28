@@ -15,13 +15,15 @@ import { penggunaRoutes } from "./routes/pengguna";
 import { pembentukanRoutes } from "./routes/pembentukan";
 import { pengetahuanRoutes } from "./routes/pengetahuan";
 import { usulanRoutes } from "./routes/usulan";
+import { rutinRoutes } from "./routes/rutin";
+import { advanceSchedules } from "./schedule";
 import { relasiRoutes } from "./routes/relasi";
 import { roleRoutes } from "./routes/role";
 import { tugasRoutes } from "./routes/tugas";
 import { unitRoutes } from "./routes/unit";
 
 /** Daftar seluruh route data contoh. Tiap tahap menambahkan berkas di lib/mock/routes/. */
-const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
+const routes: MockRoute[] = [...authRoutes, ...organisasiRoutes, ...unitRoutes, ...penggunaRoutes, ...pembentukanRoutes, ...roleRoutes, ...usulanRoutes, ...pengetahuanRoutes, ...relasiRoutes, ...rutinRoutes, ...tugasRoutes, ...kantorRoutes, ...pengaturanRoutes, ...dashboardRoutes, ...auditRoutes, ...mockOnlyRoutes];
 
 const LATENCY_MS = { min: 200, max: 550 };
 
@@ -53,7 +55,8 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const db = getDb();
   const promoted = promoteVersions(db);
   const formed = advanceFormations(db, Date.now());
-  const advanced = advanceTasks(db, Date.now()) || promoted || formed;
+  const scheduled = advanceSchedules(db, Date.now());
+  const advanced = advanceTasks(db, Date.now()) || scheduled || promoted || formed;
 
   const body = parseBody(init.body);
   // Pelaku dan sasaran dibaca sebelum tindakan: keluar menghapus sesi, hapus menghilangkan nama

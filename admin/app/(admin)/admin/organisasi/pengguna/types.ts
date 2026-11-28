@@ -45,3 +45,8 @@ export const STATUS_LABEL: Record<MemberStatus, string> = {
   invited: "Diundang",
   disabled: "Nonaktif",
 };
+
+/** Cuti anggota (E2): dipakai tugas rutin untuk pemilik role */
+export type MemberLeave = { id: string; start_date: string; end_date: string; note: string };
+
+export type MemberLeaveRequest = Omit<MemberLeave, "id">;

@@ -916,7 +916,8 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
 **Urutan kerja:** halaman dengan data contoh → kontrak API bagian 17 → E2a → E2b → E2c → coba sungguhan di
 `mbuti_test` lalu dibatalkan.
 
-- [ ] Halaman E2 dengan data contoh
+- [x] Halaman E2 dengan data contoh (28 November 2026): tab Tugas rutin (daftar, buat/ubah, detail dan riwayat),
+      Pengaturan → Kalender Kerja, cuti di halaman Pengguna; mock `lib/mock/schedule.ts` dan `routes/rutin.ts`
 - [ ] Kontrak API bagian 17
 - [ ] E2a backend dan uji: kalender kerja, shift, cuti
 - [ ] E2b backend dan uji: jadwal, pemahaman kalimat, pratinjau

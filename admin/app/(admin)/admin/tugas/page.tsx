@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { Button, Card, EmptyState, Input, PageHeader, SkeletonCard } from "../../_components/ui";
 import { Icon } from "../../_components/admin-icons";
 import CreateTaskModal from "./components/CreateTaskModal";
+import TaskTabs from "./components/TaskTabs";
 import { TaskCard } from "./components/TaskParts";
 import { useCreateTask, useResponseListTask } from "./hooks/crud";
 
@@ -59,6 +60,8 @@ export default function TugasPage() {
           )
         }
       />
+
+      <TaskTabs active="/admin/tugas" />
 
       <Card>
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 px-5 py-4">
