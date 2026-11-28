@@ -13,6 +13,7 @@ import { documentsForAgent, searchDocuments } from "./knowledge";
 import { findRelation } from "./lookup";
 import type { MockAgent, MockDatabase, MockRelation } from "./seed";
 import { modelOption, monthUsage, settingsOf } from "./settings";
+import { finishRun, logEvent, startRun } from "./browser";
 
 export interface MockTask {
   id: string;
@@ -38,6 +39,9 @@ export interface MockTask {
   attachment_ids: string[];
   web_search: WebSearchMode;
   compose_mode?: ComposeChoice;
+  /** Alur aplikasi yang dijalankan sesudah pekerjaan selesai (E4c) */
+  flow?: { flow_id: string; name: string; values: Record<string, string> } | null;
+  flow_stage?: "prepare" | "running" | "done" | null;
 }
 
 export interface MockStep {
@@ -73,6 +77,8 @@ export type ApprovalFollowUp = {
 } & (
   | { type: "run_relation"; relation_id: string; from_step_id: string }
   | { type: "route_after"; step_id: string; skip_relation_id: string }
+  /** Persetujuan sebelum alur aplikasi mengirim (E4c) */
+  | { type: "browser_run"; run_id: string }
   /** Izin berkonsultasi; langkah `step_id` ditahan sampai semua izinnya diputuskan */
   | { type: "run_consult"; relation_id: string; step_id: string }
   | { type: "none" }
@@ -353,12 +359,67 @@ const requestComposedApprovals = (db: MockDatabase, task: MockTask, at: number) 
   }
 };
 
+/** Isian yang kosong "disusun role" dari bahan tugas, lalu putaran alur dibuat. */
+const startTaskFlow = (db: MockDatabase, task: MockTask, at: number) => {
+  const flow = db.browser_flows.find((f) => f.id === task.flow?.flow_id);
+  if (!task.flow || !flow || flow.status !== "approved") {
+    halt(db, task, "failed", `Alur "${task.flow?.name ?? ""}" tidak bisa dipakai: sudah dihapus atau perlu diperiksa.`, at);
+    return;
+  }
+  const inputs = flow.inputs.map((i) => ({ label: i.label, value: task.flow?.values[i.key] || `${i.label} dari tugas "${task.title}"` }));
+  const run = startRun(db, flow, "replay", task.created_by_member_id, flow.steps, inputs);
+  run.task_id = task.id;
+  run.force_approval = db.task_steps.some((s) => s.task_id === task.id && s.composed?.length);
+  task.flow_stage = "running";
+  log(db, task, "flow_started", `Alur "${flow.name}" masuk antrean.`, at);
+};
+
+/** Keadaan putaran alur diteruskan ke tugasnya (di backend dilakukan worker browser). */
+export const syncTaskFlows = (db: MockDatabase, now: number) => {
+  let changed = false;
+  for (const task of db.tasks) {
+    if (task.flow_stage !== "running" || !["running", "waiting_approval"].includes(task.status)) continue;
+    const run = db.browser_runs.filter((r) => r.task_id === task.id).at(-1);
+    const name = task.flow?.name ?? "";
+    if (run?.status === "waiting_approval" && !pendingApprovals(db, task).length) {
+      const flow = db.browser_flows.find((f) => f.id === run.flow_id);
+      requestApproval(
+        db,
+        task,
+        {
+          step_id: null,
+          reason: "flow",
+          question: `Alur "${name}": ${run.pending?.question ?? ""}`,
+          requested_from_member_id: db.agents.find((a) => a.id === flow?.agent_id)?.owner_member_id ?? task.created_by_member_id,
+          follow_up: { type: "browser_run", run_id: run.id },
+        },
+        now
+      );
+      task.status = "waiting_approval";
+    } else if (run?.status === "waiting_otp" && !db.task_events.some((e) => e.task_id === task.id && e.type === "flow_waiting")) {
+      log(db, task, "flow_waiting", "Alur menunggu kode OTP. Buka putarannya untuk memasukkan kode.", now);
+    } else if (run?.status === "succeeded") {
+      task.flow_stage = "done";
+      log(db, task, "flow_done", `Alur "${name}" selesai. Bukti tersimpan di halaman putaran.`, now);
+      settle(db, task, now);
+    } else if (!run || ["failed", "needs_repair", "stopped"].includes(run.status)) {
+      halt(db, task, "failed", `Alur "${name}" tidak selesai: ${run?.message ?? "putarannya sudah dihapus."}`, now);
+    } else continue;
+    task.updated_at = iso(now);
+    changed = true;
+  }
+  return changed;
+};
+
 const settle = (db: MockDatabase, task: MockTask, at: number) => {
   if (!task.queue.length && !pendingApprovals(db, task).length) requestComposedApprovals(db, task, at);
   if (task.queue.length) {
     task.status = "running";
   } else if (pendingApprovals(db, task).length) {
     task.status = "waiting_approval";
+  } else if (task.flow && task.flow_stage !== "done") {
+    task.status = "running";
+    if (!task.flow_stage) startTaskFlow(db, task, at);
   } else {
     task.status = "completed";
     task.completed_at = iso(at);
@@ -544,7 +605,7 @@ export const advanceTasks = (db: MockDatabase, now: number) => {
 export const createTask = (
   db: MockDatabase,
   fields: Pick<MockTask, "organization_id" | "title" | "brief" | "inputs" | "entry_agent_id" | "priority" | "due_at" | "budget_limit" | "created_by_member_id"> &
-    Partial<Pick<MockTask, "attachment_ids" | "web_search" | "compose_mode">>,
+    Partial<Pick<MockTask, "attachment_ids" | "web_search" | "compose_mode" | "flow">>,
   at: number
 ) => {
   const task: MockTask = {
@@ -587,6 +648,21 @@ export const decideApproval = (
 
   const step = db.task_steps.find((s) => s.id === approval.step_id);
   const follow = approval.follow_up;
+  if (follow.type === "browser_run") {
+    const run = db.browser_runs.find((r) => r.id === follow.run_id);
+    if (decision === "approved" && run) {
+      logEvent(run, `Disetujui ${who}.`, "done", at);
+      Object.assign(run, { status: "queued", pending: null, cleared: true, ready_at: at + 800 });
+      task.status = "running";
+    } else {
+      if (run) {
+        logEvent(run, `Ditolak ${who}. Tidak ada yang dikirim.`, "blocked", at);
+        finishRun(run, "stopped", "Ditolak. Tidak ada yang dikirim.", at);
+      }
+      halt(db, task, "failed", "Tugas ditolak dan dihentikan.", at);
+    }
+    return;
+  }
   // Pembuat hasil: untuk langkah pemeriksaan, langkah yang diperiksa
   const makerStep = step?.kind === "review" ? db.task_steps.find((s) => s.id === step.parent_step_id) ?? step : step;
 

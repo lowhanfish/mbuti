@@ -52,6 +52,8 @@ export interface FlowListItem {
   trusted_submit: boolean;
   successful_runs: number;
   last_run: RunSummary | null;
+  /** Nilai contoh kosong bagi yang tidak boleh mengelola */
+  inputs: FlowInput[];
   updated_at: string;
 }
 
@@ -71,7 +73,6 @@ export interface FlowDetail extends Omit<FlowListItem, "steps_count" | "last_run
   role_id: string;
   role_name: string;
   goal: string;
-  inputs: FlowInput[];
   steps: FlowStep[];
   /** Penjelasan saat gagal dipelajari atau perlu diperbaiki */
   note: string;

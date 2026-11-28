@@ -258,6 +258,7 @@ export const startRun = (db: MockDatabase, s: MockSchedule, plannedFor: string, 
         created_by_member_id: s.created_by_member_id,
         web_search: s.web_search,
         compose_mode: s.compose_mode,
+        flow: s.flow_id ? { flow_id: s.flow_id, name: db.browser_flows.find((f) => f.id === s.flow_id)?.name ?? "", values: s.flow_values ?? {} } : null,
       },
       at
     ).id;

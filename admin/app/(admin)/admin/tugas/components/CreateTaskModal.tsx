@@ -15,6 +15,7 @@ import { useResponseListRole } from "../../role/hooks/crud";
 import type { InputField } from "../../role/types";
 import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type ComposeChoice, type TaskPriority, type TaskAttachment, type WebSearchMode } from "../types";
 import { ComposeSelect } from "./Compose";
+import FlowSelect, { NO_FLOW, type FlowChoice } from "./FlowSelect";
 
 export function InputControl({ field, value, onChange }: { field: InputField; value: string; onChange: (v: string) => void }) {
   if (field.type === "long_text") return <Textarea label={field.label} required={field.required} rows={2} value={value} onChange={(e) => onChange(e.target.value)} />;
@@ -117,6 +118,7 @@ export default function CreateTaskModal({
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [webSearch, setWebSearch] = useState<WebSearchMode>("role");
   const [composeMode, setComposeMode] = useState<ComposeChoice>("role");
+  const [flow, setFlow] = useState<FlowChoice>(NO_FLOW);
   const { Budget } = useResponseBudgetSettings();
   const budgetText = budgetInput ?? (Budget ? String(Budget.default_task_budget) : "");
   const budget = Number(budgetText);
@@ -146,6 +148,7 @@ export default function CreateTaskModal({
       attachment_ids: attachments.map((a) => a.id),
       web_search: webSearch,
       compose_mode: composeMode,
+      ...(flow.flow_id ? flow : {}),
     });
   };
 
@@ -189,6 +192,7 @@ export default function CreateTaskModal({
               onClick={() => {
                 setAgentId(r.id);
                 setInputs({});
+                setFlow(NO_FLOW);
               }}
               className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition-all cursor-pointer ${
                 agentId === r.id ? "border-brand bg-brand-soft/70 shadow-[0_0_0_3px_rgba(124,77,255,.15)]" : "border-line bg-surface hover:border-brand/40"
@@ -233,6 +237,7 @@ export default function CreateTaskModal({
               </label>
             )}
             <ComposeSelect value={composeMode} roleMode={agent.compose_mode} onChange={setComposeMode} />
+            <FlowSelect roleId={agent.id} value={flow} onChange={setFlow} />
             {agent.input_spec.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {agent.input_spec.map((f) => (

@@ -8,6 +8,7 @@ import { Icon } from "../../../_components/admin-icons";
 import { Avatar2D } from "../../../_components/agent/avatar-2d";
 import { useDecideApproval } from "../hooks/crud";
 import { APPROVAL_REASON_LABEL, type ApprovalInterface } from "../types";
+import { Screenshot } from "../../alur/components/FlowParts";
 
 /** Kartu keputusan manusia: setujui, minta revisi, atau tolak. */
 export default function ApprovalCard({ approval, showTask = false }: { approval: ApprovalInterface; showTask?: boolean }) {
@@ -52,6 +53,28 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
           )}
         </div>
 
+        {approval.flow && (
+          <div className="space-y-3">
+            {approval.flow.values.length > 0 && (
+              <dl className="rounded-2xl border border-line bg-surface divide-y divide-line/70">
+                {approval.flow.values.map((v) => (
+                  <div key={v.label} className="px-4 py-2">
+                    <dt className="text-[11px] text-faint">{v.label}</dt>
+                    <dd className="text-sm text-ink whitespace-pre-line break-words">{v.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <div className="max-w-md">
+              <Screenshot url={approval.flow.screenshot_url} alt="Keadaan halaman sebelum dikirim" large />
+            </div>
+            <Link href={`/admin/alur/jalan/${approval.flow.run_id}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline">
+              Lihat putaran dan bukti
+              <Icon name="arrow" size={13} />
+            </Link>
+          </div>
+        )}
+
         {approval.last_output && (
           <div className="rounded-2xl bg-surface border border-line">
             <pre className={`px-4 py-3 text-[12.5px] leading-relaxed whitespace-pre-wrap font-sans text-ink ${expanded ? "" : "max-h-32 overflow-hidden"}`}>{approval.last_output}</pre>
@@ -72,18 +95,20 @@ export default function ApprovalCard({ approval, showTask = false }: { approval:
               rows={2}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Catatan (wajib untuk minta revisi atau tolak)"
+              placeholder={approval.flow ? "Catatan (wajib untuk tolak)" : "Catatan (wajib untuk minta revisi atau tolak)"}
               maxLength={1000}
             />
             <div className="flex flex-wrap gap-2 justify-end">
               <Button variant="ghost" icon={<Icon name="close" size={15} />} disabled={needComment || decide.isPending} onClick={() => send("rejected")}>
                 Tolak
               </Button>
-              <Button variant="outline" icon={<Icon name="edit" size={15} />} disabled={needComment || decide.isPending} onClick={() => send("revise")}>
-                Minta revisi
-              </Button>
+              {!approval.flow && (
+                <Button variant="outline" icon={<Icon name="edit" size={15} />} disabled={needComment || decide.isPending} onClick={() => send("revise")}>
+                  Minta revisi
+                </Button>
+              )}
               <Button icon={<Icon name="check" size={15} />} loading={decide.isPending} onClick={() => send("approved")}>
-                Setujui
+                {approval.flow ? "Setujui dan kirim" : "Setujui"}
               </Button>
             </div>
           </div>

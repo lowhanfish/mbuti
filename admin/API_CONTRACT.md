@@ -32,6 +32,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 20. [Mode penyusunan dan laporan (E3c)](#20-mode-penyusunan-dan-laporan-e3c)
 21. [Verifikasi dua langkah dan brankas role (E4a)](#21-verifikasi-dua-langkah-dan-brankas-role-e4a)
 22. [Alur aplikasi luar (E4b)](#22-alur-aplikasi-luar-e4b)
+23. [Alur dalam tugas dan tugas rutin (E4c)](#23-alur-dalam-tugas-dan-tugas-rutin-e4c)
 
 ---
 
@@ -3126,7 +3127,9 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
 - `name` 2–100, `goal` 10–1000, `inputs` maks 10 (`key` `[a-z0-9_]{1,30}` unik, `label` 1–60, `sample` 1–500).
 - Isian putaran: semua `inputs` wajib, maks 2000 karakter.
 - Akun brankas harus milik role itu dan tidak terkunci (`409`).
-- Satu alur hanya punya satu putaran belum selesai (`409`).
+- Satu alur hanya punya satu putaran belum selesai (`409`). Pengecualian: putaran milik tugas (23) boleh menumpuk,
+  tetapi selama ada yang belum selesai, alurnya tidak bisa diubah, dijalankan manual, atau dihapus.
+- `FlowListItem` memuat `inputs` (nilai contoh kosong bagi yang tidak boleh mengelola).
 - `jalankan` hanya untuk alur `approved`. `setujui` hanya untuk `review` dengan `version` yang sama (`409`).
 - `pelajari` menaikkan `version`, mengembalikan alur ke `learning`, dan menghapus persetujuan, pembebasan, serta
   hitungan putaran berhasil. Pada alur `needs_repair` putarannya bermode `repair`.
@@ -3165,4 +3168,71 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
   tampilan berubah, dan putaran gagal.
 - Jejak audit: `alur.belajar`, `alur.setujui`, `alur.jalankan`, `alur.persetujuan`, `alur.hapus`, `alur.putuskan`,
   `alur.otp`, `alur.hentikan`. Kode OTP dan isian tidak dicatat.
+
+---
+
+## 23. Alur dalam tugas dan tugas rutin (E4c)
+
+Alur milik **role pertama** tugas dijalankan sesudah semua pekerjaan dan persetujuan tugas selesai.
+
+### 23.1 Isian
+
+| Tempat | Isian |
+|---|---|
+| `POST /admin/tugas/create` | `flow_id?: string \| null`, `flow_values?: { [key]: string }` |
+| Tugas rutin (buat, ubah) | `flow_id`, `flow_values`; daftar dan detail menambah `flow_name` |
+
+- Alur harus milik `entry_agent_id`, berstatus `approved`, dengan akun brankas yang bisa dipakai. Selain itu `422`.
+- Memakai alur: **penanggung jawab role** (bukan pemantau), pemilik, atau admin (`403`). Berlaku juga untuk mengubah,
+  menjalankan sekarang, dan menyusulkan tugas rutin yang memakai alur.
+- `flow_values` hanya menerima nama isian alur itu, maksimal 2000 karakter per nilai; yang kosong diisi role.
+
+### 23.2 Detail tugas
+
+```ts
+export type TaskFlowStage = "waiting" | "prepare" | "running" | "done";
+
+export interface TaskFlow {
+  flow_id: string;
+  name: string;
+  stage: TaskFlowStage;
+  run_id: string | null;
+  run_status: RunStatus | null; // lihat 22.1
+  run_message: string;
+  values: NamedValue[];  // kosong bagi yang tidak boleh mengelola alur
+  outputs: NamedValue[]; // sama
+}
+```
+
+`DetailInterface.flow: TaskFlow | null`. Jenis peristiwa linimasa bertambah `flow_started`, `flow_waiting`, `flow_done`.
+
+### 23.3 Perilaku
+
+- Isian kosong disusun satu kali panggilan model (profil seimbang) dari arahan, isian tugas, dan hasil kerja terakhir,
+  hanya dari bahan itu. Yang tidak bisa diisi membuat tugas **gagal** dengan nama isiannya.
+- Tugas tetap `running` selama aplikasi dibuka. Putaran menunggu persetujuan menjadi persetujuan tugas dan tugas
+  `waiting_approval`.
+- Putaran berhasil: tugas `completed`. Gagal, tampilan berubah, atau dihentikan: tugas `failed`. Menghentikan tugas
+  menghentikan putarannya.
+- Alur yang dibebaskan (`trusted_submit`) tetap meminta persetujuan bila ada hasil tugas yang berisi buatan role.
+- Tugas rutin: alur yang tidak bisa dipakai membuat putaran gagal seperti kegagalan lain (coba ulang dan
+  pemberitahuan). Putaran yang gagal **sesudah tombol sempat ditekan** tidak diulang dan tidak disusulkan otomatis.
+
+### 23.4 Persetujuan
+
+- `ApprovalReason` bertambah `flow`. `ApprovalInterface.flow`:
+
+```ts
+export interface ApprovalFlow {
+  run_id: string;
+  values: NamedValue[]; // yang akan dikirim
+  screenshot_url: string | null;
+}
+```
+
+  `null` untuk persetujuan lain.
+- Diminta kepada penanggung jawab role. Keputusan `approved` atau `rejected` (`revise` dijawab `422`). Menolak
+  menghentikan tugas tanpa mengirim apa pun.
+- `POST /admin/alur-jalan/{run_id}/putuskan` pada putaran milik tugas sama dengan memutuskan persetujuannya.
+- Persetujuan alur `approved` yang akunnya tidak bisa dipakai lagi dijawab `409` dan tetap menunggu.
 

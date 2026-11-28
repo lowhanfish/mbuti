@@ -8,6 +8,8 @@ import { isoDate, occurrences, parseSentence, ruleError, ruleText, scheduleNext,
 import type { MockDatabase, MockMembership } from "../seed";
 import { agentRef } from "./tugas";
 
+import { readTaskFlow } from "../task-flow";
+
 const BASE = "/api/v1/admin/tugas-rutin";
 const CALENDAR = "/api/v1/admin/pengaturan/kalender";
 const LEAVE = "/api/v1/admin/organisasi/pengguna/:id/cuti";
@@ -50,6 +52,9 @@ const toItem = (db: MockDatabase, self: MockMembership, s: MockSchedule): Schedu
   budget_limit: s.budget_limit,
   web_search: s.web_search,
   compose_mode: s.compose_mode ?? "role",
+  flow_id: s.flow_id ?? null,
+  flow_name: db.browser_flows.find((f) => f.id === s.flow_id)?.name ?? "",
+  flow_values: s.flow_values ?? {},
   rule: s.rule,
   rule_text: ruleText(db, s.organization_id, s.rule),
   source_text: s.source_text,
@@ -86,6 +91,8 @@ const readBody = (ctx: MockContext, self: MockMembership): Omit<MockSchedule, "i
   if (missing.length) return `Lengkapi isian wajib: ${missing.join(", ")}.`;
   const invalid = b.rule ? ruleError(ctx.db, self.organization_id, b.rule) : "Aturan jadwal kosong.";
   if (invalid) return invalid;
+  const flow = readTaskFlow(ctx.db, self, agent.id, b.flow_id, b.flow_values);
+  if (typeof flow === "string") return flow;
   return {
     organization_id: self.organization_id,
     entry_agent_id: agent.id,
@@ -96,6 +103,8 @@ const readBody = (ctx: MockContext, self: MockMembership): Omit<MockSchedule, "i
     budget_limit: budget,
     web_search: b.web_search === "off" ? "off" : "role",
     compose_mode: choice,
+    flow_id: flow?.flow_id ?? null,
+    flow_values: flow?.values ?? {},
     rule: b.rule,
     source_text: text(b.source_text, 500),
     status: b.status === "draft" ? "draft" : "active",

@@ -45,6 +45,10 @@ export interface MockBrowserRun {
   /** Persetujuan atau OTP untuk langkah saat ini sudah diberikan */
   cleared: boolean;
   needs_otp: boolean;
+  /** Putaran milik tugas (E4c) */
+  task_id?: string | null;
+  /** Hasil tugas berisi buatan role: tetap minta persetujuan walau alurnya dibebaskan */
+  force_approval?: boolean;
 }
 
 const STEP_MS = 1500;
@@ -170,7 +174,7 @@ const advance = (db: MockDatabase, run: MockBrowserRun, flow: MockFlow, at: numb
       run.ready_at = at + STEP_MS;
       return;
     }
-    if (!run.cleared && !(step.risk === "submit" && flow.trusted_submit)) {
+    if (!run.cleared && !(step.risk === "submit" && flow.trusted_submit && !run.force_approval)) {
       run.status = "waiting_approval";
       run.pending = {
         kind: "approval",

@@ -10,6 +10,7 @@ import {
   type RunSummary,
 } from "@/app/(admin)/admin/alur/types";
 import { finishRun, logEvent, planSteps, startRun, type MockBrowserRun, type MockFlow } from "../browser";
+import { decideApproval } from "../engine";
 import { isFailure, newId, nowIso, requireMember, text } from "../context";
 import { fail, ok, type MockContext, type MockResponse, type MockRoute } from "../router";
 import type { MockMembership } from "../seed";
@@ -175,6 +176,7 @@ export const alurRoutes: MockRoute[] = [
         .map((f) => {
           const last = runsOf(ctx, f.id)[0];
           return {
+            inputs: canManage(self, agent.owner_member_id) ? f.inputs : f.inputs.map((i) => ({ ...i, sample: "" })),
             id: f.id,
             name: f.name,
             account_id: accountOf(ctx, f.account_id)?.id ?? null,
@@ -336,6 +338,11 @@ export const alurRoutes: MockRoute[] = [
       const decision = (ctx.body as { decision?: string } | null)?.decision;
       if (decision !== "approved" && decision !== "rejected") return fail(422, "Keputusan tidak dikenal.");
       const name = nameOf(ctx, scope.self.id) ?? "";
+      const approval = ctx.db.approvals.find((a) => a.status === "pending" && a.follow_up.type === "browser_run" && a.follow_up.run_id === run.id);
+      if (approval) {
+        decideApproval(ctx.db, approval, decision, decision === "rejected" ? "Ditolak dari halaman putaran." : "", scope.self.id, Date.now());
+        return ok(toRun(ctx, scope.self, run), decision === "approved" ? "Disetujui." : "Ditolak.");
+      }
       if (decision === "rejected") {
         logEvent(run, `Ditolak ${name}. Tidak ada yang dikirim.`, "blocked", Date.now());
         finishRun(run, "stopped", "Ditolak. Tidak ada yang dikirim.", Date.now());

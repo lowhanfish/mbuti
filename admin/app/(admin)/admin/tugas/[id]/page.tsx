@@ -15,6 +15,7 @@ import { COMPOSE_MODE_LABEL } from "../../role/types";
 import { AttachmentStrip } from "../../../_components/media/image-findings";
 import ResultDocuments from "./components/ResultDocuments";
 import Timeline from "./components/Timeline";
+import TaskFlowCard from "./components/TaskFlowCard";
 
 function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -138,6 +139,8 @@ function TaskDetail() {
               ))}
             </CardContent>
           </Card>
+
+          {Task.flow && <TaskFlowCard flow={Task.flow} status={Task.status} />}
 
           {Task.attachments.length > 0 && (
             <Card>

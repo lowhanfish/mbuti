@@ -70,6 +70,9 @@ export type ScheduleTemplate = {
   budget_limit: number;
   web_search: WebSearchMode;
   compose_mode: ComposeChoice;
+  /** Alur aplikasi yang dijalankan tiap putaran (E4c) */
+  flow_id: string | null;
+  flow_values: Record<string, string>;
 };
 
 export type CreateScheduleRequest = ScheduleTemplate & {
@@ -81,6 +84,8 @@ export type CreateScheduleRequest = ScheduleTemplate & {
 export type ScheduleItem = Omit<ScheduleTemplate, "entry_agent_id"> & {
   id: string;
   entry_agent: AgentRef;
+  /** Kosong bila tanpa alur atau alurnya sudah dihapus */
+  flow_name: string;
   rule: ScheduleRule;
   /** Jadwal dalam satu kalimat, disusun server */
   rule_text: string;

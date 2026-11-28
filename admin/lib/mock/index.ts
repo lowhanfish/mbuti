@@ -1,6 +1,6 @@
 import { auditTarget, recordAudit } from "./audit";
 import { getDb, saveDb } from "./db";
-import { advanceTasks } from "./engine";
+import { advanceTasks, syncTaskFlows } from "./engine";
 import { advanceFormations } from "./formation";
 import { promoteVersions } from "./knowledge";
 import { fail, matchRoute, type MockRoute } from "./router";
@@ -62,7 +62,8 @@ export const mockRequest = async (url: string, init: RequestInit) => {
   const formed = advanceFormations(db, Date.now());
   const scheduled = advanceSchedules(db, Date.now());
   const browsed = advanceRuns(db, Date.now());
-  const advanced = advanceTasks(db, Date.now()) || scheduled || promoted || formed || browsed;
+  const synced = syncTaskFlows(db, Date.now());
+  const advanced = advanceTasks(db, Date.now()) || scheduled || promoted || formed || browsed || synced;
 
   const body = parseBody(init.body);
   // Pelaku dan sasaran dibaca sebelum tindakan: keluar menghapus sesi, hapus menghilangkan nama

@@ -10,6 +10,7 @@ import { useResponseListRole } from "../../../role/hooks/crud";
 import { InputControl } from "../../components/CreateTaskModal";
 import { PRIORITY_LABEL, formatRupiah, type TaskPriority, type ComposeChoice, type WebSearchMode } from "../../types";
 import { ComposeSelect } from "../../components/Compose";
+import FlowSelect, { type FlowChoice } from "../../components/FlowSelect";
 import { useParseSchedule, useResponsePreview, useSaveSchedule } from "../hooks/crud";
 import { emptyRule, todayIso, type CreateScheduleRequest, type ScheduleItem, type ScheduleRule } from "../types";
 import OccurrenceList from "./OccurrenceList";
@@ -33,6 +34,7 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
   const [priority, setPriority] = useState<TaskPriority>(editing?.priority ?? "normal");
   const [webSearch, setWebSearch] = useState<WebSearchMode>(editing?.web_search ?? "role");
   const [composeMode, setComposeMode] = useState<ComposeChoice>(editing?.compose_mode ?? "role");
+  const [flow, setFlow] = useState<FlowChoice>({ flow_id: editing?.flow_id ?? "", flow_values: editing?.flow_values ?? {} });
   const [budgetInput, setBudgetInput] = useState<string | null>(editing ? String(editing.budget_limit) : null);
   const [touched, setTouched] = useState(false);
 
@@ -71,6 +73,8 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
           budget_limit: budget,
           web_search: webSearch,
           compose_mode: composeMode,
+          flow_id: flow.flow_id || null,
+          flow_values: flow.flow_id ? flow.flow_values : {},
           rule,
           source_text: sentence.trim(),
           status,
@@ -161,6 +165,7 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
             onChange={(e) => {
               setAgentId(e.target.value);
               setInputs({});
+              setFlow({ flow_id: "", flow_values: {} });
             }}
           >
             <option value="">— Pilih role aktif —</option>
@@ -183,6 +188,7 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
           </div>
         )}
         {agent && <ComposeSelect value={composeMode} roleMode={agent.compose_mode} onChange={setComposeMode} />}
+        {agent && <FlowSelect roleId={agent.id} value={flow} onChange={setFlow} />}
         {agent?.web_search && (
           <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
             <input type="checkbox" className="accent-[#7c4dff]" checked={webSearch === "off"} onChange={(e) => setWebSearch(e.target.checked ? "off" : "role")} />

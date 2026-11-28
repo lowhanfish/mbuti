@@ -15,6 +15,7 @@ import {
 import { UNIT_COLORS } from "@/app/(admin)/admin/organisasi/unit/types";
 import { isFailure, newId, nowIso, requireMember, text } from "../context";
 import { cancelTask, createTask, decideApproval, type MockApproval, type MockTask } from "../engine";
+import { readTaskFlow } from "../task-flow";
 import { findAgent, findRelation } from "../lookup";
 import { fail, ok, paging, type MockRoute } from "../router";
 import type { MockDatabase, MockMembership } from "../seed";
@@ -61,6 +62,30 @@ const toItem = (db: MockDatabase, t: MockTask): ResponseInterface => {
   };
 };
 
+const toApprovalFlow = (db: MockDatabase, a: MockApproval): ApprovalInterface["flow"] => {
+  if (a.follow_up.type !== "browser_run") return null;
+  const runId = a.follow_up.run_id;
+  const run = db.browser_runs.find((r) => r.id === runId);
+  if (!run) return null;
+  const asked = [...run.events].reverse().find((e) => e.status === "waiting");
+  return { run_id: run.id, values: run.inputs, screenshot_url: asked?.screenshot_url ?? null };
+};
+
+const toTaskFlow = (db: MockDatabase, t: MockTask): DetailInterface["flow"] => {
+  if (!t.flow) return null;
+  const run = db.browser_runs.filter((r) => r.task_id === t.id).at(-1);
+  return {
+    flow_id: t.flow.flow_id,
+    name: t.flow.name,
+    stage: t.flow_stage ?? "waiting",
+    run_id: run?.id ?? null,
+    run_status: run?.status ?? null,
+    run_message: run?.message ?? "",
+    values: run?.inputs ?? [],
+    outputs: run?.outputs ?? [],
+  };
+};
+
 const toApproval = (db: MockDatabase, a: MockApproval): ApprovalInterface => {
   const task = db.tasks.find((t) => t.id === a.task_id);
   const step = db.task_steps.find((s) => s.id === a.step_id);
@@ -80,6 +105,7 @@ const toApproval = (db: MockDatabase, a: MockApproval): ApprovalInterface => {
     created_at: a.created_at,
     last_output: step?.output ?? "",
     last_agent: step ? agentRef(db, step.agent_id) : null,
+    flow: toApprovalFlow(db, a),
   };
 };
 
@@ -93,6 +119,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
     attachments: db.task_attachments.filter((a) => (t.attachment_ids ?? []).includes(a.id)).map((a) => toAttachment(db, a)),
     web_search: t.web_search ?? "role",
     compose_mode: t.compose_mode ?? "role",
+    flow: toTaskFlow(db, t),
     steps: db.task_steps
       .filter((s) => s.task_id === t.id)
       .map((s) => ({
@@ -265,6 +292,8 @@ export const tugasRoutes: MockRoute[] = [
       if (monthUsage(ctx.db, self.organization_id, Date.now()).remaining <= 0) {
         return fail(409, "Anggaran bulan ini sudah habis. Naikkan batas bulanan di Pengaturan > Batas Biaya.");
       }
+      const flow = readTaskFlow(ctx.db, self, agent.id, b.flow_id, b.flow_values);
+      if (typeof flow === "string") return fail(422, flow);
       const attachments = claimAttachments(ctx.db, self.organization_id, b.attachment_ids);
       if (typeof attachments === "string") return fail(422, attachments);
       const task = createTask(
@@ -283,6 +312,7 @@ export const tugasRoutes: MockRoute[] = [
           attachment_ids: attachments.map((a) => a.id),
           web_search: b.web_search === "off" ? "off" : "role",
           compose_mode: choice,
+          flow,
         },
         Date.now()
       );
@@ -348,6 +378,7 @@ export const tugasRoutes: MockRoute[] = [
       if (!["approved", "rejected", "revise"].includes(b.decision ?? "")) return fail(422, "Keputusan tidak valid.");
       const comment = text(b.comment, 1000);
       if (b.decision !== "approved" && comment.length < 5) return fail(422, "Tuliskan alasan atau catatan perbaikan (minimal 5 karakter).");
+      if (b.decision === "revise" && a.reason === "flow") return fail(422, "Persetujuan alur hanya bisa disetujui atau ditolak.");
       decideApproval(ctx.db, a, b.decision as "approved" | "rejected" | "revise", comment, self.id, Date.now());
       return ok(toApproval(ctx.db, a), "Keputusan tersimpan.");
     },

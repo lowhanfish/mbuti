@@ -20,6 +20,7 @@ export const useResponseListFlow = (roleId: string) => {
   const { data, isLoading, isError, error } = useQuery({
     queryFn: () => fetchData<ApiResponse<FlowListResponse>>(`${api}/role/${roleId}/alur`),
     queryKey: [QUERY_KEY, "list", roleId],
+    enabled: Boolean(roleId),
     refetchInterval: (query) =>
       query.state.data?.data.flows.some((f) => f.status === "learning" || (f.last_run && isActiveRun(f.last_run.status))) ? LIVE_MS : false,
   });

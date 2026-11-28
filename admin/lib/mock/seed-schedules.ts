@@ -21,7 +21,7 @@ export const seedSchedules = (db: MockDatabase) => {
   );
   db.member_leaves.push({ id: "cuti-1", member_id: "member-bayu", start_date: isoDate(at(6)), end_date: isoDate(at(8)), note: "Keperluan keluarga" });
 
-  const base = { organization_id: ORG, inputs: {}, priority: "normal" as const, budget_limit: 5000, web_search: "role" as const, compose_mode: "role" as const, created_by_member_id: "member-demo" };
+  const base = { organization_id: ORG, inputs: {}, priority: "normal" as const, budget_limit: 5000, web_search: "role" as const, compose_mode: "role" as const, flow_id: null, flow_values: {}, created_by_member_id: "member-demo" };
   const schedules: MockSchedule[] = [
     {
       ...base,

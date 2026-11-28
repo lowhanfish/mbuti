@@ -1,3 +1,4 @@
+import type { NamedValue, RunStatus } from "../alur/types";
 import type { LetterSource } from "../pengaturan/persuratan/types";
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
 import type { SearchHit, WebSource } from "../pengetahuan/types";
@@ -9,7 +10,7 @@ export type TaskPriority = "low" | "normal" | "high";
 export type StepKind = "work" | "review" | "consult";
 export type StepStatus = "queued" | "running" | "done" | "revise_requested" | "failed" | "skipped";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revise";
-export type ApprovalReason = "escalate" | "requires_approval" | "max_revisions" | "composed";
+export type ApprovalReason = "escalate" | "requires_approval" | "max_revisions" | "composed" | "flow";
 export type EventType =
   | "created"
   | "step_started"
@@ -19,6 +20,9 @@ export type EventType =
   | "relation_skipped"
   | "approval_requested"
   | "approval_decided"
+  | "flow_started"
+  | "flow_waiting"
+  | "flow_done"
   | "completed"
   | "failed"
   | "cancelled"
@@ -39,6 +43,32 @@ export interface CreateInterface {
   web_search?: WebSearchMode;
   /** `role` = ikut mode role; selain itu mengganti mode semua role di tugas ini (E3c) */
   compose_mode?: ComposeChoice;
+  /** Alur aplikasi milik role pertama yang dijalankan sesudah pekerjaan selesai (E4c) */
+  flow_id?: string | null;
+  /** Isian alur yang ditentukan sekarang; yang kosong diisi role dari bahan tugas */
+  flow_values?: Record<string, string>;
+}
+
+/** `waiting`: pekerjaan belum selesai; `prepare`: isian sedang disusun; `running`: aplikasi dibuka */
+export type TaskFlowStage = "waiting" | "prepare" | "running" | "done";
+
+export interface TaskFlow {
+  flow_id: string;
+  name: string;
+  stage: TaskFlowStage;
+  run_id: string | null;
+  run_status: RunStatus | null;
+  run_message: string;
+  /** Hanya untuk yang boleh mengelola alur; selain itu kosong */
+  values: NamedValue[];
+  outputs: NamedValue[];
+}
+
+export interface ApprovalFlow {
+  run_id: string;
+  /** Yang akan dikirim ke aplikasi */
+  values: NamedValue[];
+  screenshot_url: string | null;
 }
 
 export type ComposeChoice = "role" | ComposeMode;
@@ -145,6 +175,8 @@ export interface ApprovalInterface {
   /** Hasil terakhir yang diminta untuk diputuskan */
   last_output: string;
   last_agent: AgentRef | null;
+  /** Persetujuan alur aplikasi (E4c); null untuk persetujuan lain */
+  flow: ApprovalFlow | null;
 }
 
 export interface EventInterface {
@@ -181,6 +213,7 @@ export interface DetailInterface extends ResponseInterface {
   attachments: TaskAttachment[];
   web_search: WebSearchMode;
   compose_mode: ComposeChoice;
+  flow: TaskFlow | null;
   steps: StepInterface[];
   approvals: ApprovalInterface[];
   events: EventInterface[];
@@ -322,6 +355,7 @@ export const APPROVAL_REASON_LABEL: Record<ApprovalReason, string> = {
   requires_approval: "Persetujuan sebelum lanjut",
   max_revisions: "Batas revisi habis",
   composed: "Ada isi buatan role",
+  flow: "Kirim ke aplikasi",
 };
 
 export const isActiveTask = (status: TaskStatus) => status === "queued" || status === "running";
