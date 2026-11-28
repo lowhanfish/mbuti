@@ -156,14 +156,33 @@ export const autoLayout = (nodes: GraphNode[], saved: Record<string, Point>, rel
   let top = savedPoints.length ? Math.max(...savedPoints.map((p) => p.y)) + ROW_H + GROUP_GAP : 0;
   const left = savedPoints.length ? Math.min(...savedPoints.map((p) => p.x)) : 0;
 
+  // Manusia tujuan eskalasi sering dipakai banyak alur; ia tidak dihitung sebagai penyambung alur,
+  // melainkan ditaruh di kolom paling kanan sejajar dengan role yang mengarah kepadanya.
+  const isHuman = (id: string) => nodeById.get(id)?.kind === "human";
   const linked = new Set(edges.flat());
-  const flows = components([...linked], edges).sort((a, b) => b.length - a.length);
+  const agentEdges = edges.filter(([a, b]) => !isHuman(a) && !isHuman(b));
+  const flowStart = top;
+  let flowRight = 0;
+  const flows = components([...linked].filter((id) => !isHuman(id)), agentEdges).sort((a, b) => b.length - a.length);
   for (const flow of flows) {
-    const flowEdges = edges.filter(([a]) => flow.includes(a));
+    const flowEdges = agentEdges.filter(([a]) => flow.includes(a));
     const { result: placed, height } = layoutFlow(flow, flowEdges, nodeById, top);
-    for (const [id, p] of Object.entries(placed)) result[id] = { x: left + p.x, y: p.y };
+    for (const [id, p] of Object.entries(placed)) {
+      result[id] = { x: left + p.x, y: p.y };
+      flowRight = Math.max(flowRight, p.x);
+    }
     top += height + GROUP_GAP;
   }
+  const humans = [...linked].filter(isHuman).sort((a, b) => nodeById.get(a)!.name.localeCompare(nodeById.get(b)!.name, "id"));
+  let humanFloor = flowStart;
+  for (const id of humans) {
+    const sources = edges.filter(([, b]) => b === id).map(([a]) => result[a]).filter(Boolean);
+    const wanted = sources.length ? sources.reduce((s, p) => s + p.y, 0) / sources.length : humanFloor;
+    const y = Math.max(wanted, humanFloor);
+    result[id] = { x: left + (flows.length ? flowRight + COL_W : 0) + 30, y };
+    humanFloor = y + ROW_H;
+  }
+  if (!flows.length && humans.length) top = humanFloor + GROUP_GAP;
 
   // Role (dan manusia) tanpa relasi: satu blok per unit, kisi GRID_COLS kolom
   const loose = free.filter((n) => !linked.has(n.id)).sort(byUnitThenName);
