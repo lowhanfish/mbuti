@@ -34,7 +34,7 @@ const accountOf = (ctx: MockContext, id: string) => ctx.db.vault_accounts.find((
 const lockedAccount = (ctx: MockContext, accountId: string) => {
   const account = accountOf(ctx, accountId);
   const agent = ctx.db.agents.find((a) => a.id === account?.agent_id);
-  return !account || account.responsible_member_id !== agent?.owner_member_id;
+  return !account || Boolean(account.login_failed) || account.responsible_member_id !== agent?.owner_member_id;
 };
 
 const toSummary = (ctx: MockContext, run: MockBrowserRun): RunSummary => ({
@@ -55,6 +55,8 @@ const toDetail = (ctx: MockContext, self: MockMembership, flow: MockFlow): FlowD
   const agent = ctx.db.agents.find((a) => a.id === flow.agent_id)!;
   const account = accountOf(ctx, flow.account_id);
   const runs = runsOf(ctx, flow.id);
+  // Isi akun orang lain hanya untuk yang boleh mengelola
+  const sees = canManage(self, agent.owner_member_id);
   return {
     id: flow.id,
     role_id: agent.id,
@@ -65,8 +67,8 @@ const toDetail = (ctx: MockContext, self: MockMembership, flow: MockFlow): FlowD
     goal: flow.goal,
     status: flow.status,
     version: flow.version,
-    inputs: flow.inputs,
-    steps: flow.steps,
+    inputs: sees ? flow.inputs : flow.inputs.map((i) => ({ ...i, sample: "" })),
+    steps: sees ? flow.steps : flow.steps.map((s) => ({ ...s, screenshot_url: null })),
     note: flow.note,
     trusted_submit: flow.trusted_submit,
     successful_runs: flow.successful_runs,
@@ -86,17 +88,18 @@ const toDetail = (ctx: MockContext, self: MockMembership, flow: MockFlow): FlowD
 const toRun = (ctx: MockContext, self: MockMembership, run: MockBrowserRun): RunDetail => {
   const flow = ctx.db.browser_flows.find((f) => f.id === run.flow_id)!;
   const agent = ctx.db.agents.find((a) => a.id === flow.agent_id)!;
+  const sees = canManage(self, agent.owner_member_id);
   return {
     ...toSummary(ctx, run),
     flow_id: flow.id,
     flow_name: flow.name,
     role_id: agent.id,
     role_name: agent.name,
-    inputs: run.inputs,
-    events: run.events,
-    outputs: run.outputs,
-    pending: run.pending,
-    can_decide: canManage(self, agent.owner_member_id),
+    inputs: sees ? run.inputs : [],
+    events: sees ? run.events : run.events.map((e) => ({ ...e, screenshot_url: null })),
+    outputs: sees ? run.outputs : [],
+    pending: sees ? run.pending : null,
+    can_decide: sees,
   };
 };
 

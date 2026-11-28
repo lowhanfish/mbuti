@@ -8,6 +8,7 @@ export interface MockVaultAccount {
   other_urls: string[];
   username: string;
   has_totp: boolean;
+  login_failed?: boolean;
   /** Penanggung jawab saat akun disimpan atau dikonfirmasi */
   responsible_member_id: string;
   password_changed_at: string;

@@ -143,10 +143,12 @@ const advance = (db: MockDatabase, run: MockBrowserRun, flow: MockFlow, at: numb
     return;
   }
   if (run.mode === "replay" && step.action === "fill" && run.inputs.some((i) => /ubah tampilan/i.test(i.value))) {
-    flow.status = "needs_repair";
-    flow.note = `Langkah ${step.no} (${step.description}) tidak ditemukan. Tampilan aplikasi kemungkinan berubah.`;
-    logEvent(run, flow.note, "failed", at, step);
-    finishRun(run, "needs_repair", flow.note, at);
+    const reason = `Langkah ${step.no} (${step.description}) tidak ditemukan. Tampilan aplikasi kemungkinan berubah.`;
+    logEvent(run, reason, "failed", at, step);
+    finishRun(run, "needs_repair", reason, at);
+    // Seperti backend: satu percobaan perbaikan otomatis, lalu menunggu diperiksa
+    Object.assign(flow, { status: "learning", note: reason, version: flow.version + 1, trusted_submit: false, successful_runs: 0, approved_at: null, approved_by_member_id: null });
+    startRun(db, flow, "repair", "", run.plan, flow.inputs.map((i) => ({ label: i.label, value: i.sample })));
     return;
   }
   if (run.needs_otp && step.action === "click" && step.no > 4 && !run.cleared) {

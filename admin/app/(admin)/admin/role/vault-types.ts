@@ -12,6 +12,8 @@ export interface VaultAccount {
   has_totp: boolean;
   /** Penanggung jawab role berganti: tidak dipakai program sampai dikonfirmasi */
   locked: boolean;
+  /** Gagal masuk 2 kali: tidak dipakai sampai password diganti atau dikonfirmasi */
+  login_failed: boolean;
   password_changed_at: string;
   last_used_at: string | null;
   created_at: string;

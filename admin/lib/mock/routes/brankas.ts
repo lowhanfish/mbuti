@@ -62,6 +62,7 @@ const toAccount = (scope: Scope, a: MockVaultAccount): VaultAccount => {
     has_password: true,
     has_totp: a.has_totp,
     locked: a.responsible_member_id !== scope.agent.owner_member_id,
+    login_failed: Boolean(a.login_failed),
     password_changed_at: a.password_changed_at,
     last_used_at: a.last_used_at,
     created_at: a.created_at,
@@ -175,8 +176,15 @@ export const brankasRoutes: MockRoute[] = [
       const input = readInput(ctx, scope, account);
       if ("status" in input) return input;
       const { newPassword, ...fields } = input;
+      const before = new Set([account.url, ...account.other_urls].map(originOf));
+      const moved = [fields.url, ...fields.other_urls].some((u) => !before.has(originOf(u)));
       Object.assign(account, fields, { updated_at: nowIso() });
-      if (newPassword) account.password_changed_at = account.updated_at;
+      if (newPassword) Object.assign(account, { password_changed_at: account.updated_at, login_failed: false });
+      if (moved) {
+        for (const flow of ctx.db.browser_flows.filter((f) => f.account_id === account.id)) {
+          Object.assign(flow, { trusted_submit: false, status: "needs_repair", note: "Alamat akun berubah. Pelajari ulang alur ini." });
+        }
+      }
       return ok(toAccount(scope, account), "Akun diperbarui.");
     },
   },
@@ -201,7 +209,9 @@ export const brankasRoutes: MockRoute[] = [
       const account = findAccount(ctx, scope);
       if (!account) return fail(404, "Akun brankas tidak ditemukan.");
       account.responsible_member_id = scope.self.id;
+      account.login_failed = false;
       account.updated_at = nowIso();
+      for (const flow of ctx.db.browser_flows.filter((f) => f.account_id === account.id)) flow.trusted_submit = false;
       return ok(toAccount(scope, account), "Akun dikonfirmasi.");
     },
   },

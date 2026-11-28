@@ -73,6 +73,7 @@ export default function TabBrankas({ role }: { role: ResponseInterface }) {
                     <p className="text-sm font-bold text-ink">{a.name}</p>
                     {a.locked && <Badge variant="warning" size="sm">Perlu dikonfirmasi</Badge>}
                     {a.has_totp && <Badge variant="info" size="sm">Authenticator</Badge>}
+                    {a.login_failed && <Badge variant="danger" size="sm">Gagal masuk</Badge>}
                   </div>
                   <p className="text-xs text-muted break-all">{a.url}</p>
                   {a.other_urls.length > 0 && <p className="text-[11px] text-faint break-all">Juga: {a.other_urls.join(", ")}</p>}
@@ -83,7 +84,7 @@ export default function TabBrankas({ role }: { role: ResponseInterface }) {
                 </div>
                 {canManage && (
                   <div className="flex flex-wrap gap-2 shrink-0">
-                    {a.locked ? (
+                    {a.locked || a.login_failed ? (
                       <Button size="sm" onClick={() => setDialog({ kind: "confirm", account: a })}>Konfirmasi</Button>
                     ) : (
                       <>

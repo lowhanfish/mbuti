@@ -2900,6 +2900,7 @@ export interface VaultAccount {
   has_password: boolean;
   has_totp: boolean;
   locked: boolean;       // penanggung jawab berganti
+  login_failed: boolean; // gagal masuk 2 kali; ganti password atau konfirmasi (E4b)
   password_changed_at: string;
   last_used_at: string | null;
   created_at: string;
@@ -3112,7 +3113,10 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
 
 ### 22.3 Hak akses
 
-- Melihat: semua anggota.
+- Melihat daftar, alur, status, dan catatan putaran: semua anggota.
+- Tangkapan layar, isian putaran, data yang dibaca, dan pertanyaan persetujuan memuat isi akun orang lain, jadi hanya
+  untuk yang boleh mengelola. Yang lain menerima `screenshot_url: null`, `inputs: []`, `outputs: []`, `pending: null`,
+  dan `sample: ""`; alamat bukti menjawab `403`.
 - Mengajari, menyetujui, menjalankan, memutuskan, mengirim OTP, menghentikan, menghapus: **penanggung jawab role**
   (bukan pemantau), pemilik, atau admin. Selain itu `403`.
 - `tanpa-persetujuan`: hanya penanggung jawab role dengan kode verifikasi dua langkahnya.
@@ -3126,6 +3130,11 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
 - `jalankan` hanya untuk alur `approved`. `setujui` hanya untuk `review` dengan `version` yang sama (`409`).
 - `pelajari` menaikkan `version`, mengembalikan alur ke `learning`, dan menghapus persetujuan, pembebasan, serta
   hitungan putaran berhasil. Pada alur `needs_repair` putarannya bermode `repair`.
+- Bila putaran menemukan tampilan berubah, server **otomatis** menaikkan versi dan memulai satu putaran `repair`
+  (`created_by_name: "Sistem"`). Berhasil: alur `review` dan perlu disetujui lagi. Gagal: alur tetap `needs_repair`,
+  dan tidak dicoba lagi sampai pengguna menekan "Perbaiki alur".
+- Langkah baru menggantikan langkah lama hanya bila belajar berhasil.
+- Satu alur paling banyak punya **satu langkah berisiko**, sebagai langkah terakhir: belajar berhenti di sana.
 - `tanpa-persetujuan` dengan `enabled: true` perlu `approved` dan 3 putaran berhasil (`409`).
 
 ### 22.5 Pengaman
@@ -3135,6 +3144,9 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
 - **Putaran:** sebelum langkah `submit` atau `delete`, putaran berhenti pada `waiting_approval`. `submit` dilewatkan
   persetujuannya hanya bila `trusted_submit`; `delete` selalu menunggu. Setelah disetujui, program mengulang dari awal
   sampai langkah itu, lalu melanjutkan.
+- Putaran yang terputus sesudah tombol berisiko ditekan **tidak diulang otomatis**; pesannya meminta pengguna memeriksa
+  aplikasinya.
+- Bila tombol ditekan tetapi tidak ada yang terkirim, atau aplikasi menolak, putaran `failed`.
 - Pembayaran dan transfer tidak didukung: putaran berhenti `failed`.
 - CAPTCHA tidak dilewati: putaran berhenti `failed` dengan penjelasan.
 - Gagal masuk berhenti setelah 2 kali percobaan. Akun brankas yang gagal masuk tidak dipakai lagi sampai passwordnya
@@ -3143,7 +3155,14 @@ Data organisasi lain dijawab `404`. `screenshot_url` menunjuk alamat bukti di at
 - Username, password, dan kode authenticator diisi program, hanya pada asal yang terdaftar di brankas; tidak dikirim ke
   model, tidak masuk catatan putaran, dan kolomnya ditutup pada tangkapan layar.
 - Halaman di luar asal yang terdaftar tidak dibuka. Di produksi alamat jaringan internal diblokir.
-- Langkah yang tidak ditemukan saat putaran: `needs_repair`.
+- Langkah yang tidak ditemukan saat putaran, atau tombol biasa yang kini mengirim data: `needs_repair`.
+- Sesi masuk disimpan terenkripsi per akun brankas, dan langkah masuk dilewati selama sesinya berlaku. Sesi dihapus
+  saat alamat, username, atau password diganti.
+- Akun yang gagal masuk: `VaultAccount.login_failed: true`, dan putaran baru ditolak (`409`).
+- Mengonfirmasi akun atau mengganti alamat situsnya mencabut `trusted_submit` semua alurnya; alamat situs baru juga
+  membuat alurnya `needs_repair`.
+- **Pemberitahuan** lewat email ke penanggung jawab role: menunggu persetujuan, menunggu OTP, CAPTCHA, gagal masuk,
+  tampilan berubah, dan putaran gagal.
 - Jejak audit: `alur.belajar`, `alur.setujui`, `alur.jalankan`, `alur.persetujuan`, `alur.hapus`, `alur.putuskan`,
   `alur.otp`, `alur.hentikan`. Kode OTP dan isian tidak dicatat.
 
