@@ -1,6 +1,6 @@
 # Rencana Pengembangan MBUTI
 
-Diperbarui: 28 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d) dan migrasinya terpasang di mbuti; pencarian internet belum berhasil dicoba karena kuota; E2 berikutnya setelah rinciannya disepakati.
+Diperbarui: 28 November 2026. Status: **A0–A7 selesai** (kerangka, identitas visual lebah, organisasi, unit, pengguna, role dengan karakter 3D, pengetahuan, peta relasi, tugas dan persetujuan, kantor 3D, dashboard dan pengaturan). **A8 selesai**: kontrak API disetujui beserta keputusannya. Fase A selesai. **B0–B6 selesai** (kerangka backend; auth, organisasi, unit, pengguna; role dan peta relasi; pengetahuan; pengaturan dan eksekusi satu role; tugas lintas role, persetujuan, kantor, dan dashboard; frontend tersambung ke backend). Fase B selesai. **Fase C**: pengerasan dan dokumentasi selesai; pemasangan di server menunggu server tujuan. **Fase D**: D1 (akun mandiri) selesai. **Fase E** (role sebagai pekerja) disepakati 27 November 2026; E1 selesai (halaman, kontrak API, backend E1a–E1d) dan migrasinya terpasang di mbuti; pencarian internet belum berhasil dicoba karena kuota; rancangan E2 disepakati dan sedang dikerjakan.
 
 MBUTI (Multi-agent Business & Unified Task Intelligence) adalah platform untuk menyusun organisasi virtual berisi **role AI**. Setiap role bekerja berdasarkan SOP, manual book, dan panduan kerja yang diunggah, lalu berhubungan dengan role lain lewat relasi yang bisa diatur sendiri (menyerahkan, memeriksa, berkonsultasi, eskalasi ke manusia).
 
@@ -641,8 +641,8 @@ dipakai, atau dibuatkan role dalam PDF, DOCX, atau XLSX.
   saat libur"*). AI mengubahnya menjadi jadwal dan menampilkan putaran berikutnya untuk disetujui.
   - Pilihan: harian, hari kerja, mingguan, bulanan (tanggal tertentu atau hari kerja terakhir), triwulan, tanggal
     tertentu; batas akhir bila perlu; bisa dijeda dan dilanjutkan.
-  - **Kalender:** libur nasional dan cuti bersama (diperbarui tiap tahun), kalender kerja tenant (shift, enam hari
-    kerja, libur perusahaan, libur daerah), dan cuti pemilik role.
+  - **Kalender:** diatur sepenuhnya oleh tenant (hari kerja, shift, libur apa pun termasuk libur nasional negaranya,
+    hari kerja pengganti) dan cuti pemilik role.
   - **Gagal:** coba ulang dengan jeda, beri tahu pemilik, lalu diisi susulan atau dilewati sesuai pilihan saat
     membuat jadwal.
   - **Riwayat putaran:** tanggal, hasil, lampiran, dan bukti setiap putaran.
@@ -844,6 +844,83 @@ Kemajuan:
       info terkini, maks satu per langkah dan `WEB_SEARCH_PER_DAY`; kelompok INTERNET di prompt; linimasa mencatat
       pencarian; endpoint usulan dan persetujuannya. Isi halaman sumber tidak diambil ulang saat usulan disetujui
       (ditunda). Uji: `tests/integration/test_web.py`, `tests/unit/test_web_search.py`; pytest penuh 268 lulus.
+
+#### E2. Tugas rutin: rancangan (disepakati 28 November 2026)
+
+Dibagi tiga bagian: **E2a** kalender kerja, shift, dan cuti; **E2b** jadwal, pemahaman kalimat, dan pratinjau;
+**E2c** penjadwal, putaran, coba ulang, susulan, dan notifikasi. Halaman dibuat sekaligus dengan data contoh, kontrak
+API ditulis sekali (bagian 17), lalu backend dan uji per bagian (commit dan push tiap bagian).
+
+**Alur**
+
+1. Pengguna menulis jadwal dengan bahasa biasa (*"Isi laporan harian setiap Senin–Jumat pukul 16.05, jangan saat
+   libur"*). Gemini menerjemahkannya menjadi aturan; server memeriksa aturan itu dan menghitung **5 putaran
+   berikutnya** beserta tanggal yang dilewati dan alasannya.
+2. Pengguna membetulkan lewat formulir bila perlu, lalu **Aktifkan**.
+3. Setiap putaran membuat tugas biasa, sehingga berjalan di alur yang sudah ada (role, relasi, persetujuan, kantor).
+
+**Kalender milik tenant.** MBUTI tidak mengisi libur nasional negara mana pun, karena tenant bisa dari negara lain.
+Setiap organisasi mengatur sendiri:
+
+- **Hari kerja:** hari apa saja dalam seminggu (misalnya Senin–Jumat atau Senin–Sabtu).
+- **Shift:** dinamis, tanpa batas jumlah. Setiap shift punya nama, jam mulai dan selesai (boleh melewati tengah malam),
+  dan hari berlakunya. Tanpa shift, organisasi dianggap satu jam kerja biasa.
+- **Hari khusus:** libur (nasional, cuti bersama, perusahaan, daerah; nama jenisnya bebas) dan hari kerja pengganti.
+  Diisi satu per satu atau diimpor dari CSV (`tanggal,nama,jenis`).
+- Semua tanggal dan jam memakai zona waktu organisasi (`organizations.timezone`).
+
+**Aturan jadwal** (`rule` JSONB, diperiksa server)
+
+- Frekuensi: harian, hari kerja, mingguan (hari tertentu), bulanan (tanggal tertentu atau hari kerja terakhir),
+  triwulan, atau tanggal-tanggal tertentu; tanggal mulai dan tanggal berakhir bila ada.
+- Jam: jam tetap, atau terkait shift (*awal* atau *akhir* shift tertentu ditambah atau dikurangi menit); jadwal
+  terkait shift hanya berjalan pada hari shift itu berlaku.
+- Rentang sebar (misalnya 16.00–16.30): jadwal yang jatuh pada jam sama disebar otomatis.
+- **Jatuh pada hari libur:** lewati (bawaan), maju ke hari kerja sebelumnya, atau mundur ke hari kerja berikutnya.
+- **Pemilik role cuti:** tetap jalan dan persetujuan menunggu pemilik kembali (bawaan), atau lewati.
+- **Gagal:** coba ulang otomatis 2 kali (15 menit, lalu 1 jam), beri tahu pemilik, lalu susulan di hari kerja
+  berikutnya atau lewati.
+- Penghitungan tanggal sepenuhnya oleh server (pasti dan bisa diuji); AI hanya menerjemahkan kalimat.
+
+**Model data**
+
+| Tabel | Isi |
+|---|---|
+| `schedules` | templat tugas (judul, arahan, role, masukan, prioritas, batas biaya, internet), `rule`, teks asli, status (`draft`, `active`, `paused`, `ended`), `next_run_at`, pembuat |
+| `schedule_runs` | `planned_for`, status (`scheduled`, `created`, `skipped_holiday`, `skipped_leave`, `missed`, `failed`, `retrying`, `backfill`, `skipped`, `stopped_budget`), `task_id`, percobaan ke-, alasan |
+| `work_shifts` | organisasi, nama, jam mulai, jam selesai, hari berlaku, warna |
+| `calendar_days` | organisasi, tanggal, jenis (`holiday` atau `workday`), nama, label jenis |
+| `member_leaves` | anggota, tanggal mulai dan selesai, catatan |
+| `organizations.workdays` | daftar hari kerja (bawaan Senin–Jumat) |
+
+**Penjadwal.** Celery beat menjalankan `dispatch_schedules` setiap menit: mengambil jadwal jatuh tempo dengan
+`FOR UPDATE SKIP LOCKED`, membuat putaran dan tugasnya, lalu menghitung putaran berikutnya. Putaran yang terlambat
+kurang dari 6 jam (misalnya worker mati) tetap dijalankan; yang lebih lama dicatat *terlewat* lalu mengikuti aturan
+susulan. Anggaran bulanan organisasi yang habis menandai putaran *berhenti karena anggaran* dan memberi tahu pemilik.
+
+**Halaman**
+
+- **Tugas → tab Tugas rutin:** daftar jadwal (judul, role, jadwal dalam kalimat, putaran berikutnya, hasil terakhir,
+  status). Buat atau ubah: kotak kalimat dan **Pahami jadwal**, formulir aturan, isian tugas, pratinjau 5 putaran.
+  Detail: riwayat putaran (tanggal, status, tugas, lampiran, bukti), Jeda/Lanjutkan, Jalankan sekarang, Isi susulan.
+- **Pengaturan → Kalender kerja:** hari kerja, shift, hari khusus per tahun, impor CSV.
+- **Organisasi → Pengguna:** cuti setiap anggota.
+
+**Hak akses.** Pemilik dan admin mengelola semua jadwal, kalender, dan cuti; anggota mengelola jadwal untuk role yang
+ia tanggung jawabi dan cutinya sendiri; pengamat hanya melihat.
+
+**Kuota Gemini.** Memahami jadwal: 1 panggilan setiap membuat atau mengubah (`llm_calls.kind = schedule_parse`).
+Setiap putaran sama dengan satu tugas biasa (±1–3 panggilan per langkah). Contoh: 16 role dengan satu tugas harian
+pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwal saja.
+
+**Urutan kerja:** halaman dengan data contoh → kontrak API bagian 17 → E2a → E2b → E2c → coba sungguhan di
+`mbuti_test` lalu dibatalkan.
+
+- [ ] Halaman E2 dengan data contoh
+- [ ] Kontrak API bagian 17
+- [ ] E2a backend dan uji: kalender kerja, shift, cuti
+- [ ] E2b backend dan uji: jadwal, pemahaman kalimat, pratinjau
+- [ ] E2c backend dan uji: penjadwal, putaran, coba ulang, susulan, notifikasi
 
 #### Pertanyaan terbuka fase E
 
