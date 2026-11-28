@@ -22,6 +22,7 @@ from app.api.v1.endpoints.admin.surat.schema import (
     LetterSettings,
     RegisterRequest,
     ResultDocumentItem,
+    SheetResultItem,
 )
 from app.core.exceptions import UnprocessableEntityException
 from app.services.letters.sample import MAX_SAMPLE_BYTES
@@ -34,12 +35,12 @@ require_corrector = require_access(
 PRIVATE = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-cache"}
 
 
-@documents_router.get("", response_model=ApiResponse[list[ResultDocumentItem]])
+@documents_router.get("", response_model=ApiResponse[list[ResultDocumentItem | SheetResultItem]])
 async def read_documents(
     task_id: str,
     member: CurrentMember = Depends(get_current_member),
     session: AsyncSession = Depends(get_db),
-) -> ApiResponse[list[ResultDocumentItem]]:
+) -> ApiResponse[list[ResultDocumentItem | SheetResultItem]]:
     return ApiResponse(data=await documents.read_documents(session, member, task_id))
 
 

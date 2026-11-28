@@ -25,11 +25,11 @@ from app.services.engine.images import (
 from app.services.engine.prompts import (
     CONDITION_SCHEMA,
     CONDITION_SYSTEM,
-    RESPONSE_SCHEMA,
     REVIEW_SCHEMA,
     RoleBrief,
     condition_prompt,
     local_date_and_zone,
+    response_schema,
     system_prompt,
     user_prompt,
 )
@@ -46,6 +46,13 @@ from app.services.llm.generation import (
     ModelUnavailable,
 )
 from app.services.search import free as free_search
+from app.services.sheets.design import (
+    NO_RULES_SHEET,
+    DataTable,
+    asks_for_sheet,
+    clean_sheet,
+    offers_sheet,
+)
 
 logger = logging.getLogger("mbuti.runner")
 
@@ -78,6 +85,8 @@ class RunResult:
     verdict: str | None = None
     # Isi surat bila hasilnya surat (E3a)
     letter: dict | None = None
+    # Rancangan tabel bila hasilnya spreadsheet (E3b)
+    sheet: dict | None = None
 
 
 @dataclass
@@ -260,6 +269,7 @@ async def run_agent(
     check_inputs: bool = True,
     attachments: list[ImageInput] | None = None,
     web_mode: str = "role",
+    tables: list[DataTable] | None = None,
 ) -> RunResult:
     """
     `materials` adalah bahan dari langkah sebelumnya. Pemeriksaan tetap memanggil model walau
@@ -335,13 +345,25 @@ async def run_agent(
             await budget.require_budget(session, caller.organization_id)
             title = next((text for label, text in materials or [] if label == "Judul tugas"), brief)
             web, web_cost = await search_web(session, caller, agent, llm, query, title)
-    if images or web:
-        system = system_prompt(role, reviewing, with_images=bool(images), with_web=bool(web))
-    # Surat tetap disusun tanpa aturan: formatnya dicari kemudian dan ditandai (kontrak 18.1)
     title = next((text for label, text in materials or [] if label == "Judul tugas"), "")
+    tables = [] if reviewing else list(tables or [])
+    sheet_offered = not reviewing and (bool(tables) or offers_sheet(f"{title} {brief}"))
+    if images or web or sheet_offered:
+        system = system_prompt(
+            role,
+            reviewing,
+            with_images=bool(images),
+            with_web=bool(web),
+            with_sheet=sheet_offered,
+        )
+    # Surat tetap disusun tanpa aturan: formatnya dicari kemudian dan ditandai (kontrak 18.1)
     letter_request = not reviewing and asks_for_letter(f"{title} {brief}")
     if letter_request and not excerpts:
         system = f"{system}\n\n{NO_RULES_LETTER}"
+    # Tabel dirancang dari berkas data atau arahan, tanpa harus ada aturan (kontrak 19.2)
+    sheet_request = not reviewing and (bool(tables) or asks_for_sheet(f"{title} {brief}"))
+    if sheet_request and not excerpts:
+        system = f"{system}\n\n{NO_RULES_SHEET}"
     user = user_prompt(
         brief,
         labelled,
@@ -349,9 +371,11 @@ async def run_agent(
         materials,
         [(image.label, image.title, image.excerpt) for image in images],
         web,
+        tables,
     )
     preview = f"{system}\n\n{user}"
-    if not excerpts and not reviewing and not images and not web and not letter_request:
+    requested = letter_request or sheet_request
+    if not excerpts and not reviewing and not images and not web and not requested:
         return RunResult(
             status="not_in_documents",
             output=NO_EXCERPTS,
@@ -372,7 +396,7 @@ async def run_agent(
         [models[profile], models["fallback"]],
         system,
         user,
-        REVIEW_SCHEMA if reviewing else RESPONSE_SCHEMA,
+        REVIEW_SCHEMA if reviewing else response_schema(sheet_offered),
         [(image.label, image.data) for image in images],
     )
 
@@ -394,7 +418,8 @@ async def run_agent(
         await save_readings(session, data, images, excerpts)
         await session.commit()
     notes = str(data.get("notes") or "")
-    if status == "done" and not cited:
+    sheet = clean_sheet(data.get("sheet"), tables) if sheet_offered and status == "done" else None
+    if status == "done" and not cited and sheet is None:
         notes = (
             f"{notes} Hasil ini tidak merujuk dokumen mana pun; periksa sebelum dipakai.".strip()
         )
@@ -402,6 +427,7 @@ async def run_agent(
     letter = None if reviewing or status != "done" else clean_letter(data.get("letter"))
     return RunResult(
         letter=letter,
+        sheet=sheet,
         status=status,
         output=output,
         notes=notes,

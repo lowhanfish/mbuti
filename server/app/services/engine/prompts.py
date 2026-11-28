@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from app.services.knowledge.search import Chunk
 from app.services.letters.content import LETTER_PROPERTY, LETTER_RULES
+from app.services.sheets.design import SHEET_PROPERTY, SHEET_RULES, DataTable
 
 # Temuan dan bacaan halaman hanya diisi bila ada gambar (E1c, kontrak 16.6)
 FINDINGS_PROPERTY = {
@@ -53,6 +54,15 @@ RESPONSE_SCHEMA = {
     },
     "required": ["status", "output", "sources", "notes"],
 }
+
+
+def response_schema(with_sheet: bool) -> dict:
+    """Rancangan tabel hanya diminta bila tugasnya menyangkut data atau spreadsheet (19.2)."""
+    if not with_sheet:
+        return RESPONSE_SCHEMA
+    properties = {**RESPONSE_SCHEMA["properties"], "sheet": SHEET_PROPERTY}
+    return {**RESPONSE_SCHEMA, "properties": properties}
+
 
 WEB_RULES = [
     "",
@@ -142,7 +152,11 @@ def condition_prompt(condition: str, material: str) -> str:
 
 
 def system_prompt(
-    role: RoleBrief, reviewing: bool = False, with_images: bool = False, with_web: bool = False
+    role: RoleBrief,
+    reviewing: bool = False,
+    with_images: bool = False,
+    with_web: bool = False,
+    with_sheet: bool = False,
 ) -> str:
     lines = [
         f"Anda adalah {_data(role.name)}, {_data(role.title)} di {_data(role.unit_name)}, "
@@ -197,6 +211,8 @@ def system_prompt(
         lines += IMAGE_RULES
     if with_web:
         lines += WEB_RULES
+    if with_sheet:
+        lines += SHEET_RULES
     return "\n".join(lines)
 
 
@@ -207,6 +223,7 @@ def user_prompt(
     materials: list[tuple[str, str]] | None = None,
     images: list[tuple[str, str, int | None]] | None = None,
     web: list[dict] | None = None,
+    tables: list[DataTable] | None = None,
 ) -> str:
     """`images`: (nama, judul, nomor potongan bila gambar halaman dokumen)."""
     page_labels = {excerpt: label for label, _, excerpt in images or [] if excerpt}
@@ -242,6 +259,18 @@ def user_prompt(
                 _data(source["snippet"]),
                 "</internet>",
             ]
+    # Lampiran data: hanya kolom, jumlah baris, dan contoh baris (kontrak 19.2)
+    for table in tables or []:
+        columns = "; ".join(f"{c['name']} ({c['type']})" for c in table.columns)
+        lines += [
+            "",
+            f'<data nama="{table.label}">',
+            _data(f"Berkas {table.file_name}, lembar {table.name}, {table.row_count} baris"),
+            _data(f"Kolom: {columns}"),
+            "Contoh baris:",
+            *(_data(" | ".join(row)) for row in table.sample),
+            "</data>",
+        ]
     if images:
         lines.append("")
         lines += [f'<gambar nama="{label}">{_data(title)}</gambar>' for label, title, _ in images]

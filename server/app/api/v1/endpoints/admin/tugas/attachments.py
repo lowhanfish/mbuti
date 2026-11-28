@@ -1,4 +1,4 @@
-"""Lampiran tugas dan uji coba: gambar atau PDF (kontrak 16.6)."""
+"""Lampiran tugas dan uji coba: gambar, PDF, atau data XLSX/CSV (kontrak 16.6 dan 19.1)."""
 
 import asyncio
 import datetime
@@ -20,11 +20,17 @@ from app.models.base import utcnow
 from app.services.knowledge import storage, visual
 from app.services.knowledge.extract import ExtractionError, detect_type
 from app.services.knowledge.image_files import read_image
+from app.services.sheets.read import DataError, read_tables, summary
 
 NOT_FOUND = "Lampiran tidak ditemukan."
 UNUSABLE = "Lampiran tidak ditemukan atau sudah dipakai tugas lain. Unggah ulang."
 KEEP_UNUSED = datetime.timedelta(hours=24)
 ALLOWED = ("png", "jpg", "webp", "pdf")
+UNSUPPORTED = "Lampiran berupa gambar PNG, JPG, WEBP, PDF, Excel (.xlsx), atau CSV."
+DATA_TYPES = {
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "csv": "text/csv",
+}
 
 
 def page_url(attachment_id: uuid.UUID, page_no: int) -> str:
@@ -41,6 +47,16 @@ def to_item(attachment: TaskAttachment, uploader: str | None) -> AttachmentItem:
         height=attachment.height,
         page_count=len(attachment.page_paths),
         pages=[page_url(attachment.id, n) for n in range(1, len(attachment.page_paths) + 1)],
+        table=[
+            {
+                "name": t["name"],
+                "columns": [c["name"] for c in t["columns"]],
+                "row_count": t["row_count"],
+            }
+            for t in attachment.tables
+        ]
+        if attachment.tables
+        else None,
         exif=attachment.exif,
         uploaded_by_name=uploader,
         created_at=attachment.created_at,
@@ -58,6 +74,10 @@ def _prepare(extension: str, data: bytes) -> tuple[list[bytes], int, int, dict |
     return [image], width, height, exif
 
 
+def _summaries(extension: str, data: bytes) -> list[dict]:
+    return [summary(table) for table in read_tables(extension, data)]
+
+
 async def upload(
     session: AsyncSession, actor: CurrentMember, file_name: str, data: bytes
 ) -> AttachmentItem:
@@ -69,15 +89,22 @@ async def upload(
         )
     name = PurePosixPath(file_name.replace("\\", "/")).name
     name = "".join(c for c in name if c.isprintable()).strip()[-200:] or "lampiran"
+    extension = PurePosixPath(name.lower()).suffix.lstrip(".")
+    pages, width, height, exif, tables = [], 0, 0, None, None
     try:
-        extension = detect_type(name, data)
-        if extension not in ALLOWED:
-            raise ExtractionError("Lampiran berupa gambar PNG, JPG, WEBP, atau PDF.")
-        pages, width, height, exif = await asyncio.to_thread(_prepare, extension, data)
+        if extension in DATA_TYPES:
+            tables = await asyncio.to_thread(_summaries, extension, data)
+        else:
+            extension = detect_type(name, data)
+            if extension not in ALLOWED:
+                raise ExtractionError(UNSUPPORTED)
+            pages, width, height, exif = await asyncio.to_thread(_prepare, extension, data)
+    except DataError as exc:
+        raise UnprocessableEntityException(str(exc)) from exc
     except ExtractionError as exc:
         message = str(exc)
         if "Jenis berkas" in message:
-            message = "Lampiran berupa gambar PNG, JPG, WEBP, atau PDF."
+            message = UNSUPPORTED
         raise UnprocessableEntityException(message) from exc
 
     organization_id = actor.organization_id
@@ -89,7 +116,9 @@ async def upload(
         organization_id=organization_id,
         file_name=name,
         storage_path=original,
-        mime_type="application/pdf" if extension == "pdf" else visual.IMAGE_TYPES[extension],
+        mime_type=DATA_TYPES.get(extension)
+        or ("application/pdf" if extension == "pdf" else visual.IMAGE_TYPES[extension]),
+        tables=tables,
         size_bytes=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         width=width,

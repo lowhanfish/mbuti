@@ -13,16 +13,25 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.exceptions import AppException, ConflictException
-from app.models import Agent, AgentRelation, Citation, Task, TaskAttachment, TaskStep
+from app.models import (
+    Agent,
+    AgentRelation,
+    Citation,
+    ResultDocument,
+    Task,
+    TaskAttachment,
+    TaskStep,
+)
 from app.models.base import utcnow
 from app.models.tugas.task import OPEN_STATUSES
 from app.services import budget
 from app.services.engine import flow, routing
-from app.services.engine.images import ImageInput, attachment_images
+from app.services.engine.images import attachment_images
 from app.services.engine.runner import Caller, RunResult, evaluate_condition, run_agent
 from app.services.letters import documents as letters
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
+from app.services.sheets import documents as sheets
 
 logger = logging.getLogger("mbuti.execution")
 
@@ -284,20 +293,19 @@ async def _expand_consults(
         return True
 
 
-async def _attachments(session: AsyncSession, task: Task, step: TaskStep) -> list[ImageInput]:
+async def _attachment_ids(session: AsyncSession, task: Task, step: TaskStep) -> list[uuid.UUID]:
     """Lampiran tugas untuk role pertama, dan untuk penerima relasi yang membawa konteks."""
     if step.via_relation_id is not None:
         relation = await session.get(AgentRelation, step.via_relation_id)
         if relation is None or relation.payload_spec != "result_context":
             return []
-    ids = list(
+    return list(
         await session.scalars(
             select(TaskAttachment.id)
             .where(TaskAttachment.task_id == task.id)
             .order_by(TaskAttachment.created_at)
         )
     )
-    return await attachment_images(session, task.organization_id, ids)
 
 
 async def _materials(session: AsyncSession, step: TaskStep) -> list[tuple[str, str]]:
@@ -326,6 +334,17 @@ async def _materials(session: AsyncSession, step: TaskStep) -> list[tuple[str, s
         if maker.acceptance_criteria:
             criteria = "\n".join(f"- {item}" for item in maker.acceptance_criteria)
             materials.append(("Kriteria hasil pembuat", criteria))
+        table = await session.scalar(
+            select(ResultDocument).where(
+                ResultDocument.task_id == step.task_id,
+                ResultDocument.agent_id == parent.agent_id,
+                ResultDocument.kind == sheets.KIND,
+            )
+        )
+        if table is not None and table.preview:
+            materials.append(
+                ("Spreadsheet buatan pembuat (dihitung program)", sheets.review_summary(table))
+            )
         if payload == "references":
             await references(parent)
     elif step.kind == "consult" and parent is not None:
@@ -437,6 +456,8 @@ async def _store_result(sessions: Sessions, task_id, step_id, result: RunResult)
             )
         if result.letter and step.kind == "work":
             await letters.record(session, task, step, result.letter)
+        if result.sheet and step.kind == "work":
+            await sheets.record(session, task, step, result.sheet)
         agent = await session.get(Agent, step.agent_id)
         blocked = {
             "need_info": "butuh data tambahan",
@@ -586,7 +607,11 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
             current = await session.get(TaskStep, step.id)
             materials = await _materials(session, current)
             entry = current.parent_step_id is None and current.kind == "work"
-            images = await _attachments(session, task, current) if current.kind == "work" else []
+            images, tables = [], []
+            if current.kind == "work":
+                ids = await _attachment_ids(session, task, current)
+                images = await attachment_images(session, task.organization_id, ids)
+                tables = await sheets.data_tables(session, task.organization_id, ids)
             result = await run_agent(
                 session,
                 _caller(task, "step", step.id),
@@ -599,6 +624,7 @@ async def _work(sessions: Sessions, task: Task, step: TaskStep, providers: Provi
                 reviewing=current.kind == "review",
                 check_inputs=entry,
                 attachments=images,
+                tables=tables,
                 web_mode=task.web_search,
             )
     except ConflictException:

@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -124,7 +125,7 @@ class ResultDocument(Base):
 
     __tablename__ = "result_documents"
     __table_args__ = (
-        UniqueConstraint("task_id", "agent_id", name="uq_result_documents_task_agent"),
+        UniqueConstraint("task_id", "agent_id", "kind", name="uq_result_documents_task_agent"),
     )
 
     id = uuid_pk()
@@ -132,6 +133,9 @@ class ResultDocument(Base):
     task_id = _reference("tasks", "CASCADE")
     agent_id = _reference("agents", "SET NULL", nullable=True)
     format_id = _reference("letter_formats", "SET NULL", nullable=True)
+    # letter atau sheet (E3b)
+    kind = Column(String(10), nullable=False, default="letter", server_default="letter")
+    # Kosong untuk spreadsheet
     letter_type = Column(String(60), nullable=False)
     title = Column(String(150), nullable=False)
     content = Column(JSONB, nullable=False)
@@ -140,6 +144,9 @@ class ResultDocument(Base):
     docx_path = Column(String(200), nullable=True)
     pdf_path = Column(String(200), nullable=True)
     page_paths = Column(JSONB, nullable=False, default=list)
+    # Spreadsheet: berkas Excel dan pratinjau tiap lembar
+    xlsx_path = Column(String(200), nullable=True)
+    preview = Column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
     # Salinan format saat berkas dibuat, agar perubahan format tidak mengubah berkas lama
     spec = Column(JSONB, nullable=True)
     sources = Column(JSONB, nullable=False, default=list)

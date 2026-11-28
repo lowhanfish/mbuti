@@ -1018,8 +1018,10 @@ disimpan sebagai teks. Pustaka `openpyxl` (MIT).
 
 - [x] E3b halaman dengan data contoh (28 November 2026): lampiran XLSX dan CSV, pratinjau spreadsheet di Berkas
       hasil; mock `lib/mock/sheets.ts`. Unduhan di data contoh berupa CSV dan XLSX unggahan tidak dibaca
-- [ ] E3b kontrak API
-- [ ] E3b backend dan uji
+- [x] E3b kontrak API (28 November 2026): bagian 19 di `admin/API_CONTRACT.md`
+- [x] E3b backend dan uji (28 November 2026): `services/sheets/`, migrasi `e5c8a3f1b904`, `openpyxl` (MIT) dan
+      `defusedxml` (PSF). Tes unit (termasuk hitungan lewat LibreOffice sungguhan) dan tes integrasi dengan model tiruan.
+      Belum diuji dengan Gemini sungguhan dan halaman terhadap backend
 
 #### Pertanyaan terbuka fase E
 

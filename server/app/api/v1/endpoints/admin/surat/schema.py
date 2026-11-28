@@ -55,6 +55,43 @@ class ResultDocumentItem(BaseModel):
     updated_at: datetime.datetime
 
 
+class SheetColumn(BaseModel):
+    header: str
+    format: str
+    formula: str
+
+
+class SheetRow(BaseModel):
+    style: str
+    cells: list[str]
+
+
+class SheetPreview(BaseModel):
+    name: str
+    columns: list[SheetColumn]
+    rows: list[SheetRow]
+    row_count: int
+    flagged: int
+    flag_rule: str
+
+
+class SheetResultItem(BaseModel):
+    """`SheetResult` (kontrak 19.4)."""
+
+    kind: str = "sheet"
+    id: str
+    title: str
+    version: int
+    processing: bool
+    checks: list[Check]
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    xlsx_url: str | None
+    origin: str
+    source_files: list[str]
+    sheets: list[SheetPreview]
+
+
 class Margins(BaseModel):
     top: float
     right: float

@@ -89,7 +89,9 @@ async def decide(
     await session.commit()
     # Tugas yang selesai lewat persetujuan ini masih perlu nomor dan berkas suratnya
     has_letter = await session.scalar(
-        select(ResultDocument.id).where(ResultDocument.task_id == task.id).limit(1)
+        select(ResultDocument.id)
+        .where(ResultDocument.task_id == task.id, ResultDocument.kind == "letter")
+        .limit(1)
     )
     if task.status in ("queued", "running") or has_letter:
         await enqueue_task(task.id)

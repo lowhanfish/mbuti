@@ -30,7 +30,8 @@ Untuk mencoba tanpa backend, isi `NEXT_PUBLIC_DATA_SOURCE=mock` di `admin/.env.l
 ## Menjalankan backend
 
 Butuh Python 3.12, PostgreSQL dengan ekstensi pgvector (lokal atau layanan jarak jauh), dan Redis.
-LibreOffice diperlukan untuk membuat PDF surat; tanpanya hanya DOCX yang dibuat.
+LibreOffice diperlukan untuk membuat PDF surat dan menghitung rumus spreadsheet; tanpanya hanya DOCX
+yang dibuat, dan rumus Excel baru dihitung saat berkas dibuka.
 
 ### Persiapan (sekali)
 

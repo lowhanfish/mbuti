@@ -28,6 +28,9 @@ dependencies = [
     "python-multipart>=0.0.18",
     # Pencarian internet gratis (E1d); ddgs MIT, primp MIT, lxml BSD
     "ddgs>=9.16.1,<10",
+    # Spreadsheet (E3b); openpyxl MIT, defusedxml PSF (menolak XML berbahaya di berkas unggahan)
+    "openpyxl>=3.1.5,<4",
+    "defusedxml>=0.7.1",
 ]
 
 [project.optional-dependencies]

@@ -49,6 +49,7 @@ from app.services.knowledge.scope import visible_to
 from app.services.llm.embedding import get_embedding_provider
 from app.services.llm.generation import get_llm_provider
 from app.services.organisation import lock_organization, require_membership, require_unit
+from app.services.sheets import documents as sheet_documents
 
 NOT_FOUND = "Role tidak ditemukan."
 
@@ -388,6 +389,7 @@ async def run_trial(
         get_llm_provider(),
         get_embedding_provider(),
         attachments=images,
+        tables=await sheet_documents.data_tables(session, actor.organization_id, ids),
     )
     used = (
         [

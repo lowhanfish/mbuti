@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import MANAGERS, CurrentMember
 from app.api.v1.common import parse_id
-from app.api.v1.endpoints.admin.surat.schema import ResultDocumentItem
+from app.api.v1.endpoints.admin.surat.schema import (
+    ResultDocumentItem,
+    SheetResultItem,
+)
 from app.core.exceptions import (
     ConflictException,
     ForbiddenException,
@@ -26,11 +29,13 @@ from app.services.organisation import lock_organization
 TASK_NOT_FOUND = "Tugas tidak ditemukan."
 NOT_FOUND = "Berkas tidak ditemukan."
 NUMBERED = "Surat sudah bernomor dan tidak bisa diubah."
+NOT_LETTER = "Berkas ini bukan surat."
 PROCESSING = "Berkas masih diproses. Coba lagi sebentar."
 BASE = "/api/v1/admin/tugas"
 MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pdf": "application/pdf",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
 
@@ -72,9 +77,28 @@ async def _may_number(
     )
 
 
+def _sheet_item(task: Task, document: ResultDocument) -> SheetResultItem:
+    url = f"{BASE}/{task.id}/berkas/{document.id}/unduh/xlsx?v={document.version}"
+    return SheetResultItem(
+        id=str(document.id),
+        title=document.title,
+        version=document.version,
+        processing=document.needs_render,
+        checks=document.checks,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+        xlsx_url=url if document.xlsx_path else None,
+        origin=document.content["origin"],
+        source_files=list(dict.fromkeys(s["file_name"] for s in document.content["sources"])),
+        sheets=document.preview,
+    )
+
+
 async def _item(
     session: AsyncSession, actor: CurrentMember, task: Task, document: ResultDocument
-) -> ResultDocumentItem:
+) -> ResultDocumentItem | SheetResultItem:
+    if document.kind == "sheet":
+        return _sheet_item(task, document)
     note = await session.get(LetterFormat, document.format_id) if document.format_id else None
     waiting = document.number is None and task.status == "completed"
     approved = waiting and await documents.approved_by_human(session, task.id)
@@ -104,7 +128,7 @@ async def _item(
 
 async def read_documents(
     session: AsyncSession, actor: CurrentMember, task_id: str
-) -> list[ResultDocumentItem]:
+) -> list[ResultDocumentItem | SheetResultItem]:
     task = await _task(session, actor, task_id)
     rows = await session.scalars(
         select(ResultDocument)
@@ -127,6 +151,8 @@ async def correct(
     session: AsyncSession, actor: CurrentMember, task_id: str, result_id: str, text: str
 ) -> ResultDocumentItem:
     _, document = await _document(session, actor, task_id, result_id)
+    if document.kind != "letter":
+        raise ConflictException(NOT_LETTER)
     if document.number:
         raise ConflictException(NUMBERED)
     if not 5 <= len(text) <= 300:
@@ -161,6 +187,8 @@ async def give_number(
     session: AsyncSession, actor: CurrentMember, task_id: str, result_id: str
 ) -> ResultDocumentItem:
     _, found = await _document(session, actor, task_id, result_id)
+    if found.kind != "letter":
+        raise ConflictException(NOT_LETTER)
     if not await _may_number(session, actor, found):
         raise ForbiddenException("Anda tidak dapat memberi nomor surat ini.")
     document_id = found.id
@@ -190,13 +218,14 @@ async def download(
 ) -> tuple[bytes, str, str]:
     """(isi, jenis media, nama berkas)."""
     _, document = await _document(session, actor, task_id, result_id)
-    path = {"docx": document.docx_path, "pdf": document.pdf_path}.get(kind)
+    paths = {"docx": document.docx_path, "pdf": document.pdf_path, "xlsx": document.xlsx_path}
+    path = paths.get(kind)
     if not path:
         raise NotFoundException(NOT_FOUND)
     name = " ".join(
         "".join(c if c.isalnum() or c in " -_" else " " for c in document.title).split()
     )
-    return await _read(path), MEDIA[kind], f"{name or 'surat'}.{kind}"
+    return await _read(path), MEDIA[kind], f"{name or 'berkas'}.{kind}"
 
 
 async def _read(path: str) -> bytes:

@@ -237,6 +237,8 @@ class MockLlm:
         }
         if "letter" in schema.get("properties", {}) and "buat surat" in user.lower():
             data.update(status="done", output="Surat disusun.", letter=_mock_letter(user))
+        if "sheet" in schema.get("properties", {}) and '<data nama="D1">' in user:
+            data.update(status="done", output="Tabel dirancang.", sheet=_mock_sheet(user))
         if images:
             # Satu temuan per gambar, merujuk potongan pertama bila ada
             data["status"] = "done"
@@ -258,6 +260,31 @@ class MockLlm:
                 {"image": label, "text": f"Bacaan tiruan {label}."} for label, _ in images
             ]
         return Generation(data, len(system + user) // 4 + 300 * len(images), 120)
+
+
+def _mock_sheet(user: str) -> dict:
+    """Rancangan tiruan: semua kolom data pertama, angka dijumlahkan."""
+    found = re.search(r'<data nama="D1">.*?\nKolom: ([^\n]+)', user, re.DOTALL)
+    columns = (
+        re.findall(r"([^;]+?) \((teks|angka|tanggal)\)(?:; |$)", found.group(1)) if found else []
+    )
+    return {
+        "sheets": [
+            {
+                "name": "Rekap",
+                "source": "D1",
+                "columns": [
+                    {
+                        "header": name,
+                        "source_column": name,
+                        "format": {"angka": "number", "tanggal": "date"}.get(kind, "text"),
+                        "total": "sum" if kind == "angka" else "none",
+                    }
+                    for name, kind in columns
+                ],
+            }
+        ]
+    }
 
 
 _DUTY = re.compile(

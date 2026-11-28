@@ -32,6 +32,7 @@ from app.services.letters.numbering import format_number
 from app.services.llm.embedding import EmbeddingProvider
 from app.services.llm.generation import LlmProvider
 from app.services.organisation import lock_organization
+from app.services.sheets import documents as sheets
 
 logger = logging.getLogger("mbuti.letters")
 
@@ -42,7 +43,9 @@ async def record(session: AsyncSession, task: Task, step: TaskStep, letter: dict
     """Isi surat dari satu langkah: berkas baru, atau versi berikutnya milik role yang sama."""
     document = await session.scalar(
         select(ResultDocument).where(
-            ResultDocument.task_id == task.id, ResultDocument.agent_id == step.agent_id
+            ResultDocument.task_id == task.id,
+            ResultDocument.agent_id == step.agent_id,
+            ResultDocument.kind == "letter",
         )
     )
     if document is None:
@@ -249,7 +252,7 @@ def pending_condition():
     completed = exists().where(Task.id == ResultDocument.task_id, Task.status == "completed")
     return or_(
         ResultDocument.needs_render.is_(True),
-        and_(ResultDocument.number.is_(None), completed, approved),
+        and_(ResultDocument.kind == "letter", ResultDocument.number.is_(None), completed, approved),
     )
 
 
@@ -281,6 +284,10 @@ async def finalize_one(
 ) -> None:
     """Format, nomor otomatis, lalu berkasnya. Menyimpan transaksi."""
     document = await session.get(ResultDocument, document_id)
+    if document.kind == sheets.KIND:
+        if document.needs_render:
+            await sheets.render(session, document)
+        return
     task = await session.get(Task, document.task_id)
     if document.format_id is None:
         agent = await session.get(Agent, document.agent_id or task.entry_agent_id)

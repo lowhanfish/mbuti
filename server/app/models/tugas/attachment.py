@@ -7,8 +7,8 @@ from app.models.base import created_at, uuid_pk
 
 class TaskAttachment(Base):
     """
-    Lampiran tugas atau uji coba: gambar atau PDF (kontrak 16.6). Diunggah sebelum tugas dibuat;
-    yang tidak terpakai dibuang setelah `expires_at`.
+    Lampiran tugas atau uji coba: gambar, PDF, atau data (kontrak 16.6 dan 19.1). Diunggah
+    sebelum tugas dibuat; yang tidak terpakai dibuang setelah `expires_at`.
     """
 
     __tablename__ = "task_attachments"
@@ -34,6 +34,8 @@ class TaskAttachment(Base):
     # Gambar WebP tiap halaman (gambar = satu), relatif terhadap folder unggahan
     page_paths = Column(JSONB, nullable=False, default=list)
     exif = Column(JSONB, nullable=True)
+    # Lembar data XLSX dan CSV: nama, kolom, jumlah baris, contoh baris
+    tables = Column(JSONB, nullable=True)
     uploaded_by_member_id = Column(
         UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="SET NULL"), nullable=True
     )
