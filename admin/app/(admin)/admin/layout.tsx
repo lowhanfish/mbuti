@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { adminMenu, findPageTitle, isItemActive, type MenuItem } from "../_data/admin-menu";
 import { Icon } from "../_components/admin-icons";
 import { BackgroundOrbs, BrandMark } from "../_components/brand-mark";
@@ -218,9 +218,46 @@ function NavFallback() {
   );
 }
 
+const SIDEBAR_KEY = "mbuti.sidebar.hidden";
+const SIDEBAR_EVENT = "mbuti:sidebar";
+const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
+
+/** Pilihan sembunyikan menu, diingat per peramban; cadangan di memori bila penyimpanan tidak tersedia. */
+let sidebarMemory = false;
+const readSidebarHidden = () => {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "1";
+  } catch {
+    return sidebarMemory;
+  }
+};
+const writeSidebarHidden = (hidden: boolean) => {
+  sidebarMemory = hidden;
+  try {
+    localStorage.setItem(SIDEBAR_KEY, hidden ? "1" : "0");
+  } catch {
+    // Penyimpanan tidak tersedia: pilihan hanya bertahan sampai halaman dimuat ulang
+  }
+  window.dispatchEvent(new Event(SIDEBAR_EVENT));
+};
+const subscribeSidebar = (callback: () => void) => {
+  window.addEventListener(SIDEBAR_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(SIDEBAR_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  // Laci menu di layar sempit
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Menu samping disembunyikan di layar lebar
+  const sidebarHidden = useSyncExternalStore(subscribeSidebar, readSidebarHidden, () => false);
+  const changeSidebarHidden = writeSidebarHidden;
+  const showMenu = () => (isDesktop() ? changeSidebarHidden(false) : setSidebarOpen(true));
+  const hideMenu = () => (isDesktop() ? changeSidebarHidden(true) : setSidebarOpen(false));
 
   const user = useAuthStore((state) => state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -255,7 +292,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <aside
         className={`glass fixed top-3 bottom-3 left-3 z-50 w-[268px] rounded-[28px] flex flex-col transition-transform duration-300 ease-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-[110%] lg:translate-x-0"
+          sidebarOpen ? "translate-x-0" : `-translate-x-[110%] ${sidebarHidden ? "" : "lg:translate-x-0"}`
         }`}
         aria-label="Navigasi utama"
       >
@@ -271,11 +308,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <button
             type="button"
-            className="lg:hidden w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:bg-surface"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Tutup menu"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:bg-surface hover:text-brand cursor-pointer"
+            onClick={hideMenu}
+            aria-label="Sembunyikan menu"
+            title="Sembunyikan menu"
           >
-            <Icon name="close" size={16} />
+            <Icon name="close" size={16} className="lg:hidden" />
+            <Icon name="chevron" size={16} className="hidden lg:block rotate-90" />
           </button>
         </div>
 
@@ -313,14 +352,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <div className="flex-1 lg:pl-[308px] flex flex-col min-w-0 px-3 lg:pr-7">
+      <div
+        className={`flex-1 flex flex-col min-w-0 px-3 lg:pr-7 transition-[padding] duration-300 ease-out ${sidebarHidden ? "lg:pl-7" : "lg:pl-[308px]"}`}
+      >
         <header className="glass sticky top-3 z-30 mt-3 h-16 rounded-[22px] px-4 sm:px-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="lg:hidden w-10 h-10 rounded-2xl bg-surface/80 border border-rim flex items-center justify-center text-muted hover:text-brand transition-colors"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Buka menu"
+              className={`${sidebarHidden ? "" : "lg:hidden"} w-10 h-10 rounded-2xl bg-surface/80 border border-rim flex items-center justify-center text-muted hover:text-brand transition-colors cursor-pointer`}
+              onClick={showMenu}
+              aria-label="Tampilkan menu"
+              title="Tampilkan menu"
             >
               <Icon name="menu" size={18} />
             </button>
