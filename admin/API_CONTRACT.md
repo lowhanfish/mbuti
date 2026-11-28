@@ -26,6 +26,7 @@ Dokumen ini menjelaskan perilaku **backend**. Hal yang belum ditiru data contoh 
 14. [Jejak audit, batas laju, dan kode permintaan](#14-jejak-audit-batas-laju-dan-kode-permintaan)
 15. [Akun mandiri (D1)](#15-akun-mandiri-d1)
 16. [Pembentukan role dan pengetahuan (E1)](#16-pembentukan-role-dan-pengetahuan-e1)
+17. [Tugas rutin, kalender kerja, dan cuti (E2)](#17-tugas-rutin-kalender-kerja-dan-cuti-e2)
 
 ---
 
@@ -2013,3 +2014,323 @@ jelas; temuan gambar memakai pola tetap; halaman PDF bergambar dan lampiran PDF 
 disimpan sebagai data URL di peramban; sumber internet fiktif dengan domain `.test`; usulan yang disetujui tidak
 mengambil ulang halaman; lampiran dibaca semua langkah `work` tanpa melihat `payload_spec`; temuan tidak mengisi
 `criteria_results`; analisis tidak pernah gagal.
+
+## 17. Tugas rutin, kalender kerja, dan cuti (E2)
+
+Ditambahkan pada fase E (rancangan di `PLANNING.md`, bagian "E2. Tugas rutin: rancangan"). Dikerjakan tiga bagian:
+**E2a** kalender kerja, shift, dan cuti (17.1–17.2); **E2b** jadwal, pemahaman kalimat, dan pratinjau (17.3–17.5);
+**E2c** penjadwal (17.6). Semua tanggal dan jam memakai zona waktu organisasi (`organizations.timezone`). Hari dalam
+seminggu ditulis angka: 1 = Senin … 7 = Minggu.
+
+### 17.1 Kalender kerja (E2a)
+
+| Method | Path | Akses | Body / query | `data` |
+|---|---|---|---|---|
+| GET | `/admin/pengaturan/kalender` | Semua | | `CalendarSettings` |
+| PUT | `/admin/pengaturan/kalender` | Admin+ | `{ workdays: number[] }` | `null` |
+| POST | `/admin/pengaturan/kalender/shift` | Admin+ | `ShiftRequest` | `null` (201) |
+| PUT | `/admin/pengaturan/kalender/shift/{id}` | Admin+ | `ShiftRequest` | `null` |
+| DELETE | `/admin/pengaturan/kalender/shift/{id}` | Admin+ | | `null` |
+| GET | `/admin/pengaturan/kalender/hari` | Semua | `year` (opsional) | `CalendarDay[]`, urut tanggal |
+| POST | `/admin/pengaturan/kalender/hari` | Admin+ | `CalendarDayRequest` | `null` (201) |
+| POST | `/admin/pengaturan/kalender/hari/impor` | Admin+ | `multipart/form-data`: `file` | `ImportResult` |
+| DELETE | `/admin/pengaturan/kalender/hari/{id}` | Admin+ | | `null` |
+
+```ts
+export type DayKind = "holiday" | "workday";
+
+export type WorkShift = {
+  id: string;
+  name: string;
+  /** "HH:MM"; jam selesai lebih kecil dari jam mulai berarti melewati tengah malam */
+  start_time: string;
+  end_time: string;
+  /** 1 = Senin … 7 = Minggu */
+  weekdays: number[];
+};
+
+export type ShiftRequest = Omit<WorkShift, "id">;
+
+export type CalendarSettings = {
+  timezone: string;
+  workdays: number[];
+  shifts: WorkShift[];
+  can_edit: boolean;
+};
+
+export type CalendarDay = {
+  id: string;
+  date: string;
+  /** holiday = libur; workday = hari kerja pengganti */
+  kind: DayKind;
+  name: string;
+  /** Label bebas milik organisasi, mis. "Libur nasional" */
+  label: string;
+};
+
+export type CalendarDayRequest = Omit<CalendarDay, "id">;
+
+export type ImportResult = { added: number; updated: number; errors: string[] };
+```
+
+- Organisasi baru memakai hari kerja Senin–Jumat, tanpa shift dan tanpa tanggal khusus. Tidak ada libur bawaan negara
+  mana pun. `can_edit` benar untuk pemilik dan admin.
+- `workdays`: minimal satu hari, nilai 1–7; server membuang yang berulang dan mengurutkannya. Berlaku juga untuk
+  `weekdays` shift.
+- Shift: `name` 2–60 karakter, unik per organisasi tanpa membedakan huruf besar (`409`); `start_time` dan `end_time`
+  berbentuk `HH:MM` (00:00–23:59) dan tidak boleh sama; jam selesai yang lebih kecil berarti melewati tengah malam.
+  Tidak ada batas jumlah. Daftar diurutkan menurut jam mulai lalu nama.
+- Shift yang masih dipakai tugas rutin (waktu terkait shift) tidak bisa dihapus: `409` dengan judul tugasnya (E2b).
+- Tanggal khusus: satu per tanggal per organisasi; isian baru untuk tanggal yang sama **menggantikan** yang lama.
+  `name` 2–120, `label` ≤ 60 (bebas). `holiday` = libur untuk semua hari dan shift; `workday` = hari kerja pengganti
+  untuk semua hari dan shift. `year` empat angka; kosong atau tidak dikenal berarti semua tahun.
+- Impor CSV: berkas UTF-8 (BOM diabaikan) paling besar 200 KB dan 1.000 baris isi; pemisah koma atau titik koma
+  (ditentukan dari baris pertama), tanda kutip CSV dihormati. Baris pertama yang diawali `tanggal` dianggap judul
+  kolom. Kolom: `tanggal` (YYYY-MM-DD), `nama`, `jenis` (opsional, disimpan sebagai `label`). `jenis` yang memuat
+  "hari kerja" menjadikan baris itu `workday`; selain itu `holiday`. Baris yang salah dilewati dan disebut di
+  `errors` (paling banyak 20, bentuk `"Baris 3: …"`); baris yang benar tetap disimpan. Tidak ada satu pun baris yang
+  benar → `422` berisi galat pertama. Tanggal yang sudah ada dihitung `updated`.
+- Setiap perubahan kalender menghitung ulang `next_run_at` semua tugas rutin organisasi (E2b).
+
+### 17.2 Cuti anggota (E2a)
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| GET | `/admin/organisasi/pengguna/{id}/cuti` | Khusus | | `MemberLeave[]`, terbaru dulu |
+| POST | `/admin/organisasi/pengguna/{id}/cuti` | Khusus | `MemberLeaveRequest` | `null` (201) |
+| DELETE | `/admin/organisasi/pengguna/{id}/cuti/{cutiId}` | Khusus | | `null` |
+
+```ts
+/** Cuti anggota (E2): dipakai tugas rutin untuk pemilik role */
+export type MemberLeave = { id: string; start_date: string; end_date: string; note: string };
+
+export type MemberLeaveRequest = Omit<MemberLeave, "id">;
+```
+
+- `{id}` = ID keanggotaan. **Khusus:** pemilik dan admin untuk siapa pun; anggota hanya untuk dirinya; pemantau
+  tidak pernah (`403`). Anggota organisasi lain → `404`.
+- `start_date` ≤ `end_date` (satu hari: sama), `note` ≤ 200. Rentang yang bertumpuk dengan cuti lain anggota itu →
+  `409`.
+- Perubahan cuti menghitung ulang `next_run_at` tugas rutin organisasi (E2b).
+
+### 17.3 Tugas rutin (E2b)
+
+| Method | Path | Akses | Body | `data` |
+|---|---|---|---|---|
+| GET | `/admin/tugas-rutin` | Semua | | `ScheduleItem[]`, putaran terdekat dulu, tanpa putaran di akhir |
+| POST | `/admin/tugas-rutin/pahami` | Anggota+ | `{ text: string }` | `ParseResponse` |
+| POST | `/admin/tugas-rutin/pratinjau` | Semua | `{ rule: ScheduleRule, entry_agent_id?: string }` | `PreviewResponse` |
+| POST | `/admin/tugas-rutin` | Pengelola | `CreateScheduleRequest` | `ScheduleItem` (201) |
+| GET | `/admin/tugas-rutin/{id}` | Semua | | `ScheduleDetail` |
+| PUT | `/admin/tugas-rutin/{id}` | Pengelola | `CreateScheduleRequest` | `ScheduleItem` |
+| DELETE | `/admin/tugas-rutin/{id}` | Pengelola | | `null` |
+| POST | `/admin/tugas-rutin/{id}/jeda` | Pengelola | | `ScheduleDetail` |
+| POST | `/admin/tugas-rutin/{id}/lanjutkan` | Pengelola | | `ScheduleDetail` |
+| POST | `/admin/tugas-rutin/{id}/jalankan` | Pengelola | | `ScheduleDetail` |
+| POST | `/admin/tugas-rutin/{id}/susulan/{runId}` | Pengelola | | `ScheduleDetail` |
+
+**Pengelola** = pemilik, admin, atau anggota yang menjadi penanggung jawab role yang dijadwalkan. Pemantau tidak
+pernah. `can_manage` dihitung server. Saat `PUT` mengganti role, pengguna harus berhak atas role lama dan role baru.
+
+```ts
+export type Frequency = "daily" | "workdays" | "weekly" | "monthly" | "quarterly" | "dates";
+export type TimeMode = "fixed" | "shift_start" | "shift_end";
+export type OnHoliday = "skip" | "previous" | "next";
+export type OnLeave = "run" | "skip";
+export type OnFail = "backfill" | "skip";
+export type ScheduleStatus = "draft" | "active" | "paused" | "ended";
+export type RunStatus =
+  | "scheduled"
+  | "created"
+  | "skipped_holiday"
+  | "skipped_leave"
+  | "missed"
+  | "failed"
+  | "retrying"
+  | "backfill"
+  | "skipped"
+  | "stopped_budget";
+
+export type ScheduleRule = {
+  frequency: Frequency;
+  /** Mingguan: 1 = Senin … 7 = Minggu */
+  weekdays: number[];
+  /** Bulanan dan triwulan: tanggal 1–31, atau 0 = hari kerja terakhir */
+  month_day: number;
+  /** Tanggal tertentu (YYYY-MM-DD) */
+  dates: string[];
+  time_mode: TimeMode;
+  /** Jam tetap "HH:MM" */
+  time: string;
+  shift_id: string | null;
+  /** Menit sebelum (negatif) atau sesudah awal/akhir shift */
+  offset_minutes: number;
+  /** Rentang sebar dalam menit; 0 = tepat pada jamnya */
+  spread_minutes: number;
+  start_date: string;
+  end_date: string | null;
+  on_holiday: OnHoliday;
+  on_leave: OnLeave;
+  on_fail: OnFail;
+};
+
+export type Occurrence = {
+  date: string;
+  time: string;
+  status: "run" | "skipped_holiday" | "skipped_leave";
+  /** Tanggal asal bila putaran digeser karena libur */
+  moved_from: string | null;
+  reason: string;
+};
+
+export type ScheduleRun = {
+  id: string;
+  planned_for: string;
+  status: RunStatus;
+  attempt: number;
+  reason: string;
+  task_id: string | null;
+  task_status: TaskStatus | null;
+  attachment_count: number;
+};
+
+export type ScheduleTemplate = {
+  title: string;
+  brief: string;
+  entry_agent_id: string;
+  inputs: Record<string, string>;
+  priority: TaskPriority;
+  budget_limit: number;
+  web_search: WebSearchMode;
+};
+
+export type CreateScheduleRequest = ScheduleTemplate & {
+  rule: ScheduleRule;
+  source_text: string;
+  status: Extract<ScheduleStatus, "draft" | "active">;
+};
+
+export type ScheduleItem = Omit<ScheduleTemplate, "entry_agent_id"> & {
+  id: string;
+  entry_agent: AgentRef;
+  rule: ScheduleRule;
+  /** Jadwal dalam satu kalimat, disusun server */
+  rule_text: string;
+  source_text: string;
+  status: ScheduleStatus;
+  next_run_at: string | null;
+  last_run: ScheduleRun | null;
+  created_by_name: string | null;
+  can_manage: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScheduleDetail = ScheduleItem & { upcoming: Occurrence[]; runs: ScheduleRun[] };
+
+export type PreviewResponse = { rule_text: string; occurrences: Occurrence[] };
+
+export type ParseResponse = PreviewResponse & {
+  rule: ScheduleRule;
+  title: string;
+  /** Hal yang tidak dipahami atau diasumsikan */
+  notes: string[];
+};
+```
+
+- Isian: `entry_agent_id` role aktif milik organisasi; `title` 5–150; `brief` ≤ 4000; `inputs` melengkapi isian wajib
+  role; `budget_limit` dalam rentang batas biaya tugas (11.2); `source_text` ≤ 500; `status` `draft` atau `active`.
+  Tugas rutin tidak membawa lampiran.
+- `jeda`: hanya dari `active`. `lanjutkan`: dari `paused` atau `draft`; putaran selama dijeda tidak disusulkan.
+  Keadaan lain → `409`.
+- `jalankan`: membuat satu putaran sekarang, apa pun statusnya; jadwal berikutnya tidak bergeser. Role tidak aktif
+  atau anggaran habis tidak dijawab galat: putaran dicatat `failed` atau `stopped_budget` dan `message` menyebut
+  sebabnya.
+- `susulan`: hanya untuk putaran `missed`, `failed`, atau `stopped_budget` (`409`). Membuat putaran `backfill` dengan
+  `planned_for` yang sama; bila tugasnya terbuat, putaran lama menjadi `skipped` ("Sudah diisi susulan.").
+- `DELETE` menghapus jadwal dan riwayat putarannya; tugas yang sudah dibuat tetap ada.
+- `attachment_count` = jumlah lampiran pada tugas putaran itu.
+
+### 17.4 Aturan jadwal dan penghitungan putaran (E2b)
+
+Penghitungan tanggal sepenuhnya di server; AI tidak menghitung tanggal.
+
+Pemeriksaan `rule` (`422`): `start_date` wajib; `end_date` tidak sebelum `start_date`; `weekly` memerlukan
+`weekdays`; `dates` berisi 1–100 tanggal; `month_day` 0–31; `fixed` memerlukan `time` `HH:MM`; `shift_start` dan
+`shift_end` memerlukan `shift_id` milik organisasi; `spread_minutes` 0–240; `offset_minutes` −720 sampai 720.
+
+**Hari kerja** sebuah tanggal: tanggal khusus menang (`holiday` bukan hari kerja, `workday` hari kerja); selain itu
+mengikuti hari shift (jadwal terkait shift) atau hari kerja organisasi.
+
+**Tanggal yang diminta:**
+
+| `frequency` | Tanggal |
+|---|---|
+| `daily` | Setiap tanggal; hanya libur di kalender yang kena aturan libur, bukan libur mingguan |
+| `workdays` | Setiap hari kerja, ditambah libur di kalender yang jatuh pada hari yang biasanya kerja (agar aturan libur berlaku) |
+| `weekly` | Hari yang dipilih |
+| `monthly` | `month_day` tiap bulan (melebihi panjang bulan → hari terakhir); 0 = hari kerja terakhir |
+| `quarterly` | Sama dengan bulanan, pada bulan ke-0, 3, 6, 9 dihitung dari bulan `start_date` |
+| `dates` | Tanggal yang disebut |
+
+- Tanggal yang bukan hari kerja mengikuti `on_holiday`: `skip` (dicatat dilewati dengan alasannya), `previous`
+  (hari kerja sebelumnya), atau `next` (berikutnya). Pencarian paling jauh 31 hari. Dua tanggal yang bergeser ke hari
+  yang sama hanya menghasilkan satu putaran. `moved_from` berisi tanggal asal.
+- **Jam:** `fixed` memakai `time`; `shift_start` dan `shift_end` memakai jam shift ditambah `offset_minutes`. Akhir
+  shift yang melewati tengah malam jatuh pada hari berikutnya. `date` dan `time` pada `Occurrence` adalah saat putaran
+  benar-benar jalan; aturan libur dan cuti memakai tanggal shiftnya.
+- **Sebaran:** tambahan 0–`spread_minutes` menit yang tetap untuk pasangan jadwal dan tanggal (turunan hash, bukan
+  acak). Jadwal yang belum disimpan memakai sebaran sementara.
+- **Cuti:** bila penanggung jawab role cuti pada tanggal itu: `on_leave: "skip"` → `skipped_leave`; `"run"` → tetap
+  jalan, `reason` menyebut persetujuan menunggu pemilik kembali.
+- `next_run_at` = putaran `run` terdekat sesudah sekarang, hanya untuk status `active`. Jadwal aktif yang tidak punya
+  putaran lagi menjadi `ended`.
+- `upcoming` dan `PreviewResponse.occurrences`: sampai 5 putaran `run` berikutnya beserta yang dilewati di antaranya
+  (paling banyak 20 butir). Pratinjau tanpa `entry_agent_id` tidak memeriksa cuti.
+- `rule_text` disusun server, mis. "Setiap hari kerja pukul 16.05, libur dilewati."
+
+### 17.5 Memahami kalimat jadwal (E2b)
+
+- `text` 8–500 karakter. Satu panggilan model per permintaan, keluaran terstruktur berbentuk aturan, dicatat di
+  `llm_calls` dengan `kind: "schedule_parse"` dan ikut anggaran bulanan (habis → `409`). Model diberi tanggal hari ini,
+  zona waktu, hari kerja, dan nama shift organisasi.
+- Server memeriksa hasilnya dengan aturan 17.4. Bagian yang tidak sah atau tidak disebut diganti nilai bawaan dan
+  disebut di `notes`; model tidak boleh membuat shift atau role. `title` ≤ 150, boleh kosong.
+- Hasilnya hanya usulan: tidak ada yang disimpan sampai pengguna menyimpan jadwalnya.
+- Model gagal atau jawabannya tidak bisa dibaca → `503` dengan pesan agar mencoba lagi atau mengisi formulir.
+- `UsagePurpose` (16.8) bertambah `schedule_parse` ("Memahami jadwal"), sehingga `usage_today` menjadi enam baris.
+
+### 17.6 Penjadwal dan putaran (E2c)
+
+- Celery beat menjalankan `dispatch_schedules` setiap menit: mengambil jadwal `active` yang `next_run_at`-nya sudah
+  lewat dengan `FOR UPDATE SKIP LOCKED`, membuat putaran dan tugasnya, lalu menghitung `next_run_at` berikutnya. Satu
+  jadwal tidak menghasilkan dua putaran untuk `planned_for` yang sama.
+- Tugas putaran adalah tugas biasa (role, relasi, persetujuan, kantor) dengan pembuat = pembuat jadwal.
+- Terlambat kurang dari 6 jam tetap dijalankan. Lebih lama dicatat `missed`.
+- Organisasi yang ditangguhkan tidak dijalankan. Anggaran bulanan habis → `stopped_budget` (tanpa coba ulang).
+- Putaran gagal (role tidak aktif, atau tugasnya berakhir gagal) dicoba ulang 2 kali, 15 menit lalu 1 jam
+  (`retrying`, `attempt` bertambah, `task_id` menunjuk tugas terakhir). Sesudah itu `failed`.
+- **Susulan otomatis:** putaran `missed` atau `failed` pada jadwal `on_fail: "backfill"` mendapat satu putaran
+  `scheduled` pada hari kerja berikutnya pada jam yang sama, yang saat jalan menjadi `backfill`. Susulan yang gagal
+  tidak disusulkan lagi.
+- Putaran yang dilewati (`skipped_holiday`, `skipped_leave`) dicatat di riwayat saat tanggalnya lewat.
+- **Pemberitahuan:** `failed` dan `stopped_budget` dikirim ke email penanggung jawab role (bila tidak ada atau tidak
+  aktif: pembuat jadwal) lewat antrean email yang sudah ada.
+
+### 17.7 Pengaturan server, batas laju, dan jejak audit
+
+| `.env` | Bawaan | Dipakai untuk |
+|---|---|---|
+| `RATE_SCHEDULE_PARSE_PER_MINUTE` | 10 | Memahami kalimat jadwal, per pengguna |
+
+Jejak audit baru: `kalender.ubah` (hari kerja, shift, tanggal khusus, impor), `cuti.ubah` (tambah dan hapus cuti,
+sasaran = nama anggota), dan mulai E2b `rutin.ubah` (buat, ubah, hapus, jeda, lanjutkan) serta `rutin.jalankan`
+(jalankan sekarang dan susulan). Memahami dan pratinjau tidak dicatat. Catatan cuti dan arahan tugas tidak dicatat.
+
+### 17.8 Khusus data contoh
+
+Hanya simulasi, jangan ditiru backend: impor CSV memecah baris pada setiap koma atau titik koma (termasuk di dalam
+tanda kutip) dan tidak membatasi jumlah baris; tanggal dan jam memakai jam peramban; kalimat dipahami dengan pola tetap;
+sebaran memakai hash sederhana; akhir shift lintas tengah malam belum pindah hari; libur di akhir pekan masih ikut
+dihitung untuk `workdays`; tidak ada coba ulang, susulan otomatis, atau email; `jalankan` dan `susulan` membuat tugas
+simulasi.

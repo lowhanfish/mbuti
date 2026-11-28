@@ -269,6 +269,11 @@ const refresh = (db: MockDatabase, org: string) => {
   for (const s of db.schedules) if (s.organization_id === org) scheduleNext(db, s, Date.now());
 };
 
+const shiftNameTaken = (db: MockDatabase, org: string, name: string, exceptId = "") =>
+  db.work_shifts.some((s) => s.organization_id === org && s.id !== exceptId && s.name.toLowerCase() === name.toLowerCase());
+
+const DUPLICATE_SHIFT = "Sudah ada shift dengan nama itu.";
+
 const calendarRoutes: MockRoute[] = [
   {
     method: "GET",
@@ -306,6 +311,7 @@ const calendarRoutes: MockRoute[] = [
       if (isFailure(self)) return self;
       const shift = readShift(ctx.body);
       if (typeof shift === "string") return fail(422, shift);
+      if (shiftNameTaken(ctx.db, self.organization_id, shift.name)) return fail(409, DUPLICATE_SHIFT);
       ctx.db.work_shifts.push({ ...shift, id: newId("shift"), organization_id: self.organization_id });
       return ok(null, "Shift tersimpan.", 201);
     },
@@ -320,6 +326,7 @@ const calendarRoutes: MockRoute[] = [
       if (!old) return fail(404, "Shift tidak ditemukan.");
       const shift = readShift(ctx.body);
       if (typeof shift === "string") return fail(422, shift);
+      if (shiftNameTaken(ctx.db, self.organization_id, shift.name, old.id)) return fail(409, DUPLICATE_SHIFT);
       Object.assign(old, shift);
       refresh(ctx.db, self.organization_id);
       return ok(null, "Shift diperbarui.");

@@ -918,8 +918,9 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
 
 - [x] Halaman E2 dengan data contoh (28 November 2026): tab Tugas rutin (daftar, buat/ubah, detail dan riwayat),
       Pengaturan → Kalender Kerja, cuti di halaman Pengguna; mock `lib/mock/schedule.ts` dan `routes/rutin.ts`
-- [ ] Kontrak API bagian 17
-- [ ] E2a backend dan uji: kalender kerja, shift, cuti
+- [x] Kontrak API bagian 17 (28 November 2026)
+- [x] E2a backend dan uji (28 November 2026): kalender kerja, shift, hari khusus beserta impor CSV, cuti; migrasi
+      `a1d4e7c9b352` terpasang di database dev. Diuji dengan tes kalender dan migrasi saja (31 lulus), bukan seluruh pytest
 - [ ] E2b backend dan uji: jadwal, pemahaman kalimat, pratinjau
 - [ ] E2c backend dan uji: penjadwal, putaran, coba ulang, susulan, notifikasi
 

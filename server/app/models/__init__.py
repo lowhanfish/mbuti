@@ -13,6 +13,7 @@ from app.models.agent import (
 from app.models.audit import AuditLog
 from app.models.auth import AuthToken, RefreshSession, User
 from app.models.biaya import LlmCall, OrganizationSettings
+from app.models.jadwal import CalendarDay, MemberLeave, WorkShift
 from app.models.organisasi import Membership, Organization, Unit
 from app.models.pengetahuan import (
     Document,
@@ -32,6 +33,7 @@ __all__ = [
     "Approval",
     "AuditLog",
     "AuthToken",
+    "CalendarDay",
     "Citation",
     "Document",
     "DocumentChunk",
@@ -39,6 +41,7 @@ __all__ = [
     "DocumentVersion",
     "KnowledgeProposal",
     "LlmCall",
+    "MemberLeave",
     "FlowHuman",
     "FlowPosition",
     "Membership",
@@ -52,4 +55,5 @@ __all__ = [
     "ToolRequest",
     "Unit",
     "User",
+    "WorkShift",
 ]

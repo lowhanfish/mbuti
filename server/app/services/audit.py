@@ -22,11 +22,13 @@ from app.models import (
     AgentRelation,
     Approval,
     AuditLog,
+    CalendarDay,
     Document,
     Membership,
     Task,
     Unit,
     User,
+    WorkShift,
 )
 
 logger = logging.getLogger("mbuti.audit")
@@ -42,6 +44,9 @@ class Action:
     code: str
     label: str
 
+
+CALENDAR_CHANGE = Action("kalender.ubah", "Mengubah kalender kerja")
+LEAVE_CHANGE = Action("cuti.ubah", "Mengubah cuti anggota")
 
 # Kunci: (metode, alamat rute). None berarti sengaja tidak dicatat (tata letak peta).
 ACTIONS: dict[tuple[str, str], Action | None] = {
@@ -97,6 +102,16 @@ ACTIONS: dict[tuple[str, str], Action | None] = {
     ),
     ("PUT", "/pengaturan/model-ai/update"): Action("pengaturan.model", "Mengubah model AI"),
     ("PUT", "/pengaturan/batas-biaya/update"): Action("pengaturan.biaya", "Mengubah batas biaya"),
+    # Satu kode satu label: halaman Jejak Audit membaca label dari kodenya
+    ("PUT", "/pengaturan/kalender"): CALENDAR_CHANGE,
+    ("POST", "/pengaturan/kalender/shift"): CALENDAR_CHANGE,
+    ("PUT", "/pengaturan/kalender/shift/{shift_id}"): CALENDAR_CHANGE,
+    ("DELETE", "/pengaturan/kalender/shift/{shift_id}"): CALENDAR_CHANGE,
+    ("POST", "/pengaturan/kalender/hari"): CALENDAR_CHANGE,
+    ("POST", "/pengaturan/kalender/hari/impor"): CALENDAR_CHANGE,
+    ("DELETE", "/pengaturan/kalender/hari/{day_id}"): CALENDAR_CHANGE,
+    ("POST", "/organisasi/pengguna/{member_id}/cuti"): LEAVE_CHANGE,
+    ("DELETE", "/organisasi/pengguna/{member_id}/cuti/{leave_id}"): LEAVE_CHANGE,
     ("POST", "/pengetahuan/usulan"): Action("dokumen.usulan", "Mengusulkan temuan internet"),
     ("POST", "/pengetahuan/usulan/{proposal_id}/setujui"): Action(
         "dokumen.usulan", "Menyetujui usulan pengetahuan"
@@ -197,6 +212,8 @@ async def _name_of(
             "unit_id": (Unit, Unit.name),
             "role_id": (Agent, Agent.name),
             "document_id": (Document, Document.title),
+            "shift_id": (WorkShift, WorkShift.name),
+            "day_id": (CalendarDay, CalendarDay.name),
             "task_id": (Task, Task.title),
         }[key]
         query = select(column).where(model.id == wanted, model.organization_id == organization_id)
@@ -235,6 +252,8 @@ async def _describe(session: AsyncSession, member: CurrentMember, request: Reque
         "role_id",
         "unit_id",
         "member_id",
+        "shift_id",
+        "day_id",
     ):
         if key in params:
             name = await _name_of(session, organization_id, key, params[key])
