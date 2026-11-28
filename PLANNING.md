@@ -1027,6 +1027,28 @@ disimpan sebagai teks. Pustaka `openpyxl` (MIT).
       tidak dikelompokkan, dan cetakan terpotong jadi dua halaman. Belum dicoba dengan CSV atau berkas asli, beberapa
       lembar, role pemeriksa, dan data ribuan baris
 
+#### E3c. Mode penyusunan: rancangan (disepakati 29 November 2026)
+
+Mode dipilih di tiap role dan bisa diganti per tugas atau tugas rutin. Bawaannya **Dari data**, sehingga role yang ada
+tetap bekerja seperti sebelumnya.
+
+| | Dari data | Lengkapi | Susun bebas |
+|---|---|---|---|
+| Narasi, analisis, saran | Hanya dari data | Disusun role | Disusun role |
+| Angka, tanggal, kejadian yang tidak ada | Isian kosong | Isian kosong | Boleh dibuat sebagai contoh |
+| Aturan atau data tidak ditemukan | Berhenti dan memberi tahu | Tetap disusun dan ditandai | Tetap disusun dan ditandai |
+| Isian wajib role belum diisi | Diminta dulu | Diminta dulu | Tidak diminta |
+| Persetujuan manusia | Sesuai alur | Sesuai alur | Wajib bila ada isi buatan |
+
+- **Di semua mode:** role tidak mengarang nama orang, NIP, tanda tangan, nomor surat, atau nomor peraturan; aturan
+  organisasi tetap didahulukan; hitungan spreadsheet tetap dilakukan program.
+- Bagian buatan role didaftar di aplikasi sebagai **Disusun sendiri oleh role**, tidak tercetak di dokumen. Mode
+  setiap hasil tercatat di linimasa.
+- Role pemeriksa tahu modenya: isi buatan yang terdaftar tidak ditolak, yang tidak terdaftar tetap diminta direvisi.
+- **Berkas laporan:** laporan, notulen, dan proposal menjadi DOCX dan PDF, tanpa nomor register.
+- **Ditunda:** menempelkan berkas lampiran ke surat secara otomatis, dan presentasi (PPTX).
+- Uji dari halaman aplikasi terhadap backend dikumpulkan untuk sesi perbaikan.
+
 #### Pertanyaan terbuka fase E
 
 1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
