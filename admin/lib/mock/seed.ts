@@ -163,7 +163,7 @@ export interface MockDatabase {
 }
 
 /** Naikkan bila bentuk data contoh berubah, agar data lama di peramban diganti. */
-export const MOCK_DB_VERSION = 13;
+export const MOCK_DB_VERSION = 14;
 
 /** Akun demo; tombol "Masuk dengan akun demo" di halaman login memakai nilai ini. */
 export const DEMO_ACCOUNT = {
@@ -312,9 +312,10 @@ function unit(
 }
 
 const agent = (
-  fields: Omit<MockAgent, "organization_id" | "created_at" | "updated_at" | "web_search" | "active_revision_id"> & { web_search?: boolean }
+  fields: Omit<MockAgent, "organization_id" | "created_at" | "updated_at" | "web_search" | "compose_mode" | "active_revision_id"> & { web_search?: boolean; compose_mode?: MockAgent["compose_mode"] }
 ): MockAgent => ({
   web_search: false,
+  compose_mode: "data",
   active_revision_id: null,
   ...fields,
   organization_id: ORG,

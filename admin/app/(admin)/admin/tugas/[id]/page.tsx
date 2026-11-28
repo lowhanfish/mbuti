@@ -11,6 +11,7 @@ import ApprovalCard from "../components/ApprovalCard";
 import { AgentStack, BudgetMeter, TaskStatusBadge } from "../components/TaskParts";
 import { useCancelTask, useResponseDetailTask } from "../hooks/crud";
 import { PRIORITY_LABEL, TASK_STATUS, formatRupiah } from "../types";
+import { COMPOSE_MODE_LABEL } from "../../role/types";
 import { AttachmentStrip } from "../../../_components/media/image-findings";
 import ResultDocuments from "./components/ResultDocuments";
 import Timeline from "./components/Timeline";
@@ -58,6 +59,7 @@ function TaskDetail() {
               <TaskStatusBadge status={Task.status} />
               <Badge size="sm">Prioritas {PRIORITY_LABEL[Task.priority].toLowerCase()}</Badge>
               {Task.due_at && <Badge size="sm">Tenggat {formatDate(Task.due_at)}</Badge>}
+              {Task.compose_mode !== "role" && <Badge size="sm">Mode {COMPOSE_MODE_LABEL[Task.compose_mode].label.toLowerCase()}</Badge>}
             </div>
             <h2 className="text-2xl font-extrabold text-ink tracking-tight">{Task.title}</h2>
             <p className="text-sm text-muted max-w-2xl whitespace-pre-line break-words">{Task.brief || "Tanpa arahan tambahan."}</p>

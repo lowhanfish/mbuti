@@ -257,6 +257,7 @@ export const startRun = (db: MockDatabase, s: MockSchedule, plannedFor: string, 
         budget_limit: s.budget_limit,
         created_by_member_id: s.created_by_member_id,
         web_search: s.web_search,
+        compose_mode: s.compose_mode,
       },
       at
     ).id;

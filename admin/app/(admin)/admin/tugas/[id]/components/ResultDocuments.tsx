@@ -9,7 +9,9 @@ import { buttonClasses } from "../../../../_components/ui/button-classes";
 import { mediaSrc } from "../../../pengetahuan/types";
 import { SOURCE_KIND } from "../../../pengaturan/persuratan/types";
 import { useCorrectDocument, useNumberDocument, useResponseDocuments } from "../../hooks/documents";
+import { ComposedList } from "../../components/Compose";
 import type { LetterResult, TaskStatus } from "../../types";
+import ReportView from "./ReportView";
 import SheetView from "./SheetView";
 
 function LetterView({ taskId, doc }: { taskId: string; doc: LetterResult }) {
@@ -128,7 +130,12 @@ export default function ResultDocuments({ taskId, status }: { taskId: string; st
         <span className="text-[11px] text-faint">{Documents.length} berkas</span>
       </CardHeader>
       <CardContent className="space-y-6">
-        {Documents.map((doc) => (doc.kind === "sheet" ? <SheetView key={doc.id} doc={doc} /> : <LetterView key={doc.id} taskId={taskId} doc={doc} />))}
+        {Documents.map((doc) => (
+          <div key={doc.id} className="space-y-3">
+            {doc.kind === "sheet" ? <SheetView doc={doc} /> : doc.kind === "report" ? <ReportView doc={doc} /> : <LetterView taskId={taskId} doc={doc} />}
+            <ComposedList items={doc.composed} />
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

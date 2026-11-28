@@ -31,6 +31,21 @@ export interface CreateInterface {
   mode?: "formation" | "manual";
 }
 
+/** Mode penyusunan (E3c) */
+export type ComposeMode = "data" | "complete" | "free";
+
+export const COMPOSE_MODE_LABEL: Record<ComposeMode, { label: string; hint: string }> = {
+  data: { label: "Dari data", hint: "Hanya memakai data yang ada; yang kurang ditulis sebagai isian kosong. Bawaan." },
+  complete: { label: "Lengkapi", hint: "Narasi, analisis, dan saran yang kosong disusun role. Angka dan tanggal tidak dibuat." },
+  free: { label: "Susun bebas", hint: "Dokumen utuh walau tanpa data; contoh angka boleh dibuat dan wajib disetujui manusia." },
+};
+
+/** Bagian yang disusun sendiri oleh role; ditampilkan di aplikasi, tidak tercetak di dokumen */
+export interface ComposedItem {
+  part: string;
+  note: string;
+}
+
 export interface UpdateInterface extends CreateInterface {
   instructions: string;
   input_spec: InputField[];
@@ -43,6 +58,8 @@ export interface UpdateInterface extends CreateInterface {
   avatar: AvatarConfig;
   /** Boleh mencari di internet (E1d); bawaan mati */
   web_search: boolean;
+  /** Mode penyusunan bawaan role (E3c) */
+  compose_mode: ComposeMode;
 }
 
 export interface ResponseInterface extends UpdateInterface {
@@ -83,6 +100,9 @@ export interface TrialResult {
   status: "done" | "need_info" | "not_in_documents";
   output: string;
   notes: string;
+  /** Mode yang dipakai (mode role) dan bagian buatan role (E3c) */
+  compose_mode: ComposeMode;
+  composed: ComposedItem[];
   prompt_preview: string;
   missing_inputs: string[];
   /** Potongan dokumen yang dipakai sebagai dasar (kosong bila tidak ada) */

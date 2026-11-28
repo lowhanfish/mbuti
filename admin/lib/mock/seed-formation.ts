@@ -58,6 +58,7 @@ export const seedFormation = (db: MockDatabase) => {
     owner_member_id: "member-demo",
     avatar: { skin: "#c68863", hair: "#3b2a1f", hair_style: "cap", shirt: "#f59e0b", pants: "#1e293b", accessory: "glasses" },
     web_search: false,
+    compose_mode: "data",
     active_revision_id: null,
     created_at: T1,
     updated_at: T1,

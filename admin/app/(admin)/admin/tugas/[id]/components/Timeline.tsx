@@ -10,6 +10,7 @@ import { Avatar2D } from "../../../../_components/agent/avatar-2d";
 import { citationHref, citationText } from "../../../pengetahuan/types";
 import { SourceKindBadge } from "../../../pengetahuan/components/PolicyParts";
 import { RELATION_STYLE } from "../../../relasi/types";
+import { ComposeBadge, ComposedList } from "../../components/Compose";
 import { STEP_KIND_LABEL, formatRupiah, type DetailInterface, type EventType, type StepInterface, type TaskAttachment } from "../../types";
 
 const EVENT_STYLE: Partial<Record<EventType, { icon: string; tone: string }>> = {
@@ -48,6 +49,7 @@ function StepCard({ step, attachments, taskId }: { step: StepInterface; attachme
                 lewat {RELATION_STYLE[step.via_relation_type].label}
               </span>
             )}
+            <ComposeBadge mode={step.compose_mode} />
             {step.verdict && (
               <Badge size="sm" variant={step.verdict === "approved" ? "success" : "warning"}>
                 {step.verdict === "approved" ? "Diterima" : "Perlu revisi"}
@@ -96,6 +98,11 @@ function StepCard({ step, attachments, taskId }: { step: StepInterface; attachme
                   {citationText(c.document_title, c.version_no, c.page_no)}
                 </Link>
               ))}
+            </div>
+          )}
+          {step.composed.length > 0 && (
+            <div className="border-t border-line p-3">
+              <ComposedList items={step.composed} />
             </div>
           )}
           {step.web_sources.length > 0 && (

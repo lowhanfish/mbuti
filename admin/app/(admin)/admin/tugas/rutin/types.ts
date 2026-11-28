@@ -1,4 +1,4 @@
-import type { AgentRef, TaskPriority, TaskStatus, WebSearchMode } from "../types";
+import type { ComposeChoice, AgentRef, TaskPriority, TaskStatus, WebSearchMode } from "../types";
 
 export type Frequency = "daily" | "workdays" | "weekly" | "monthly" | "quarterly" | "dates";
 export type TimeMode = "fixed" | "shift_start" | "shift_end";
@@ -69,6 +69,7 @@ export type ScheduleTemplate = {
   priority: TaskPriority;
   budget_limit: number;
   web_search: WebSearchMode;
+  compose_mode: ComposeChoice;
 };
 
 export type CreateScheduleRequest = ScheduleTemplate & {

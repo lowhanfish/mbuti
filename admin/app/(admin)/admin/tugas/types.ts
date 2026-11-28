@@ -2,13 +2,14 @@ import type { LetterSource } from "../pengaturan/persuratan/types";
 import type { AvatarConfig } from "../../_components/agent/avatar-config";
 import type { SearchHit, WebSource } from "../pengetahuan/types";
 import type { RelationType } from "../relasi/types";
+import type { ComposedItem, ComposeMode } from "../role/types";
 
 export type TaskStatus = "queued" | "running" | "waiting_approval" | "completed" | "failed" | "cancelled" | "stopped_budget";
 export type TaskPriority = "low" | "normal" | "high";
 export type StepKind = "work" | "review" | "consult";
 export type StepStatus = "queued" | "running" | "done" | "revise_requested" | "failed" | "skipped";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revise";
-export type ApprovalReason = "escalate" | "requires_approval" | "max_revisions";
+export type ApprovalReason = "escalate" | "requires_approval" | "max_revisions" | "composed";
 export type EventType =
   | "created"
   | "step_started"
@@ -36,7 +37,11 @@ export interface CreateInterface {
   attachment_ids?: string[];
   /** `role` = ikut pengaturan role; `off` = tanpa internet untuk tugas ini (E1d) */
   web_search?: WebSearchMode;
+  /** `role` = ikut mode role; selain itu mengganti mode semua role di tugas ini (E3c) */
+  compose_mode?: ComposeChoice;
 }
+
+export type ComposeChoice = "role" | ComposeMode;
 
 export type WebSearchMode = "role" | "off";
 
@@ -111,6 +116,10 @@ export interface StepInterface {
   /** Sumber internet yang dipakai (E1d); kosong bila tidak mencari */
   web_sources: WebSource[];
   verdict: "approved" | "revise" | null;
+  /** Mode penyusunan yang dipakai (E3c); null sebelum dikerjakan */
+  compose_mode: ComposeMode | null;
+  /** Bagian yang disusun sendiri oleh role; kosong bila seluruhnya dari data */
+  composed: ComposedItem[];
   /** Model yang dipakai; kosong selama langkah belum selesai */
   model: string;
   cost: number;
@@ -171,6 +180,7 @@ export interface DetailInterface extends ResponseInterface {
   inputs: Array<{ label: string; value: string }>;
   attachments: TaskAttachment[];
   web_search: WebSearchMode;
+  compose_mode: ComposeChoice;
   steps: StepInterface[];
   approvals: ApprovalInterface[];
   events: EventInterface[];
@@ -192,6 +202,8 @@ interface ResultBase {
   /** Benar selama format, nomor, atau berkasnya masih dikerjakan server */
   processing: boolean;
   checks: DocumentCheck[];
+  /** Bagian buatan role pada langkah yang menghasilkan berkas ini (E3c) */
+  composed: ComposedItem[];
   created_at: string;
   updated_at: string;
 }
@@ -253,7 +265,17 @@ export interface SheetResult extends ResultBase {
   sheets: SheetPreview[];
 }
 
-export type ResultDocument = LetterResult | SheetResult;
+/** Laporan, notulen, atau proposal (E3c); dibuat program dari susunan role, tanpa nomor register */
+export interface ReportResult extends ResultBase {
+  kind: "report";
+  report_type: string;
+  /** Gambar tiap halaman PDF */
+  pages: string[];
+  docx_url: string | null;
+  pdf_url: string | null;
+}
+
+export type ResultDocument = LetterResult | SheetResult | ReportResult;
 
 export interface ResponseListInterface {
   success: boolean;
@@ -299,6 +321,7 @@ export const APPROVAL_REASON_LABEL: Record<ApprovalReason, string> = {
   escalate: "Eskalasi",
   requires_approval: "Persetujuan sebelum lanjut",
   max_revisions: "Batas revisi habis",
+  composed: "Ada isi buatan role",
 };
 
 export const isActiveTask = (status: TaskStatus) => status === "queued" || status === "running";

@@ -124,6 +124,7 @@ export const sheetsOf = (db: MockDatabase, task: MockTask): SheetResult[] => {
       origin: tables.length ? "attachment" : "text",
       source_files: files.map((a) => a.file_name),
       sheets,
+      composed: [],
       xlsx_url: csvFile(sheets[0]),
       checks: [
         { text: "Subtotal dan total dihitung program", passed: true, ref: "" },

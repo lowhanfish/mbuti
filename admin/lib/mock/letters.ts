@@ -167,6 +167,7 @@ export const documentsOf = (db: MockDatabase, task: MockTask): MockResultFile[] 
       sources: format.sources,
       format_checked: false,
       official,
+      composed: [],
       checks: [
         { text: "Kop, tanggal, hal, tujuan, dan blok tanda tangan ada", passed: true, ref: official ? ref : "" },
         { text: "Nomor diambil dari buku register saat disetujui", passed: true, ref: "Buku register" },

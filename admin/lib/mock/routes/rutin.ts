@@ -1,3 +1,4 @@
+import { composeChoice, effectiveMode } from "../compose";
 import { LIMITS } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
 import type { CalendarDayRequest, ShiftRequest } from "@/app/(admin)/admin/pengaturan/kalender/types";
 import type { CreateScheduleRequest, ScheduleDetail, ScheduleItem, ScheduleRun } from "@/app/(admin)/admin/tugas/rutin/types";
@@ -48,6 +49,7 @@ const toItem = (db: MockDatabase, self: MockMembership, s: MockSchedule): Schedu
   priority: s.priority,
   budget_limit: s.budget_limit,
   web_search: s.web_search,
+  compose_mode: s.compose_mode ?? "role",
   rule: s.rule,
   rule_text: ruleText(db, s.organization_id, s.rule),
   source_text: s.source_text,
@@ -79,7 +81,8 @@ const readBody = (ctx: MockContext, self: MockMembership): Omit<MockSchedule, "i
   const { min, max } = LIMITS.task_budget;
   const budget = Math.round(Number(b.budget_limit));
   if (!(budget >= min && budget <= max)) return "Batas biaya di luar rentang.";
-  const missing = agent.input_spec.filter((f) => f.required && !text(b.inputs?.[f.key])).map((f) => f.label);
+  const choice = composeChoice(b.compose_mode);
+  const missing = effectiveMode(choice, agent.compose_mode) === "free" ? [] : agent.input_spec.filter((f) => f.required && !text(b.inputs?.[f.key])).map((f) => f.label);
   if (missing.length) return `Lengkapi isian wajib: ${missing.join(", ")}.`;
   const invalid = b.rule ? ruleError(ctx.db, self.organization_id, b.rule) : "Aturan jadwal kosong.";
   if (invalid) return invalid;
@@ -92,6 +95,7 @@ const readBody = (ctx: MockContext, self: MockMembership): Omit<MockSchedule, "i
     priority: b.priority ?? "normal",
     budget_limit: budget,
     web_search: b.web_search === "off" ? "off" : "role",
+    compose_mode: choice,
     rule: b.rule,
     source_text: text(b.source_text, 500),
     status: b.status === "draft" ? "draft" : "active",

@@ -1,7 +1,7 @@
 /**
  * Pembentukan role (fase E1a): bahan, analisis AI, kartu keterampilan, tanya jawab, Final, dan versi role.
  */
-import type { InputField, KnowledgeScope, ModelProfile, OutputFormat } from "./types";
+import type { ComposeMode, InputField, KnowledgeScope, ModelProfile, OutputFormat } from "./types";
 import type { IngestionStatus } from "../pengetahuan/types";
 
 export type RevisionStatus = "draft" | "analyzing" | "questioning" | "ready" | "final" | "superseded" | "discarded";
@@ -77,6 +77,7 @@ export interface RevisionSnapshot {
   knowledge_scope: KnowledgeScope;
   model_profile: ModelProfile;
   web_search: boolean;
+  compose_mode: ComposeMode;
 }
 
 export interface FormationMessage {

@@ -3,8 +3,10 @@
  * Waktu disimulasikan: setiap permintaan memanggil advanceTasks(db, sekarang) yang memajukan langkah
  * yang sudah "jatuh tempo". Backend nanti menggantinya dengan worker Celery dan panggilan Gemini.
  */
+import type { ComposedItem, ComposeMode } from "@/app/(admin)/admin/role/types";
+import { composedFor, effectiveMode, modeText } from "./compose";
 import type { SearchHit, WebSource } from "@/app/(admin)/admin/pengetahuan/types";
-import type { ApprovalReason, ApprovalStatus, EventType, Finding, StepKind, StepStatus, TaskPriority, TaskStatus, WebSearchMode } from "@/app/(admin)/admin/tugas/types";
+import type { ComposeChoice, ApprovalReason, ApprovalStatus, EventType, Finding, StepKind, StepStatus, TaskPriority, TaskStatus, WebSearchMode } from "@/app/(admin)/admin/tugas/types";
 import { findingsSummary, simulateFindings } from "./media";
 import { WEB_SEARCH_PER_DAY, searchesToday, shouldSearchWeb, simulateWebSources, webSummary } from "./web";
 import { documentsForAgent, searchDocuments } from "./knowledge";
@@ -35,6 +37,7 @@ export interface MockTask {
   /** Lampiran tugas (E1c); ikut diteruskan ke role berikutnya */
   attachment_ids: string[];
   web_search: WebSearchMode;
+  compose_mode?: ComposeChoice;
 }
 
 export interface MockStep {
@@ -52,6 +55,8 @@ export interface MockStep {
   findings: Finding[];
   web_sources: WebSource[];
   verdict: "approved" | "revise" | null;
+  compose_mode?: ComposeMode | null;
+  composed?: ComposedItem[];
   /** Model yang dipakai; kosong selama langkah belum selesai */
   model: string;
   cost: number;
@@ -326,7 +331,30 @@ const route = (db: MockDatabase, task: MockTask, from: MockStep, at: number, ski
 
 const pendingApprovals = (db: MockDatabase, task: MockTask) => db.approvals.filter((a) => a.task_id === task.id && a.status === "pending");
 
+/** Hasil Susun bebas yang berisi buatan role wajib diputuskan manusia sebelum tugas selesai (E3c) */
+const requestComposedApprovals = (db: MockDatabase, task: MockTask, at: number) => {
+  const latest = new Map<string, MockStep>();
+  for (const s of db.task_steps) if (s.task_id === task.id && s.kind === "work" && s.status === "done") latest.set(s.agent_id, s);
+  for (const step of latest.values()) {
+    if (step.compose_mode !== "free" || !step.composed?.length) continue;
+    if (db.approvals.some((a) => a.step_id === step.id && a.reason === "composed")) continue;
+    requestApproval(
+      db,
+      task,
+      {
+        step_id: step.id,
+        reason: "composed",
+        question: `Hasil ${agentOf(db, step.agent_id)?.name} berisi bagian buatan sendiri (${step.composed.map((c) => c.part).join(", ")}). Setujui?`,
+        requested_from_member_id: ownerOf(db, step.agent_id, task),
+        follow_up: { type: "none" },
+      },
+      at
+    );
+  }
+};
+
 const settle = (db: MockDatabase, task: MockTask, at: number) => {
+  if (!task.queue.length && !pendingApprovals(db, task).length) requestComposedApprovals(db, task, at);
   if (task.queue.length) {
     task.status = "running";
   } else if (pendingApprovals(db, task).length) {
@@ -386,7 +414,9 @@ const finishStep = (db: MockDatabase, task: MockTask, step: MockStep, at: number
       log(db, task, "step_done", `${agent.name} mencari di internet karena dokumen internal kurang (${step.web_sources.length} sumber).`, at, step.id);
     }
     step.output = [workOutput(agent, task, step, hits, adviceFor(db, step)), ...findingsSummary(step.findings), ...webSummary(step.web_sources)].join("\n");
-    log(db, task, "step_done", `${agent.name} menyelesaikan pekerjaan.`, at, step.id);
+    step.compose_mode = effectiveMode(task.compose_mode, agent.compose_mode);
+    step.composed = composedFor(step.compose_mode);
+    log(db, task, "step_done", `${agent.name} menyelesaikan pekerjaan (${modeText(step.compose_mode, step.composed)}).`, at, step.id);
   } else if (step.kind === "consult") {
     step.output = `Masukan dari ${agent.name}: ${hits[0] ? `${hits[0].heading} — ${hits[0].snippet.slice(0, 160)}` : "tidak ada aturan khusus di dokumen saya untuk hal ini."}`;
     log(db, task, "step_done", `${agent.name} memberi masukan.`, at, step.id);
@@ -514,13 +544,14 @@ export const advanceTasks = (db: MockDatabase, now: number) => {
 export const createTask = (
   db: MockDatabase,
   fields: Pick<MockTask, "organization_id" | "title" | "brief" | "inputs" | "entry_agent_id" | "priority" | "due_at" | "budget_limit" | "created_by_member_id"> &
-    Partial<Pick<MockTask, "attachment_ids" | "web_search">>,
+    Partial<Pick<MockTask, "attachment_ids" | "web_search" | "compose_mode">>,
   at: number
 ) => {
   const task: MockTask = {
     id: id("task"),
     attachment_ids: [],
     web_search: "role",
+    compose_mode: "role",
     ...fields,
     status: "queued",
     cost_used: 0,

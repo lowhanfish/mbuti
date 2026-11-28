@@ -13,7 +13,8 @@ import { downstream } from "../../relasi/layout-graph";
 import { RELATION_STYLE } from "../../relasi/types";
 import { useResponseListRole } from "../../role/hooks/crud";
 import type { InputField } from "../../role/types";
-import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type TaskPriority, type TaskAttachment, type WebSearchMode } from "../types";
+import { PRIORITY_LABEL, formatRupiah, type CreateInterface, type ComposeChoice, type TaskPriority, type TaskAttachment, type WebSearchMode } from "../types";
+import { ComposeSelect } from "./Compose";
 
 export function InputControl({ field, value, onChange }: { field: InputField; value: string; onChange: (v: string) => void }) {
   if (field.type === "long_text") return <Textarea label={field.label} required={field.required} rows={2} value={value} onChange={(e) => onChange(e.target.value)} />;
@@ -115,6 +116,7 @@ export default function CreateTaskModal({
   const [touched, setTouched] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [webSearch, setWebSearch] = useState<WebSearchMode>("role");
+  const [composeMode, setComposeMode] = useState<ComposeChoice>("role");
   const { Budget } = useResponseBudgetSettings();
   const budgetText = budgetInput ?? (Budget ? String(Budget.default_task_budget) : "");
   const budget = Number(budgetText);
@@ -125,7 +127,9 @@ export default function CreateTaskModal({
   const exhausted = Boolean(Budget && Budget.usage.remaining <= 0);
 
   const agent = roles.find((r) => r.id === agentId);
-  const missing = (agent?.input_spec ?? []).filter((f) => f.required && !inputs[f.key]?.trim()).map((f) => f.label);
+  // Susun bebas tidak meminta isian wajib role (E3c)
+  const free = (composeMode === "role" ? agent?.compose_mode : composeMode) === "free";
+  const missing = free ? [] : (agent?.input_spec ?? []).filter((f) => f.required && !inputs[f.key]?.trim()).map((f) => f.label);
   const titleError = touched && title.trim().length < 5 ? "Judul minimal 5 karakter." : undefined;
 
   const submit = () => {
@@ -141,6 +145,7 @@ export default function CreateTaskModal({
       budget_limit: budget,
       attachment_ids: attachments.map((a) => a.id),
       web_search: webSearch,
+      compose_mode: composeMode,
     });
   };
 
@@ -227,11 +232,12 @@ export default function CreateTaskModal({
                 </span>
               </label>
             )}
+            <ComposeSelect value={composeMode} roleMode={agent.compose_mode} onChange={setComposeMode} />
             {agent.input_spec.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {agent.input_spec.map((f) => (
                   <div key={f.key} className={f.type === "long_text" ? "sm:col-span-2" : ""}>
-                    <InputControl field={f} value={inputs[f.key] ?? ""} onChange={(v) => setInputs((prev) => ({ ...prev, [f.key]: v }))} />
+                    <InputControl field={free ? { ...f, required: false } : f} value={inputs[f.key] ?? ""} onChange={(v) => setInputs((prev) => ({ ...prev, [f.key]: v }))} />
                   </div>
                 ))}
               </div>

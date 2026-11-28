@@ -8,7 +8,8 @@ import { LIMITS } from "../../../pengaturan/batas-biaya/types";
 import { useResponseCalendar } from "../../../pengaturan/kalender/hooks/crud";
 import { useResponseListRole } from "../../../role/hooks/crud";
 import { InputControl } from "../../components/CreateTaskModal";
-import { PRIORITY_LABEL, formatRupiah, type TaskPriority, type WebSearchMode } from "../../types";
+import { PRIORITY_LABEL, formatRupiah, type TaskPriority, type ComposeChoice, type WebSearchMode } from "../../types";
+import { ComposeSelect } from "../../components/Compose";
 import { useParseSchedule, useResponsePreview, useSaveSchedule } from "../hooks/crud";
 import { emptyRule, todayIso, type CreateScheduleRequest, type ScheduleItem, type ScheduleRule } from "../types";
 import OccurrenceList from "./OccurrenceList";
@@ -31,6 +32,7 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
   const [inputs, setInputs] = useState<Record<string, string>>(editing?.inputs ?? {});
   const [priority, setPriority] = useState<TaskPriority>(editing?.priority ?? "normal");
   const [webSearch, setWebSearch] = useState<WebSearchMode>(editing?.web_search ?? "role");
+  const [composeMode, setComposeMode] = useState<ComposeChoice>(editing?.compose_mode ?? "role");
   const [budgetInput, setBudgetInput] = useState<string | null>(editing ? String(editing.budget_limit) : null);
   const [touched, setTouched] = useState(false);
 
@@ -39,7 +41,9 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
   const budgetText = budgetInput ?? (Budget ? String(Budget.default_task_budget) : "");
   const budget = Number(budgetText);
   const budgetValid = Number.isInteger(budget) && budget >= LIMITS.task_budget.min && budget <= LIMITS.task_budget.max;
-  const missing = (agent?.input_spec ?? []).filter((f) => f.required && !inputs[f.key]?.trim()).map((f) => f.label);
+  // Susun bebas tidak meminta isian wajib role (E3c)
+  const free = (composeMode === "role" ? agent?.compose_mode : composeMode) === "free";
+  const missing = free ? [] : (agent?.input_spec ?? []).filter((f) => f.required && !inputs[f.key]?.trim()).map((f) => f.label);
   const titleError = touched && title.trim().length < 5 ? "Judul minimal 5 karakter." : undefined;
   const problem = !agent ? "Pilih role." : missing.length ? `Lengkapi: ${missing.join(", ")}` : ruleError;
 
@@ -66,6 +70,7 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
           priority,
           budget_limit: budget,
           web_search: webSearch,
+          compose_mode: composeMode,
           rule,
           source_text: sentence.trim(),
           status,
@@ -172,11 +177,12 @@ export default function ScheduleModal({ editing, onClose, onSaved }: { editing?:
           <div className="grid gap-3 sm:grid-cols-2">
             {agent.input_spec.map((f) => (
               <div key={f.key} className={f.type === "long_text" ? "sm:col-span-2" : ""}>
-                <InputControl field={f} value={inputs[f.key] ?? ""} onChange={(v) => setInputs((prev) => ({ ...prev, [f.key]: v }))} />
+                <InputControl field={free ? { ...f, required: false } : f} value={inputs[f.key] ?? ""} onChange={(v) => setInputs((prev) => ({ ...prev, [f.key]: v }))} />
               </div>
             ))}
           </div>
         )}
+        {agent && <ComposeSelect value={composeMode} roleMode={agent.compose_mode} onChange={setComposeMode} />}
         {agent?.web_search && (
           <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
             <input type="checkbox" className="accent-[#7c4dff]" checked={webSearch === "off"} onChange={(e) => setWebSearch(e.target.checked ? "off" : "role")} />

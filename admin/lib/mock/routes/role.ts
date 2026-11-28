@@ -1,5 +1,6 @@
+import { COMPOSE_MODES, composedFor } from "../compose";
 import type { SearchHit } from "@/app/(admin)/admin/pengetahuan/types";
-import type {
+import type { ComposeMode,
   AgentStatus,
   InputField,
   KnowledgeScope,
@@ -115,6 +116,7 @@ const applyFields = (db: MockDatabase, orgId: string, target: MockAgent, body: u
   }
   if ("avatar" in b) target.avatar = cleanAvatar(b.avatar, target.avatar);
   if ("web_search" in b) target.web_search = Boolean(b.web_search);
+  if ("compose_mode" in b && COMPOSE_MODES.includes(b.compose_mode as ComposeMode)) target.compose_mode = b.compose_mode as ComposeMode;
   if (target.status === "active" && target.goal.trim().length < 10) return "Role aktif harus punya tujuan kerja minimal 10 karakter.";
   return null;
 };
@@ -242,6 +244,7 @@ export const roleRoutes: MockRoute[] = [
         owner_member_id: self.id,
         avatar: avatarFromSeed(text(b.name, 60) || "role"),
         web_search: false,
+        compose_mode: "data",
         active_revision_id: null,
         created_at: nowIso(),
         updated_at: nowIso(),
@@ -326,9 +329,12 @@ export const roleRoutes: MockRoute[] = [
       const hits = searchDocuments(ctx.db, documentsForAgent(ctx.db, agent), query, 4);
       const prompt_preview = composePrompt(ctx.db, agent, brief, inputs, hits);
       // Model hanya dipanggil bila isian lengkap dan ada dokumen atau gambar yang bisa dibaca
-      const callsModel = !missing.length && (hits.length > 0 || attachments.length > 0);
+      const mode = agent.compose_mode ?? "data";
+      // Susun bebas tidak meminta isian wajib; selain Dari data, dokumen yang tidak ada tidak menghentikan (E3c)
+      const blocked = mode === "free" ? false : missing.length > 0;
+      const callsModel = !blocked && (hits.length > 0 || attachments.length > 0 || mode !== "data");
       const web =
-        !missing.length && shouldSearchWeb(agent, "role", query, hits) && searchesToday(ctx.db, self.organization_id, Date.now()) < WEB_SEARCH_PER_DAY
+        !blocked && shouldSearchWeb(agent, "role", query, hits) && searchesToday(ctx.db, self.organization_id, Date.now()) < WEB_SEARCH_PER_DAY
           ? simulateWebSources(query, nowIso())
           : [];
       if (web.length) {
@@ -343,7 +349,7 @@ export const roleRoutes: MockRoute[] = [
         return fail(409, "Anggaran bulan ini sudah habis, uji coba tidak bisa dijalankan.");
       }
       let result: TrialResult;
-      if (missing.length) {
+      if (blocked) {
         result = {
           simulated: true,
           status: "need_info",
@@ -351,6 +357,8 @@ export const roleRoutes: MockRoute[] = [
           notes: "Role meminta isian wajib sebelum bekerja, sesuai daftar isian di tab Instruksi.",
           prompt_preview,
           missing_inputs: missing,
+          compose_mode: mode,
+          composed: [],
           citations: [],
           cost: 0,
           model: "",
@@ -365,6 +373,8 @@ export const roleRoutes: MockRoute[] = [
           notes: "Simulasi. Pada fase backend, langkah ini memanggil Gemini dengan susunan instruksi di bawah.",
           prompt_preview,
           missing_inputs: [],
+          compose_mode: mode,
+          composed: [],
           citations: [],
           cost: 0,
           model: "",
@@ -389,6 +399,8 @@ export const roleRoutes: MockRoute[] = [
           notes: "Simulasi. Rujukan dibuat dari potongan dokumen yang ditemukan, bukan ditulis model.",
           prompt_preview,
           missing_inputs: [],
+          compose_mode: mode,
+          composed: composedFor(mode),
           citations: hits,
           cost,
           model: model.id,

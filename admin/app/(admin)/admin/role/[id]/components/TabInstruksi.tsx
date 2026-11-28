@@ -5,9 +5,11 @@ import { Button, Card, CardContent, CardHeader, CardTitle, IconButton, Input, Se
 import { Icon } from "../../../../_components/admin-icons";
 import {
   INPUT_TYPE_LABEL,
+  COMPOSE_MODE_LABEL,
   KNOWLEDGE_SCOPE_LABEL,
   MODEL_PROFILE_LABEL,
   OUTPUT_FORMAT_LABEL,
+  type ComposeMode,
   type InputField,
   type InputFieldType,
   type KnowledgeScope,
@@ -20,7 +22,7 @@ import { useResponseModelSettings } from "../../../pengaturan/model-ai/hooks/cru
 
 type InstruksiFields = Pick<
   UpdateInterface,
-  "instructions" | "input_spec" | "output_format" | "output_template" | "acceptance_criteria" | "knowledge_scope" | "model_profile" | "web_search"
+  "instructions" | "input_spec" | "output_format" | "output_template" | "acceptance_criteria" | "knowledge_scope" | "model_profile" | "web_search" | "compose_mode"
 >;
 
 const pick = (r: ResponseInterface): InstruksiFields => ({
@@ -32,6 +34,7 @@ const pick = (r: ResponseInterface): InstruksiFields => ({
   knowledge_scope: r.knowledge_scope,
   model_profile: r.model_profile,
   web_search: r.web_search,
+  compose_mode: r.compose_mode,
 });
 
 function OptionCards<T extends string>({
@@ -280,6 +283,12 @@ export default function TabInstruksi({
             options={profileOptions}
             value={form.model_profile}
             onChange={(v) => set("model_profile", v)}
+          />
+          <OptionCards<ComposeMode>
+            label="Mode penyusunan (bisa diganti per tugas)"
+            options={COMPOSE_MODE_LABEL}
+            value={form.compose_mode}
+            onChange={(v) => set("compose_mode", v)}
           />
           <OptionCards<"off" | "on">
             label="Pencarian internet"

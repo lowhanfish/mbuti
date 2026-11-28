@@ -7,7 +7,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Skeleton } fro
 import { Icon } from "../../../../_components/admin-icons";
 import { REVISION_SOURCE_LABEL, REVISION_STATUS_LABEL, type RevisionSnapshot } from "../../formation-types";
 import { useFormation, useRestoreVersion, useVersionDetail, useVersions } from "../../hooks/formation";
-import { KNOWLEDGE_SCOPE_LABEL, MODEL_PROFILE_LABEL, OUTPUT_FORMAT_LABEL, type ResponseInterface } from "../../types";
+import { COMPOSE_MODE_LABEL, KNOWLEDGE_SCOPE_LABEL, MODEL_PROFILE_LABEL, OUTPUT_FORMAT_LABEL, type ResponseInterface } from "../../types";
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -23,6 +23,7 @@ const fields = (s: RevisionSnapshot): Array<[string, string]> => [
   ["Lingkup pengetahuan", KNOWLEDGE_SCOPE_LABEL[s.knowledge_scope].label],
   ["Model", MODEL_PROFILE_LABEL[s.model_profile].label],
   ["Pencarian internet", s.web_search ? "Boleh" : "Mati"],
+  ["Mode penyusunan", COMPOSE_MODE_LABEL[s.compose_mode ?? "data"].label],
 ];
 
 function Compare({ roleId, leftId, rightId }: { roleId: string; leftId: string; rightId: string }) {

@@ -79,6 +79,7 @@ export const snapshotOf = (a: MockAgent): RevisionSnapshot => ({
   knowledge_scope: a.knowledge_scope,
   model_profile: a.model_profile,
   web_search: a.web_search,
+  compose_mode: a.compose_mode,
 });
 
 export const revisionsOf = (db: MockDatabase, agentId: string) =>

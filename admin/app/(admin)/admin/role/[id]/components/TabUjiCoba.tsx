@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { AttachmentPicker } from "../../../../_components/media/attachment-picker";
 import { ImageFindings } from "../../../../_components/media/image-findings";
 import { WebSources } from "../../../pengetahuan/components/WebSources";
+import { ComposedList } from "../../../tugas/components/Compose";
 import type { TaskAttachment } from "../../../tugas/types";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, Textarea } from "../../../../_components/ui";
 import { Icon } from "../../../../_components/admin-icons";
@@ -127,6 +128,7 @@ export default function TabUjiCoba({ role }: { role: ResponseInterface }) {
                   {result.output}
                 </div>
                 {result.notes && <p className="text-xs text-muted">{result.notes}</p>}
+                <ComposedList items={result.composed} />
                 <p className="text-[11px] text-faint">
                   {result.cost > 0 ? `Biaya uji coba ${formatRupiah(result.cost)} · ${result.model}` : "Model tidak dipanggil, tanpa biaya."}
                 </p>

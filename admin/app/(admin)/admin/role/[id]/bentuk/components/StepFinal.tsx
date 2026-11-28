@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Textare
 import { Icon } from "../../../../../_components/admin-icons";
 import { confirmAlert } from "@/lib/show_swall";
 import type { FormationInterface, RevisionSnapshot } from "../../../formation-types";
-import { INPUT_TYPE_LABEL, KNOWLEDGE_SCOPE_LABEL, MODEL_PROFILE_LABEL, OUTPUT_FORMAT_LABEL } from "../../../types";
+import { COMPOSE_MODE_LABEL, INPUT_TYPE_LABEL, KNOWLEDGE_SCOPE_LABEL, MODEL_PROFILE_LABEL, OUTPUT_FORMAT_LABEL } from "../../../types";
 import { useDiscardRevision, useFinalize } from "../../../hooks/formation";
 
 export function SnapshotView({ snapshot }: { snapshot: RevisionSnapshot }) {
@@ -15,6 +15,7 @@ export function SnapshotView({ snapshot }: { snapshot: RevisionSnapshot }) {
     ["Lingkup pengetahuan", KNOWLEDGE_SCOPE_LABEL[snapshot.knowledge_scope].label],
     ["Model", MODEL_PROFILE_LABEL[snapshot.model_profile].label],
     ["Pencarian internet", snapshot.web_search ? "Boleh" : "Mati"],
+    ["Mode penyusunan", COMPOSE_MODE_LABEL[snapshot.compose_mode ?? "data"].label],
   ];
   return (
     <div className="space-y-4">

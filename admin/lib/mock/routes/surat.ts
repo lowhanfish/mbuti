@@ -5,6 +5,7 @@ import { readImage } from "../media";
 import { fail, ok, type MockContext, type MockRoute } from "../router";
 import type { MockTask } from "../engine";
 import type { MockDatabase, MockMembership } from "../seed";
+import { reportsOf } from "../reports";
 import { sheetsOf } from "../sheets";
 
 const BASE = "/api/v1/admin/pengaturan/persuratan";
@@ -42,7 +43,10 @@ export const suratRoutes: MockRoute[] = [
       const documents = documentsOf(ctx.db, task);
       // Berkas dan nomornya dibuat saat pertama dibaca, jadi perlu disimpan
       saveDb();
-      return ok([...documents.map((d) => ({ ...d, can_number: canNumber(ctx.db, self, task, d) })), ...sheetsOf(ctx.db, task)]);
+      // Daftar bagian buatan role diambil dari langkah kerja terakhir (E3c)
+      const composed = ctx.db.task_steps.filter((s) => s.task_id === task.id && s.kind === "work" && s.status === "done").at(-1)?.composed ?? [];
+      const all = [...documents.map((d) => ({ ...d, can_number: canNumber(ctx.db, self, task, d) })), ...sheetsOf(ctx.db, task), ...reportsOf(ctx.db, task)];
+      return ok(all.map((d) => ({ ...d, composed })));
     },
   },
   {

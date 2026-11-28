@@ -1,3 +1,4 @@
+import { composeChoice, effectiveMode } from "../compose";
 import { LIMITS } from "@/app/(admin)/admin/pengaturan/batas-biaya/types";
 import { MAX_IMAGE_BYTES } from "@/app/(admin)/admin/pengetahuan/types";
 import { MAX_ATTACHMENTS, MAX_PDF_PAGES, placeholderPage, readImage, toAttachment, type MockAttachment } from "../media";
@@ -91,6 +92,7 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
       .map(([k, v]) => ({ label: entry?.input_spec.find((f) => f.key === k)?.label ?? k, value: v })),
     attachments: db.task_attachments.filter((a) => (t.attachment_ids ?? []).includes(a.id)).map((a) => toAttachment(db, a)),
     web_search: t.web_search ?? "role",
+    compose_mode: t.compose_mode ?? "role",
     steps: db.task_steps
       .filter((s) => s.task_id === t.id)
       .map((s) => ({
@@ -106,6 +108,8 @@ const toDetail = (db: MockDatabase, t: MockTask): DetailInterface => {
         findings: s.findings ?? [],
         web_sources: s.web_sources ?? [],
         verdict: s.verdict,
+        compose_mode: s.compose_mode ?? null,
+        composed: s.composed ?? [],
         model: s.model,
         cost: s.cost,
         tokens: s.tokens,
@@ -251,7 +255,8 @@ export const tugasRoutes: MockRoute[] = [
       const inputs: Record<string, string> = {};
       const raw = (b.inputs ?? {}) as Record<string, unknown>;
       for (const f of agent.input_spec) inputs[f.key] = text(raw[f.key], 2000);
-      const missing = agent.input_spec.filter((f) => f.required && !inputs[f.key]).map((f) => f.label);
+      const choice = composeChoice(b.compose_mode);
+      const missing = effectiveMode(choice, agent.compose_mode) === "free" ? [] : agent.input_spec.filter((f) => f.required && !inputs[f.key]).map((f) => f.label);
       if (missing.length) return fail(422, `Lengkapi isian wajib: ${missing.join(", ")}.`);
       const budget = Math.round(Number(b.budget_limit));
       const { min, max } = LIMITS.task_budget;
@@ -277,6 +282,7 @@ export const tugasRoutes: MockRoute[] = [
           created_by_member_id: self.id,
           attachment_ids: attachments.map((a) => a.id),
           web_search: b.web_search === "off" ? "off" : "role",
+          compose_mode: choice,
         },
         Date.now()
       );
