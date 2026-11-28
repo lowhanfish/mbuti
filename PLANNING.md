@@ -1064,6 +1064,43 @@ tetap bekerja seperti sebelumnya.
 contoh Word, dan kop gambar; E3b dengan CSV, berkas asli, dan banyak lembar. Temuan lama yang belum diputuskan: surat
 tanpa aturan bisa selesai tanpa pemeriksaan manusia, dan jejak audit dengan kode bersama menampilkan label terakhir.
 
+#### E4. Bekerja di aplikasi luar: rancangan (disepakati 29 November 2026)
+
+Role membuka aplikasi **berbasis web**, masuk dengan akun yang disimpan, lalu mengisi atau membaca halaman. Aplikasi
+desktop dan ponsel tidak termasuk.
+
+**Cara role belajar:** dipelajari sekali, lalu diulang program (model dipakai saat belajar dan saat tampilan berubah).
+
+1. Pengguna menulis tujuannya dengan bahasa biasa (*"isi laporan harian"*).
+2. Role menjelajah dan menyusun **alur** berisi langkah-langkah, dengan tangkapan layar.
+3. Pengguna memeriksa dan menyetujui alur.
+4. Putaran berikutnya dijalankan program. Bila halaman berubah, putaran berhenti dan role mengusulkan perbaikan alur.
+
+**Brankas akun per role**
+
+- Alamat aplikasi, username, password, dan kunci authenticator, terenkripsi.
+- Password hanya bisa diganti, tidak bisa dilihat lagi, dan tidak pernah dikirim ke model AI.
+- Program mengisinya hanya di alamat yang terdaftar.
+- Mengubah brankas memerlukan kode authenticator penanggung jawab role, sehingga akun MBUTI perlu verifikasi dua
+  langkah.
+- Kunci enkripsi pengembangan dibuat otomatis tanpa mengubah `server/.env`; di server wajib diatur sendiri.
+
+**Pengaman**
+
+- Kirim atau simpan wajib disetujui, dan bisa dibebaskan per alur yang sudah terbukti. Hapus selalu wajib disetujui.
+- Pembayaran dan transfer tidak didukung. CAPTCHA tidak dilewati: putaran berhenti dan pemilik diberi tahu.
+- OTP lewat SMS atau email dimasukkan pemilik di MBUTI selama putaran menunggu (WhatsApp tetap ditunda).
+- Gagal masuk berhenti setelah 2 kali. Tiap putaran punya bukti tangkapan layar dan catatan audit. Alamat jaringan
+  internal diblokir di server.
+- Kepatuhan pada ketentuan aplikasi sasaran menjadi tanggung jawab tenant.
+
+**Tahapan** (tiap tahap: halaman data contoh → kontrak API → backend → uji dengan aplikasi tiruan lokal):
+
+- [ ] E4a verifikasi dua langkah akun MBUTI, brankas, dan kode authenticator
+- [ ] E4b belajar alur, memutar ulang, dan bukti. Memerlukan Playwright (Apache) dan Chromium (BSD), sekitar 500 MB:
+      minta izin sebelum memasang
+- [ ] E4c alur dipakai dalam tugas dan tugas rutin, dengan persetujuan
+
 #### Pertanyaan terbuka fase E
 
 1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
