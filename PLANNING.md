@@ -934,6 +934,59 @@ pada hari kerja ±16–50 panggilan sehari; uji coba memakai satu atau dua jadwa
       sesudah prompt diperbaiki, tiga kalimat contoh benar. Role tanpa dokumen tidak memanggil model dan menunggu
       keputusan manusia (perilaku mesin yang sudah ada), sehingga hasil kerja role terjadwal belum diuji dengan Gemini
 
+#### E3. Surat dan berkas hasil: rancangan (disepakati 28 November 2026)
+
+Hasil kerja role menjadi berkas yang bisa langsung dipakai, dimulai dari surat. **Tidak ada templat wajib dan tidak
+memakai penanda `{{kolom}}`:** role menyusun surat secara bebas mengikuti rujukan terbaik yang tersedia.
+
+**Bagian dan urutan:** **E3a** surat (DOCX dan PDF); **E3b** spreadsheet (XLSX, angka dihitung program); **E3c** mode
+penyusunan (dari data, lengkapi, susun bebas). Presentasi (PPTX) dan alat olah PDF (gabung, pisah, tanda air,
+formulir) menyusul bila diperlukan.
+
+**Urutan rujukan format surat** (selalu per organisasi; misalnya Perbup tata naskah hanya berlaku bagi pemerintah
+kabupaten yang mengunggahnya):
+
+1. **Aturan persuratan** yang diunggah (PDF atau Word): jenis naskah, susunan, ukuran, penomoran, kewenangan tanda
+   tangan.
+2. **Contoh surat Word** yang diunggah: kop, huruf, margin, dan gaya dibaca langsung dari berkasnya. Aturan
+   menentukan ketentuan, contoh menunjukkan tampilan; bila bertentangan, aturan dipakai dan perbedaannya
+   diberitahukan.
+3. **Internet** (pencarian gratis, cadangan Gemini), beserta tautan sumber.
+4. **Bentuk umum** bila tidak ada satu pun.
+
+Hasil dari urutan 3 dan 4 ditandai belum sesuai aturan resmi. Referensi internet bisa diusulkan menjadi pengetahuan
+organisasi (alur usulan E1).
+
+**Alur**
+
+1. Pengguna meminta dengan bahasa biasa; role mengenali jenis naskahnya dan mencari rujukan.
+2. Saat sebuah jenis naskah **pertama kali** diminta, AI membaca rujukannya dan mencatat **catatan format** (kertas,
+   margin, huruf, kop, susunan bagian, penomoran, penanda tangan) beserta halaman sumbernya. Catatan dipakai lagi
+   agar seragam dan hemat kuota. Tidak perlu disahkan dulu; hasilnya ditandai **format belum diperiksa**.
+3. Role menyusun isi sebagai **susunan terstruktur** (bagian, paragraf, daftar, tabel) yang boleh bertambah atau
+   berkurang sesuai kebutuhan.
+4. Program membuat DOCX dari susunan itu dan catatan format, lalu LibreOffice (terpisah, batas waktu, makro mati)
+   membuat PDF. Pembuatan berkas tidak memakai panggilan model tambahan.
+5. Hasil diperiksa terhadap ketentuan; temuannya ditunjukkan dengan rujukan halaman.
+6. Koreksi dengan bahasa biasa (*"tembusan taruh di kiri bawah"*) mengubah catatan format dan diingat. Rujukan yang
+   diganti membuat catatan format disusun ulang.
+
+**Nomor, kop, dan tanda tangan**
+
+- **Nomor surat** dari buku register tiap organisasi, polanya mengikuti aturan, diberikan **saat surat disetujui**
+  agar draf yang batal tidak membuat nomor loncat. Sebelum itu kolomnya kosong. Model tidak mengarang nomor.
+- **Kop dan lambang** diambil dari contoh Word, atau diunggah sekali per organisasi atau unit sebagai gambar.
+- **Tanda tangan:** role tidak menandatangani. Ia menyiapkan blok nama dan jabatan pejabat berwenang menurut aturan;
+  penandatanganan dilakukan manusia di luar MBUTI (tanda tangan elektronik belum termasuk).
+
+**Urutan kerja:** halaman dengan data contoh → kontrak API → backend → uji dengan dokumen contoh atau publik.
+
+- [ ] E3a halaman dengan data contoh
+- [ ] E3a kontrak API
+- [ ] E3a backend dan uji
+- [ ] E3b spreadsheet
+- [ ] E3c mode penyusunan
+
 #### Pertanyaan terbuka fase E
 
 1. Cara isolasi ruang kerja tanpa Docker (sandbox tingkat sistem operasi atau layanan sandbox terpisah).
